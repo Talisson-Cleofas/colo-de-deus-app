@@ -9,41 +9,23 @@ import { AppModule } from './app.module';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
-
   const config = app.get(ConfigService);
 
-  // Render utiliza PORT automaticamente.
-  // Localmente continua utilizando API_PORT.
   const port = Number(
     config.get('PORT') ??
-    config.get('API_PORT') ??
-    4000,
+      config.get('API_PORT') ??
+      4000,
   );
 
-  const webUrls = (
-    config.get<string>('WEB_URL') ??
-    'http://localhost:5173'
-  )
+  const webUrls = (config.get<string>('WEB_URL') ?? 'http://localhost:5173')
     .split(',')
     .map((value) => value.trim())
     .filter(Boolean);
 
   app.setGlobalPrefix('api');
-
   app.use(helmet());
-
-  app.use(
-    compression({
-      threshold: 2048,
-      level: 6,
-    }),
-  );
-
-  app.enableCors({
-    origin: webUrls,
-    credentials: true,
-  });
-
+  app.use(compression({ threshold: 2048, level: 6 }));
+  app.enableCors({ origin: webUrls, credentials: true });
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
@@ -55,18 +37,19 @@ async function bootstrap() {
   const swaggerConfig = new DocumentBuilder()
     .setTitle('Colo de Deus API')
     .setDescription('API da Missão Brasília')
-    .setVersion('5.5.2')
+    .setVersion('5.5.3')
     .addBearerAuth()
     .build();
 
-  const document = SwaggerModule.createDocument(app, swaggerConfig);
-
-  SwaggerModule.setup('docs', app, document);
+  SwaggerModule.setup(
+    'docs',
+    app,
+    SwaggerModule.createDocument(app, swaggerConfig),
+  );
 
   await app.listen(port, '0.0.0.0');
 
   const environment = config.get('NODE_ENV') ?? 'development';
-
   console.log('');
   console.log('==========================================');
   console.log('🚀 COLO DE DEUS API');
@@ -81,5 +64,5 @@ async function bootstrap() {
 
 bootstrap().catch((error: unknown) => {
   console.error('Falha ao iniciar a API:', error);
-  process.exit(1);
+  process.exitCode = 1;
 });

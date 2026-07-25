@@ -1,20 +1,28 @@
 import {
   AutoStoriesOutlined,
   CalendarMonthOutlined,
+  Diversity3Outlined,
   FavoriteBorderOutlined,
   GroupsOutlined,
-  Diversity3Outlined,
   NotificationsNoneOutlined,
 } from '@mui/icons-material';
-import { Avatar, Badge, Box, IconButton, Stack, Tooltip, Typography } from '@mui/material';
+import {
+  Avatar,
+  Badge,
+  Box,
+  IconButton,
+  Stack,
+  Tooltip,
+  Typography,
+} from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
+import { BirthdayDashboardCard } from '../components/birthdays/BirthdayDashboardCard';
 import { LectioHero } from '../components/dashboard/LectioHero';
 import { QuickAccessCard } from '../components/dashboard/QuickAccessCard';
 import { UpcomingEvents } from '../components/dashboard/UpcomingEvents';
 import { useMemberDashboard } from '../dashboard/useMemberDashboard';
 import { AdminDashboardPage } from './AdminDashboardPage';
-import { BirthdayDashboardCard } from '../components/birthdays/BirthdayDashboardCard';
 
 const shortcuts = [
   {
@@ -51,10 +59,33 @@ const shortcuts = [
 
 export function DashboardPage() {
   const { user } = useAuth();
-  const { data: dashboard, loading: dashboardLoading, error: dashboardError } = useMemberDashboard();
+  const {
+    data: dashboard,
+    loading: dashboardLoading,
+    error: dashboardError,
+  } = useMemberDashboard();
   const navigate = useNavigate();
-  if (user?.profile === 'MISSION_LEADER' || user?.profile === 'ADMIN' || user?.profile === 'DEVELOPER') return <AdminDashboardPage />;
-  const unreadCount = dashboard?.notifications.data.unreadCount ?? 0;
+
+  if (
+    user?.profile === 'MISSION_LEADER' ||
+    user?.profile === 'ADMIN' ||
+    user?.profile === 'DEVELOPER'
+  ) {
+    return <AdminDashboardPage />;
+  }
+
+  const notificationsData = dashboard?.notifications?.data;
+  const birthdaysData = dashboard?.birthdays?.data;
+  const lectioData = dashboard?.lectio?.data;
+  const eventsData = dashboard?.events?.data;
+
+  const unreadCount =
+    typeof notificationsData?.unreadCount === 'number'
+      ? notificationsData.unreadCount
+      : 0;
+  const birthdays = birthdaysData ?? null;
+  const lectio = lectioData ?? null;
+  const events = Array.isArray(eventsData) ? eventsData : [];
   const firstName = user?.name?.split(' ')[0] ?? 'Missionário';
 
   return (
@@ -114,10 +145,26 @@ export function DashboardPage() {
         ))}
       </Box>
 
-      <BirthdayDashboardCard data={dashboard?.birthdays.data ?? null} loading={dashboardLoading} error={dashboard?.birthdays.error || (dashboardError || undefined)} />
-      <LectioHero item={dashboard?.lectio.data ?? null} loading={dashboardLoading} error={dashboard?.lectio.error || (dashboardError || undefined)} onOpen={() => navigate('/lectio')} />
+      <BirthdayDashboardCard
+        data={birthdays}
+        loading={dashboardLoading}
+        error={dashboard?.birthdays?.error ?? dashboardError ?? undefined}
+      />
+
+      <LectioHero
+        item={lectio}
+        loading={dashboardLoading}
+        error={dashboard?.lectio?.error ?? dashboardError ?? undefined}
+        onOpen={() => navigate('/lectio')}
+      />
+
       <Box mt={4}>
-        <UpcomingEvents items={dashboard?.events.data ?? []} loading={dashboardLoading} error={dashboard?.events.error || (dashboardError || undefined)} onOpen={() => navigate('/eventos')} />
+        <UpcomingEvents
+          items={events}
+          loading={dashboardLoading}
+          error={dashboard?.events?.error ?? dashboardError ?? undefined}
+          onOpen={() => navigate('/eventos')}
+        />
       </Box>
     </Box>
   );

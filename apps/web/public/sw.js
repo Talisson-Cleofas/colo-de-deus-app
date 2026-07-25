@@ -1,4 +1,4 @@
-const VERSION = 'colo-v5-3-0';
+const VERSION = 'colo-v5-5-3';
 const STATIC_CACHE = `${VERSION}-static`;
 const RUNTIME_CACHE = `${VERSION}-runtime`;
 const CORE = [

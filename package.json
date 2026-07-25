@@ -1,0 +1,38 @@
+{
+  "name": "colo-de-deus",
+  "version": "5.5.2",
+  "private": true,
+  "packageManager": "npm@10.9.0",
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "lint": "turbo lint",
+    "typecheck": "turbo typecheck",
+    "format": "prettier --write \"**/*.{ts,tsx,js,json,md,yml,yaml,css}\"",
+    "clean": "turbo clean && rimraf node_modules",
+    "mobile:get": "cd mobile && flutter pub get",
+    "mobile:android": "cd mobile && flutter run -d android",
+    "mobile:ios": "cd mobile && flutter run -d ios",
+    "mobile:build:android": "cd mobile && flutter build appbundle --release",
+    "mobile:build:ios": "cd mobile && flutter build ipa --release",
+    "brand:sync": "node scripts/sync-brand-assets.mjs",
+    "validate": "npm run clean:artifacts && npm run typecheck && npm run build",
+    "clean:artifacts": "node scripts/clean-artifacts.mjs",
+    "check:env": "node scripts/check-env.mjs"
+  },
+  "devDependencies": {
+    "prettier": "^3.5.3",
+    "rimraf": "^6.0.1",
+    "turbo": "^2.5.4",
+    "typescript": "^5.8.3"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "firebase": "^12.16.0"
+  }
+}

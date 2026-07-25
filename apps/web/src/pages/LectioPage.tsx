@@ -39,7 +39,7 @@ export function LectioPage() {
   const storageKey=useMemo(()=>`lectio-completed-${selected?.date ?? 'today'}`,[selected?.date]);
   const [completed,setCompleted]=useState(false);
 
-  const load=async()=>{setLoading(true);setError('');try{const {data}=await api.get<LectioEntry[]>('/lectio');setItems(data);setSelected((current)=>data.find(i=>i.id===current?.id)||data[0]||null);}catch(e){setError(apiErrorMessage(e));}finally{setLoading(false)}};
+  const load=async()=>{setLoading(true);setError('');try{const {data}=await api.get<LectioEntry[]>('/lectio');const today=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo'}).format(new Date());setItems(data);setSelected((current)=>data.find(i=>i.id===current?.id)||data.find(i=>i.date===today)||data[0]||null);}catch(e){setError(apiErrorMessage(e));}finally{setLoading(false)}};
   const loadAdmin=async()=>{if(!isAdmin)return;try{const [a,b,c]=await Promise.all([api.get<LectioSettings>('/lectio/settings'),api.get<LectioSyncLog[]>('/lectio/sync-logs'),api.get<LectioProviderStatus[]>('/lectio/providers/status')]);setSettings(a.data);setLogs(b.data);setProviders(c.data);}catch(e){setError(apiErrorMessage(e));}};
   useEffect(()=>{void load();void loadAdmin();},[isAdmin]);
   useEffect(()=>{setCompleted(localStorage.getItem(storageKey)==='true')},[storageKey]);

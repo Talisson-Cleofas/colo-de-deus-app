@@ -40,8 +40,15 @@ export class MemberDashboardService {
   async member(user: AuthenticatedUser): Promise<MemberDashboardResponse> {
     const [lectio, notifications, birthdays, events] = await Promise.all([
       this.section(async () => {
-        const item = await this.lectio.today();
+        const today = new Intl.DateTimeFormat('en-CA', {
+          timeZone: 'America/Sao_Paulo',
+        }).format(new Date());
+
+        const todayItem = await this.lectio.today(today);
+        const item = todayItem ?? (await this.lectio.list())[0] ?? null;
+
         if (!item) return null;
+
         return {
           id: item.id,
           date: item.date,
@@ -53,6 +60,7 @@ export class MemberDashboardService {
           status: item.status,
           source: item.source,
           available: Boolean(item.firstReadingText && item.psalmText && item.gospelText),
+          isToday: item.date === today,
           updatedAt: item.updatedAt,
         };
       }, (value) => value === null, null),

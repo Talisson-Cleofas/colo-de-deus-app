@@ -12,6 +12,7 @@ export type DashboardLectio = {
   status: string;
   source: string;
   available: boolean;
+  isToday: boolean;
   updatedAt: string;
 };
 

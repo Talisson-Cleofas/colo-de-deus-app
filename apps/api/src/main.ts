@@ -9,32 +9,77 @@ import { AppModule } from './app.module';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+
   const config = app.get(ConfigService);
-  const port = Number(config.get('API_PORT') ?? 4000);
-  const webUrls = (config.get<string>('WEB_URL') ?? 'http://localhost:5173')
+
+  // Render utiliza PORT automaticamente.
+  // Localmente continua utilizando API_PORT.
+  const port = Number(
+    config.get('PORT') ??
+    config.get('API_PORT') ??
+    4000,
+  );
+
+  const webUrls = (
+    config.get<string>('WEB_URL') ??
+    'http://localhost:5173'
+  )
     .split(',')
     .map((value) => value.trim())
     .filter(Boolean);
 
   app.setGlobalPrefix('api');
+
   app.use(helmet());
-  app.use(compression({ threshold: 2048, level: 6 }));
-  app.enableCors({ origin: webUrls, credentials: true });
-  app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
+
+  app.use(
+    compression({
+      threshold: 2048,
+      level: 6,
+    }),
+  );
+
+  app.enableCors({
+    origin: webUrls,
+    credentials: true,
+  });
+
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      transform: true,
+      forbidUnknownValues: false,
+    }),
+  );
 
   const swaggerConfig = new DocumentBuilder()
     .setTitle('Colo de Deus API')
     .setDescription('API da Missão Brasília')
-    .setVersion('1.0.0')
+    .setVersion('5.5.2')
     .addBearerAuth()
     .build();
-  SwaggerModule.setup('docs', app, SwaggerModule.createDocument(app, swaggerConfig));
+
+  const document = SwaggerModule.createDocument(app, swaggerConfig);
+
+  SwaggerModule.setup('docs', app, document);
 
   await app.listen(port, '0.0.0.0');
-  console.log(`API: http://localhost:${port}/api`);
-  console.log(`Swagger: http://localhost:${port}/docs`);
+
+  const environment = config.get('NODE_ENV') ?? 'development';
+
+  console.log('');
+  console.log('==========================================');
+  console.log('🚀 COLO DE DEUS API');
+  console.log('==========================================');
+  console.log(`Ambiente : ${environment}`);
+  console.log(`API      : http://localhost:${port}/api`);
+  console.log(`Swagger  : http://localhost:${port}/docs`);
+  console.log(`Porta    : ${port}`);
+  console.log('==========================================');
+  console.log('');
 }
+
 bootstrap().catch((error: unknown) => {
   console.error('Falha ao iniciar a API:', error);
-  process.exitCode = 1;
+  process.exit(1);
 });

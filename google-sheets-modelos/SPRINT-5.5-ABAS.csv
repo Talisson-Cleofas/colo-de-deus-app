@@ -1,0 +1,7 @@
+Aba;Cabeçalhos
+Pagamentos;id,payment_id,member_id,member_name,payer_email,external_reference,status,status_detail,amount,total_paid_amount,fee_amount,net_amount,currency,payment_method,payment_type,description,date_created,date_approved,date_last_updated,reference_month,live_mode,webhook_action,updated_at,card_brand,card_issuer,card_last_four,installments,installment_amount,authorization_code,transaction_id,nsu,pix_qr_code,pix_qr_code_base64,pix_ticket_url,pix_expiration_date,paid_in_seconds,receipt_id,receipt_hash
+FinanceiroMensal;id,month,checked,updated,gross,fees,net,executed_at
+WebhookLogs;id,resource_id,type,action,received_at,request_id,signature,ip,processing_time_ms,status,retry,error,payload,headers
+HistoricoPagamentos;id,payment_id,member_id,previous_status,status,status_detail,action,occurred_at,payload
+ContribuicoesMembros;id,member_id,member_name,reference_month,status,last_payment_id,last_payment_at,amount,payment_method,card_last_four,receipt_id,updated_at
+AuditoriaFinanceira;id,event,reference,data,created_at

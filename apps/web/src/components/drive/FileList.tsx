@@ -1,0 +1,1 @@
+import { Stack, Typography } from '@mui/material';import { FileCard, type DriveFile } from './FileCard';export function FileList({files}:{files:DriveFile[]}){return files.length?<Stack gap={1}>{files.map(f=><FileCard key={f.id} file={f}/>)}</Stack>:<Typography color="text.secondary">Nenhum arquivo enviado.</Typography>}

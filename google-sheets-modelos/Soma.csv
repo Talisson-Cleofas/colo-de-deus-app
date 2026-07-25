@@ -1,0 +1,3 @@
+id,member_id,nome,email,valor,data,mes_referencia,forma,status,comprovante_url,observacoes
+s1,1,Talisson Cleofas,talisson@example.com,250.00,2026-07-02,2026-07,PIX,CONFIRMED,,Oferta mensal
+s2,2,Maria Clara,maria@example.com,120.00,2026-07-05,2026-07,PIX,CONFIRMED,,

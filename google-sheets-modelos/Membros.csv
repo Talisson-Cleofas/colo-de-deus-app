@@ -1,0 +1,4 @@
+id,nome,email,foto,funcao,ministerio,celula,telefone,perfil,ativo,bio,instagram,data_nascimento,data_entrada,cidade,estado,dons,ativo,deleted_at,deleted_by,created_at,created_by,updated_at,updated_by
+1,Talisson Cleofas,talisson@gmail.com,https://exemplo.com/foto.jpg,Coordenador,Coordenação,Célula Ágape,(61) 99999-9999,ADMIN,Sim,"Missionário e coordenador da Missão Brasília",@talisson,1997-08-14,2022-02-01,Brasília,DF,"Liderança, Ensino, Comunicação"
+
+3,João Pedro,joao@gmail.com,,Líder de Célula,Acolhida,Célula Emanuel,(61) 97777-7777,LEADER,Sim,"Líder da Célula Emanuel",@joaopedro,1994-11-10,2021-08-20,Taguatinga,DF,"Acolhida, Liderança"

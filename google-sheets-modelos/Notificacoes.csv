@@ -1,0 +1,3 @@
+id,titulo,mensagem,data,tipo,destinatario_email,lida,ativo
+1,Nova Lectio Divina,A meditação de hoje já está disponível.,2026-07-17T07:00:00,LECTIO,,Nao,Sim
+2,Encontro de Oração,O encontro será amanhã às 19h30 na sede.,2026-07-18T19:30:00,EVENTO,,Nao,Sim

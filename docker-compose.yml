@@ -1,0 +1,14 @@
+services:
+  api:
+    build: { context: ., dockerfile: Dockerfile.api }
+    env_file: apps/api/.env
+    ports: ["4000:4000"]
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.web
+      args:
+        VITE_API_URL: http://localhost:4000/api
+        VITE_DEMO_MODE: "true"
+    ports: ["5173:80"]
+    depends_on: [api]

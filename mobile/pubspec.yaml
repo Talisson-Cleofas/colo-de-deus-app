@@ -1,0 +1,26 @@
+name: colo_de_deus_mobile
+description: Aplicativo Flutter da Colo de Deus - Missão Brasília.
+publish_to: none
+version: 6.0.0+6
+environment:
+  sdk: '>=3.5.0 <4.0.0'
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+  http: ^1.2.2
+  shared_preferences: ^2.3.3
+  connectivity_plus: ^6.1.0
+  firebase_core: ^3.8.1
+  firebase_auth: ^5.3.4
+  google_sign_in: ^6.2.2
+  url_launcher: ^6.3.1
+  intl: ^0.20.1
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/images/logo-oficial-branca.png

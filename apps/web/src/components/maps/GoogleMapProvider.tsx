@@ -1,0 +1,2 @@
+import { Alert, Box } from '@mui/material';import type { PropsWithChildren } from 'react';
+export function GoogleMapProvider({children}:{children:PropsWithChildren['children']}){const enabled=import.meta.env.VITE_GOOGLE_MAPS_ENABLED==='true';const key=Boolean(import.meta.env.VITE_GOOGLE_MAPS_API_KEY);if(!enabled||!key)return <Alert severity="info">Integração com Google Maps ainda não ativada.</Alert>;return <Box>{children}</Box>}

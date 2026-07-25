@@ -1,0 +1,1 @@
+import { PlaceOutlined } from '@mui/icons-material';import { Chip } from '@mui/material';import type { MapMarkerData } from './types';export function MapMarker({marker}:{marker:MapMarkerData}){return <Chip icon={<PlaceOutlined/>} label={marker.title}/>}

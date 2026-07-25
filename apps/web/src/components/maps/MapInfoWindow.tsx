@@ -1,0 +1,1 @@
+import { Paper, Typography } from '@mui/material';import type { MapMarkerData } from './types';export function MapInfoWindow({marker}:{marker:MapMarkerData}){return <Paper sx={{p:2}}><Typography fontWeight={800}>{marker.title}</Typography><Typography variant="body2">{marker.description}</Typography></Paper>}

@@ -1,0 +1,1 @@
+import { Box, Typography } from '@mui/material';export function FilePreview({name,mimeType,url}:{name:string;mimeType:string;url?:string}){return <Box>{mimeType.startsWith('image/')&&url?<Box component="img" src={url} alt={name} sx={{maxWidth:'100%',maxHeight:240}}/>:<Typography>{name}</Typography>}</Box>}

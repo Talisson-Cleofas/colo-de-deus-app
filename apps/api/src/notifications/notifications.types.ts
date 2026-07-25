@@ -1,0 +1,2 @@
+export type NotificationItem={id:string;title:string;message:string;type:string;audience:string;audienceId:string;origin:string;referenceType:string;referenceId:string;link:string;senderId:string;senderName:string;sentAt:string|null;read:boolean;readAt:string|null;active:boolean;canDelete:boolean};
+export type NotificationPreferences={events:boolean;confirmations:boolean;justifications:boolean;memberships:boolean;leadership:boolean;birthdays:boolean;birthdayAdvance:boolean;app:boolean;push:boolean;sendTime:string;firebaseToken:string};

@@ -1,0 +1,23 @@
+ABA: Lectio — cole em A1
+id	data	titulo	celebracao	tempo_liturgico	cor_liturgica	primeira_leitura_referencia	primeira_leitura_texto	salmo_referencia	salmo_responsorio	salmo_texto	segunda_leitura_referencia	segunda_leitura_texto	aclamacao	evangelho_referencia	evangelho_texto	antifona_entrada	antifona_comunhao	reflexao	oracao	fonte	status	protegido	sincronizado_em	atualizado_em	ativo
+
+ABA: Integracoes — cole em A1
+id	modulo	chave	valor	tipo	descricao	ativo	atualizado_em
+
+ABA: HistoricoIntegracoes — cole em A1
+id	modulo	operacao	fonte	status	iniciado_em	finalizado_em	registros_processados	registros_criados	registros_atualizados	registros_removidos	mensagem_erro	detalhes
+
+ABA: ConfiguracoesSistema — cole em A1
+id	categoria	chave	valor	descricao	atualizado_em
+
+REGISTROS INICIAIS PARA Integracoes — cole a partir de A2
+lectio-primary	Lectio	LECTIO_PRIMARY_SOURCE	CNBB	STRING	Fonte principal da Lectio	TRUE	
+lectio-fallback	Lectio	LECTIO_FALLBACK_SOURCE	CANCAO_NOVA	STRING	Fonte alternativa da Lectio	TRUE	
+lectio-cnbb	Lectio	LECTIO_CNBB_ENABLED	true	BOOLEAN	Ativa a fonte CNBB	TRUE	
+lectio-cancao-nova	Lectio	LECTIO_CANCAO_NOVA_ENABLED	true	BOOLEAN	Ativa a fonte Canção Nova	TRUE	
+lectio-retention	Lectio	LECTIO_RETENTION_DAYS	7	NUMBER	Dias mantidos na aba Lectio	TRUE	
+lectio-delete	Lectio	LECTIO_DELETE_OLD_RECORDS	true	BOOLEAN	Remove conteúdos sincronizados antigos	TRUE	
+
+REGISTROS INICIAIS PARA ConfiguracoesSistema — cole a partir de A2
+system-timezone	Sistema	TIMEZONE	America/Sao_Paulo	Fuso horário principal	
+system-language	Sistema	DEFAULT_LANGUAGE	pt-BR	Idioma padrão	

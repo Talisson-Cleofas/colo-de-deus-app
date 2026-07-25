@@ -1,0 +1,7 @@
+import { BadRequestException, Injectable } from '@nestjs/common';import { randomUUID } from 'node:crypto';import { Readable } from 'node:stream';import { drive_v3 } from 'googleapis';import { DriveFolderService } from './drive-folder.service';import type { FileCategory } from '../files/files.types';
+@Injectable() export class DriveUploadService{
+ constructor(private readonly folders:DriveFolderService){}
+ private allowed=new Set(['image/jpeg','image/png','image/webp','application/pdf']);
+ validate(fileName:string,mimeType:string,buffer:Buffer,category:FileCategory){if(!this.allowed.has(mimeType))throw new BadRequestException('Tipo de arquivo não permitido.');if(/\.(exe|bat|cmd|com|msi|ps1|sh)$/i.test(fileName))throw new BadRequestException('Arquivos executáveis são bloqueados.');const limits:Record<FileCategory,number>={MEMBER_PHOTO:5,CELL_FILE:20,CENACLE_FILE:20,EVENT_FILE:10,SOMA_RECEIPT:10,LECTIO_PDF:20,REPORT:20,GENERIC:10};if(buffer.length>limits[category]*1024*1024)throw new BadRequestException(`Arquivo acima do limite de ${limits[category]} MB.`);}
+ async upload(drive:drive_v3.Drive,folderId:string,fileName:string,mimeType:string,buffer:Buffer){const unique=`${Date.now()}-${randomUUID().slice(0,8)}-${this.folders.sanitize(fileName)}`;const result=await drive.files.create({requestBody:{name:unique,mimeType,parents:[folderId]},media:{mimeType,body:Readable.from(buffer)},fields:'id,name,mimeType,size,webViewLink,createdTime'});return result.data;}
+}

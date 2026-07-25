@@ -1,0 +1,1 @@
+import { Controller, Get } from '@nestjs/common'; import { ApiTags } from '@nestjs/swagger'; import { DriveService } from './drive.service'; @ApiTags('Google Drive') @Controller('drive') export class DriveController {constructor(private readonly service:DriveService){} @Get('files') list(){return this.service.list()} }

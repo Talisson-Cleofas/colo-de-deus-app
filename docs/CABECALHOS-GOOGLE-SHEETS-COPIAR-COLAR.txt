@@ -1,0 +1,74 @@
+Membros
+id	nome	email	foto	funcao	ministerio	celula	telefone	perfil	ativo	bio	instagram	data_nascimento	criado_em	cidade	estado	dons	formador	atualizado_em
+
+Usuarios
+id	membro_id	firebase_uid	email	provedor	ultimo_login	ultimo_ip	ultimo_dispositivo	ultimo_acesso	ativo	criado_em	atualizado_em
+
+Perfis
+id	codigo	nome	descricao	nivel	ativo	criado_em	atualizado_em
+
+Permissoes
+id	perfil_codigo	recurso	acao	permitido	escopo	criado_em	atualizado_em
+
+Ministérios
+id	nome	descricao	lider_id	vice_lider_id	cor	icone	tipo	ordem	ativo	observacoes	criado_em	atualizado_em
+
+Células
+id	nome	lider_id	vice_lider_id	ministerio_id	endereco	bairro	cidade	estado	latitude	longitude	dia_semana	horario	ativo	criado_em	atualizado_em
+
+Cenáculos
+id	nome	responsavel_id	vice_responsavel_id	ministerio_id	celula_id	endereco	bairro	cidade	estado	latitude	longitude	data	horario	data_fim	horario_fim	recorrente	status	encerrado_em	ativo	criado_em	atualizado_em
+
+Participantes
+id	membro_id	tipo	referencia_id	funcao	data_entrada	data_saida	ativo	criado_em	atualizado_em
+
+Presenças
+id	membro_id	tipo	referencia_id	evento_id	data	presente	justificativa	registrado_por	origem	criado_em	atualizado_em
+
+Formacoes
+id	nome	descricao	formador_id	data_inicio	data_fim	status	ativo	criado_em	atualizado_em
+
+Formandos
+id	formacao_id	membro_id	formador_id	status	progresso	observacoes	data_inicio	data_conclusao	ativo	criado_em	atualizado_em
+
+Lectio
+id	titulo	referencia_biblica	conteudo	reflexao	oracao	imagem	autor_id	data_publicacao	publicado	criado_em	atualizado_em
+
+Eventos
+id	titulo	descricao	tipo	ministerio_id	celula_id	cenaculo_id	local	endereco	latitude	longitude	inicio	fim	imagem	limite_participantes	confirmacao_obrigatoria	publicado	criado_por	criado_em	atualizado_em
+
+ConfirmacoesEventos
+id	evento_id	membro_id	status	justificativa	ministerio_id	destinatarios	visualizado	respondido_por	respondido_em	situacao	criado_em	atualizado_em
+
+Soma
+id	membro_id	valor	data	tipo	forma_pagamento	status	comprovante	transacao_id	confirmado_por	confirmado_em	observacao	criado_em	atualizado_em
+
+Notificações
+id	titulo	mensagem	publico	referencia_tipo	referencia_id	destinatario_id	enviado_por	data_envio	ativo	criado_em	atualizado_em
+
+NotificacoesLeituras
+id	notificacao_id	membro_id	lida	data_leitura	criado_em	atualizado_em
+
+Configurações
+chave	valor	descricao	atualizado_em
+
+Histórico
+id	tabela	registro_id	acao	usuario_id	usuario_email	dados_anteriores	dados_novos	ip	user_agent	data
+
+NotificacoesPreferencias
+id	membro_id	eventos	confirmacoes	justificativas	vinculos	lideranca	aniversarios	aniversario_antecipado	app	push	horario_envio	firebase_token	ativo	criado_em	atualizado_em
+
+NotificacoesEntregas
+id	notificacao_id	membro_id	canal	status	tentativa	erro	enviado_em	criado_em	atualizado_em
+
+IntegracoesHistorico
+id	nivel	categoria	acao	mensagem	detalhes	usuario_id	usuario_email	criado_em
+
+=== Lectio (Sprint 4.1.1 — substituir o cabeçalho anterior) ===
+id	data	titulo	celebracao	tempo_liturgico	cor_liturgica	primeira_leitura_referencia	primeira_leitura_texto	salmo_referencia	salmo_responsorio	salmo_texto	segunda_leitura_referencia	segunda_leitura_texto	aclamacao	evangelho_referencia	evangelho_texto	antifona_entrada	antifona_comunhao	reflexao	oracao	fonte	fonte_url	status	protegido	erro_sincronizacao	sincronizado_em	atualizado_em	removido_em	ativo
+
+=== LectioSincronizacoes ===
+id	data_liturgia	fonte_principal	fonte_utilizada	status	tentativas	registros_criados	registros_atualizados	registros_removidos	registros_protegidos	erro	iniciado_em	finalizado_em
+
+SPRINT 4.1.3.2 — ABA LECTIO ATUALIZADA
+id	data	titulo	celebracao	tempo_liturgico	cor_liturgica	primeira_leitura_referencia	primeira_leitura_titulo	primeira_leitura_texto	salmo_referencia	salmo_responsorio	salmo_texto	segunda_leitura_referencia	segunda_leitura_titulo	segunda_leitura_texto	aclamacao_referencia	aclamacao_texto	evangelho_referencia	evangelho_titulo	evangelho_texto	antifona_entrada	antifona_comunhao	reflexao	oracao	fonte	status	protegido	sincronizado_em	atualizado_em	ativo

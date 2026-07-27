@@ -22,6 +22,12 @@ export type MemberRow = {
   joinedAt: string;
   city: string;
   state: string;
+  address: string;
+  neighborhood: string;
+  zipCode: string;
+  latitude: number | null;
+  longitude: number | null;
+  googlePlaceId: string;
   gifts: string[];
   formator: string;
   updatedAt: string;
@@ -31,7 +37,7 @@ export type MemberRow = {
   updatedBy: string;
 };
 
-export type CreateMemberInput = Omit<MemberRow, 'id' | 'joinedAt' | 'updatedAt' | 'deletedAt' | 'deletedBy' | 'createdBy' | 'updatedBy'>;
+export type CreateMemberInput = Omit<MemberRow, 'id' | 'joinedAt' | 'updatedAt' | 'deletedAt' | 'deletedBy' | 'createdBy' | 'updatedBy' | 'address' | 'neighborhood' | 'zipCode' | 'latitude' | 'longitude' | 'googlePlaceId'> & Partial<Pick<MemberRow, 'address' | 'neighborhood' | 'zipCode' | 'latitude' | 'longitude' | 'googlePlaceId'>>;
 export type SheetRecord = Record<string, string>;
 
 @Injectable()
@@ -437,9 +443,9 @@ export class GoogleSheetsService {
 
   private demoMembers(): MemberRow[] {
     return [
-      { id:'1', name:'Talisson Cleofas', email:'talisson@example.com', photo:'https://i.pravatar.cc/400?img=12', role:'Coordenador', ministry:'Coordenação', cell:'Célula Ágape', phone:'(61) 99999-9999', profile:'ADMIN', active:true, bio:'Missionário e coordenador da Missão Brasília.', instagram:'@talissoncleofas', birthDate:'1997-08-14', joinedAt:'2022-02-01', city:'Brasília', state:'DF', gifts:['Liderança','Ensino','Comunicação'], formator:'', updatedAt:'', deletedAt:'', deletedBy:'', createdBy:'', updatedBy:'' },
-      { id:'2', name:'Maria Clara', email:'maria@example.com', photo:'https://i.pravatar.cc/400?img=47', role:'Intercessora', ministry:'Intercessão', cell:'Célula Ágape', phone:'(61) 98888-8888', profile:'MEMBER', active:true, bio:'Serve no ministério de intercessão.', instagram:'@mariaclara', birthDate:'1995-04-22', joinedAt:'2023-03-12', city:'Brasília', state:'DF', gifts:['Intercessão','Acolhida'], formator:'Talisson Cleofas', updatedAt:'', deletedAt:'', deletedBy:'', createdBy:'', updatedBy:'' },
-      { id:'3', name:'João Pedro', email:'joao@example.com', photo:'https://i.pravatar.cc/400?img=11', role:'Líder de Célula', ministry:'Acolhida', cell:'Célula Emanuel', phone:'(61) 97777-7777', profile:'CELL_LEADER', active:true, bio:'Líder da Célula Emanuel.', instagram:'@joaopedro', birthDate:'1994-11-10', joinedAt:'2021-08-20', city:'Taguatinga', state:'DF', gifts:['Acolhida','Liderança'], formator:'Talisson Cleofas', updatedAt:'', deletedAt:'', deletedBy:'', createdBy:'', updatedBy:'' },
+      { id:'1', name:'Talisson Cleofas', email:'talisson@example.com', photo:'https://i.pravatar.cc/400?img=12', role:'Coordenador', ministry:'Coordenação', cell:'Célula Ágape', phone:'(61) 99999-9999', profile:'ADMIN', active:true, bio:'Missionário e coordenador da Missão Brasília.', instagram:'@talissoncleofas', birthDate:'1997-08-14', joinedAt:'2022-02-01', city:'Brasília', state:'DF', address:'', neighborhood:'', zipCode:'', latitude:null, longitude:null, googlePlaceId:'', gifts:['Liderança','Ensino','Comunicação'], formator:'', updatedAt:'', deletedAt:'', deletedBy:'', createdBy:'', updatedBy:'' },
+      { id:'2', name:'Maria Clara', email:'maria@example.com', photo:'https://i.pravatar.cc/400?img=47', role:'Intercessora', ministry:'Intercessão', cell:'Célula Ágape', phone:'(61) 98888-8888', profile:'MEMBER', active:true, bio:'Serve no ministério de intercessão.', instagram:'@mariaclara', birthDate:'1995-04-22', joinedAt:'2023-03-12', city:'Brasília', state:'DF', address:'', neighborhood:'', zipCode:'', latitude:null, longitude:null, googlePlaceId:'', gifts:['Intercessão','Acolhida'], formator:'Talisson Cleofas', updatedAt:'', deletedAt:'', deletedBy:'', createdBy:'', updatedBy:'' },
+      { id:'3', name:'João Pedro', email:'joao@example.com', photo:'https://i.pravatar.cc/400?img=11', role:'Líder de Célula', ministry:'Acolhida', cell:'Célula Emanuel', phone:'(61) 97777-7777', profile:'CELL_LEADER', active:true, bio:'Líder da Célula Emanuel.', instagram:'@joaopedro', birthDate:'1994-11-10', joinedAt:'2021-08-20', city:'Taguatinga', state:'DF', address:'', neighborhood:'', zipCode:'', latitude:null, longitude:null, googlePlaceId:'', gifts:['Acolhida','Liderança'], formator:'Talisson Cleofas', updatedAt:'', deletedAt:'', deletedBy:'', createdBy:'', updatedBy:'' },
     ];
   }
 
@@ -485,6 +491,12 @@ export class GoogleSheetsService {
       joinedAt: row.criado_em ?? '',
       city: row.cidade ?? '',
       state: row.estado ?? '',
+      address: row.endereco ?? '',
+      neighborhood: row.bairro ?? '',
+      zipCode: row.cep ?? '',
+      latitude: row.latitude?.trim() && Number.isFinite(Number(row.latitude)) ? Number(row.latitude) : null,
+      longitude: row.longitude?.trim() && Number.isFinite(Number(row.longitude)) ? Number(row.longitude) : null,
+      googlePlaceId: row.google_place_id ?? '',
       gifts: (row.dons ?? '').split(',').map((value) => value.trim()).filter(Boolean),
       formator: row.formador ?? '',
       updatedAt: row.updated_at || row.atualizado_em || '',
@@ -529,6 +541,12 @@ export class GoogleSheetsService {
       joinedAt: now,
       city: input.city?.trim() ?? '',
       state: input.state?.trim() ?? '',
+      address: input.address?.trim() ?? '',
+      neighborhood: input.neighborhood?.trim() ?? '',
+      zipCode: input.zipCode?.trim() ?? '',
+      latitude: input.latitude ?? null,
+      longitude: input.longitude ?? null,
+      googlePlaceId: input.googlePlaceId?.trim() ?? '',
       gifts: (input.gifts ?? []).map((gift) => gift.trim()).filter(Boolean),
       formator: input.formator?.trim() ?? '',
       updatedAt: now,
@@ -541,7 +559,7 @@ export class GoogleSheetsService {
         funcao: member.role, ministerio: member.ministry, celula: member.cell,
         telefone: member.phone, perfil: member.profile, ativo: member.active ? 'TRUE' : 'FALSE',
         bio: member.bio, instagram: member.instagram, data_nascimento: member.birthDate,
-        criado_em: member.joinedAt, created_at: member.joinedAt, created_by: member.createdBy, cidade: member.city, estado: member.state,
+        criado_em: member.joinedAt, created_at: member.joinedAt, created_by: member.createdBy, cidade: member.city, estado: member.state, endereco: member.address, bairro: member.neighborhood, cep: member.zipCode, latitude: member.latitude ?? '', longitude: member.longitude ?? '', google_place_id: member.googlePlaceId, localizacao_atualizada_em: member.latitude != null && member.longitude != null ? member.updatedAt : '',
         dons: member.gifts.join(', '), formador: member.formator, atualizado_em: member.updatedAt, updated_at: member.updatedAt, updated_by: member.updatedBy, deleted_at:'', deleted_by:'',
       });
     }
@@ -577,6 +595,12 @@ export class GoogleSheetsService {
       birthDate: input.birthDate !== undefined ? this.normalizeDate(input.birthDate) : current.birthDate,
       city: input.city?.trim() ?? current.city,
       state: input.state?.trim() ?? current.state,
+      address: input.address?.trim() ?? current.address,
+      neighborhood: input.neighborhood?.trim() ?? current.neighborhood,
+      zipCode: input.zipCode?.trim() ?? current.zipCode,
+      latitude: input.latitude !== undefined ? input.latitude : current.latitude,
+      longitude: input.longitude !== undefined ? input.longitude : current.longitude,
+      googlePlaceId: input.googlePlaceId?.trim() ?? current.googlePlaceId,
       gifts: input.gifts ? input.gifts.map((gift) => gift.trim()).filter(Boolean) : current.gifts,
       formator: input.formator?.trim() ?? current.formator,
       updatedAt: new Date().toISOString(),
@@ -588,7 +612,7 @@ export class GoogleSheetsService {
         funcao: member.role, ministerio: member.ministry, celula: member.cell,
         telefone: member.phone, perfil: member.profile, ativo: member.active ? 'TRUE' : 'FALSE',
         bio: member.bio, instagram: member.instagram, data_nascimento: member.birthDate,
-        criado_em: member.joinedAt, created_at: member.joinedAt, created_by: member.createdBy, cidade: member.city, estado: member.state,
+        criado_em: member.joinedAt, created_at: member.joinedAt, created_by: member.createdBy, cidade: member.city, estado: member.state, endereco: member.address, bairro: member.neighborhood, cep: member.zipCode, latitude: member.latitude ?? '', longitude: member.longitude ?? '', google_place_id: member.googlePlaceId, localizacao_atualizada_em: member.latitude != null && member.longitude != null ? member.updatedAt : '',
         dons: member.gifts.join(', '), formador: member.formator, atualizado_em: member.updatedAt, updated_at: member.updatedAt, updated_by: member.updatedBy, deleted_at:'', deleted_by:'',
       });
     }

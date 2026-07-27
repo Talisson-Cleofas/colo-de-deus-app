@@ -26,14 +26,14 @@ const profileLabels: Record<AccessProfile, string> = {
 
 type MemberForm={
   name:string;email:string;phone:string;photo:string;role:string;ministry:string;cell:string;
-  profile:AccessProfile;active:boolean;birthDate:string;city:string;state:string;instagram:string;
+  profile:AccessProfile;active:boolean;birthDate:string;city:string;state:string;address:string;neighborhood:string;zipCode:string;instagram:string;
   bio:string;gifts:string;formator:string;
 };
-const emptyForm:MemberForm={name:'',email:'',phone:'',photo:'',role:'Membro',ministry:'',cell:'',profile:'MEMBER',active:true,birthDate:'',city:'',state:'',instagram:'',bio:'',gifts:'',formator:''};
+const emptyForm:MemberForm={name:'',email:'',phone:'',photo:'',role:'Membro',ministry:'',cell:'',profile:'MEMBER',active:true,birthDate:'',city:'',state:'',address:'',neighborhood:'',zipCode:'',instagram:'',bio:'',gifts:'',formator:''};
 const memberToForm=(member:Member):MemberForm=>({
   name:member.name,email:member.email,phone:member.phone,photo:member.photo,role:member.role,
   ministry:member.ministry,cell:member.cell,profile:member.profile,active:member.active,
-  birthDate:member.birthDate,city:member.city,state:member.state,instagram:member.instagram,
+  birthDate:member.birthDate,city:member.city,state:member.state,address:member.address??'',neighborhood:member.neighborhood??'',zipCode:member.zipCode??'',instagram:member.instagram,
   bio:member.bio,gifts:(member.gifts??[]).join(', '),formator:member.formator,
 });
 
@@ -139,7 +139,7 @@ export function MembersPage(){
           <TextField select label="Perfil de acesso" value={form.profile} onChange={(e)=>setField('profile',e.target.value as AccessProfile)} disabled={!isAdmin}><MenuItem value="MEMBER">Membro</MenuItem><MenuItem value="CELL_LEADER">Líder de Célula</MenuItem><MenuItem value="MINISTRY_LEADER">Líder de Ministério</MenuItem><MenuItem value="ADMIN">Administrador</MenuItem></TextField>
           <TextField select label="Ministério" value={form.ministry} onChange={(e)=>setField('ministry',e.target.value)} disabled={!isAdmin}><MenuItem value="">Sem ministério</MenuItem>{facets.ministries.map((v)=><MenuItem key={v} value={v}>{v}</MenuItem>)}</TextField>
           <TextField select label="Célula" value={form.cell} onChange={(e)=>setField('cell',e.target.value)} disabled={!isAdmin}><MenuItem value="">Sem célula</MenuItem>{facets.cells.map((v)=><MenuItem key={v} value={v}>{v}</MenuItem>)}</TextField>
-          <TextField label="Cidade" value={form.city} onChange={(e)=>setField('city',e.target.value)}/><TextField label="Estado" value={form.state} onChange={(e)=>setField('state',e.target.value)}/>
+          <TextField label="Endereço" value={form.address} onChange={(e)=>setField('address',e.target.value)} sx={{gridColumn:{md:'1 / -1'}}}/><TextField label="Bairro" value={form.neighborhood} onChange={(e)=>setField('neighborhood',e.target.value)}/><TextField label="CEP" value={form.zipCode} onChange={(e)=>setField('zipCode',e.target.value)}/><TextField label="Cidade" value={form.city} onChange={(e)=>setField('city',e.target.value)}/><TextField label="Estado" value={form.state} onChange={(e)=>setField('state',e.target.value)}/>
           <TextField label="Instagram" value={form.instagram} onChange={(e)=>setField('instagram',e.target.value)}/><TextField label="Formador" value={form.formator} onChange={(e)=>setField('formator',e.target.value)} disabled={!isAdmin}/>
           <TextField label="Dons (separados por vírgula)" value={form.gifts} onChange={(e)=>setField('gifts',e.target.value)} sx={{gridColumn:{md:'1 / -1'}}}/>
           <TextField label="Biografia / observações" value={form.bio} onChange={(e)=>setField('bio',e.target.value)} multiline minRows={3} sx={{gridColumn:{md:'1 / -1'}}}/>

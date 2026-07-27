@@ -42,6 +42,18 @@ export function LectioPage() {
   const load=async()=>{setLoading(true);setError('');try{const {data}=await api.get<LectioEntry[]>('/lectio');const today=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo'}).format(new Date());setItems(data);setSelected((current)=>data.find(i=>i.id===current?.id)||data.find(i=>i.date===today)||data[0]||null);}catch(e){setError(apiErrorMessage(e));}finally{setLoading(false)}};
   const loadAdmin=async()=>{if(!isAdmin)return;try{const [a,b,c]=await Promise.all([api.get<LectioSettings>('/lectio/settings'),api.get<LectioSyncLog[]>('/lectio/sync-logs'),api.get<LectioProviderStatus[]>('/lectio/providers/status')]);setSettings(a.data);setLogs(b.data);setProviders(c.data);}catch(e){setError(apiErrorMessage(e));}};
   useEffect(()=>{void load();void loadAdmin();},[isAdmin]);
+  useEffect(()=>{
+    let currentDay=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo'}).format(new Date());
+    const refresh=()=>{
+      const nextDay=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo'}).format(new Date());
+      if(nextDay!==currentDay){currentDay=nextDay;void load();}
+    };
+    const timer=window.setInterval(refresh,60_000);
+    const onVisible=()=>{if(document.visibilityState==='visible'){refresh();void load();}};
+    document.addEventListener('visibilitychange',onVisible);
+    window.addEventListener('focus',onVisible);
+    return()=>{window.clearInterval(timer);document.removeEventListener('visibilitychange',onVisible);window.removeEventListener('focus',onVisible);};
+  },[]);
   useEffect(()=>{setCompleted(localStorage.getItem(storageKey)==='true')},[storageKey]);
 
   const saveEntry=async()=>{setSaving(true);setError('');try{const payload={...editing,id:undefined};if(editing.id)await api.patch(`/lectio/${editing.id}`,payload);else await api.post('/lectio',payload);setEditorOpen(false);setNotice('Lectio salva com sucesso.');await load();await loadAdmin();}catch(e){setError(apiErrorMessage(e));}finally{setSaving(false)}};

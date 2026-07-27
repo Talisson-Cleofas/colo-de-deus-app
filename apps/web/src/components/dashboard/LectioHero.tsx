@@ -18,10 +18,11 @@ export function LectioHero({
   loading?: boolean;
   error?: string;
 }) {
-  const subtitle = item?.isToday
+  const safeItem = item && typeof item === 'object' ? item : null;
+  const subtitle = safeItem?.isToday
     ? 'De hoje'
-    : item
-      ? `Última publicada • ${formatLectioDate(item.date)}`
+    : safeItem
+      ? `Última publicada • ${formatLectioDate(safeItem.date)}`
       : 'De hoje';
 
   return (
@@ -61,21 +62,21 @@ export function LectioHero({
           <Alert severity="warning" sx={{ mt: 3 }}>
             {error}
           </Alert>
-        ) : item ? (
+        ) : safeItem ? (
           <>
             <Typography color="primary.main" fontWeight={900} mt={3}>
-              {item.gospelReference || item.celebration}
+              {safeItem.gospelReference || safeItem.celebration || 'Lectio Divina'}
             </Typography>
-            {item.gospelTitle && (
+            {safeItem.gospelTitle && (
               <Typography color="text.secondary" mt={0.5}>
-                {item.gospelTitle}
+                {safeItem.gospelTitle}
               </Typography>
             )}
             <Typography fontSize={{ xs: 18, md: 21 }} lineHeight={1.55} mt={2}>
-              “{item.excerpt || 'A leitura está disponível.'}”
+              “{safeItem.excerpt || 'A leitura está disponível.'}”
             </Typography>
             <Typography variant="caption" color="text.secondary" display="block" mt={1.5}>
-              Fonte: {item.source} • {item.status}
+              Fonte: {safeItem.source || 'Não informada'} • {safeItem.status || 'PUBLICADA'}
             </Typography>
           </>
         ) : (
@@ -86,7 +87,7 @@ export function LectioHero({
 
         <Button
           onClick={onOpen}
-          disabled={!item}
+          disabled={!safeItem}
           variant="outlined"
           size="large"
           sx={{ mt: 4, minWidth: 190 }}

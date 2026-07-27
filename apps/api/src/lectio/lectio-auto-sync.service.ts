@@ -18,11 +18,35 @@ export class LectioAutoSyncService implements OnModuleInit, OnModuleDestroy {
       this.logger.log('Sincronização automática da Lectio desativada.');
       return;
     }
+    void this.ensureTodayOnStartup();
     this.scheduleNext();
   }
 
   onModuleDestroy(): void {
     if (this.timer) clearTimeout(this.timer);
+  }
+
+
+  private today(): string {
+    return new Intl.DateTimeFormat('en-CA', { timeZone: this.timeZone() }).format(new Date());
+  }
+
+  private async ensureTodayOnStartup(): Promise<void> {
+    try {
+      const current = await this.lectio.today();
+      if (!current || current.date !== this.today()) {
+        await this.lectio.sync(undefined, true);
+        this.logger.log('Lectio do dia sincronizada durante a inicialização da API.');
+      }
+    } catch (error) {
+      this.logger.warn(`Não foi possível garantir a Lectio do dia na inicialização: ${error instanceof Error ? error.message : String(error)}`);
+      this.scheduleRetry();
+    }
+  }
+
+  private scheduleRetry(): void {
+    const retryMinutes = Math.max(5, Number(this.config.get<string>('LECTIO_AUTO_SYNC_RETRY_MINUTES', '30')) || 30);
+    setTimeout(() => void this.ensureTodayOnStartup(), retryMinutes * 60_000).unref?.();
   }
 
   private enabled(): boolean {

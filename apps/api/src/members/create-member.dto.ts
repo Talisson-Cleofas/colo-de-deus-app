@@ -6,6 +6,7 @@ import {
   IsIn,
   IsOptional,
   IsString,
+  IsNumber,
   MaxLength,
   MinLength,
 } from 'class-validator';
@@ -91,6 +92,41 @@ export class CreateMemberDto {
   @IsString()
   @MaxLength(100)
   state = '';
+
+
+  @Transform(trim)
+  @IsOptional()
+  @IsString()
+  @MaxLength(220)
+  address = '';
+
+  @Transform(trim)
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  neighborhood = '';
+
+  @Transform(trim)
+  @IsOptional()
+  @IsString()
+  @MaxLength(20)
+  zipCode = '';
+
+  @Type(() => Number)
+  @IsOptional()
+  @IsNumber()
+  latitude?: number;
+
+  @Type(() => Number)
+  @IsOptional()
+  @IsNumber()
+  longitude?: number;
+
+  @Transform(trim)
+  @IsOptional()
+  @IsString()
+  @MaxLength(180)
+  googlePlaceId = '';
 
   @IsOptional()
   @IsArray()

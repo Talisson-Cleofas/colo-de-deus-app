@@ -1,49 +1,80 @@
-import { LocationOnOutlined, PersonPinCircleOutlined } from '@mui/icons-material';
-import { Avatar, Box, Card, CardContent, Chip, Stack, Typography } from '@mui/material';
+import { LocationOnOutlined, PersonPinCircleOutlined, RefreshOutlined } from '@mui/icons-material';
+import { Alert, Avatar, Box, Button, Card, CardContent, CircularProgress, Link, Stack, Typography } from '@mui/material';
+import { useEffect, useState } from 'react';
+import { MapView } from '../components/maps/MapView';
+import type { MapMarkerData } from '../components/maps/types';
+import { api, apiErrorMessage } from '../services/api';
 import type { Member } from '../types';
 
-const positions: Record<string, { top: string; left: string }> = {
-  Brasília: { top: '45%', left: '54%' },
-  Taguatinga: { top: '55%', left: '32%' },
-  'Águas Claras': { top: '61%', left: '43%' },
-  Guará: { top: '48%', left: '43%' },
-  Sobradinho: { top: '23%', left: '59%' },
-  Ceilândia: { top: '58%', left: '22%' },
-};
-
 export function MembersMapPanel({ members }: { members: Member[] }) {
-  const grouped = members.reduce<Record<string, Member[]>>((acc, member) => {
-    const city = member.city || 'Brasília';
-    acc[city] = [...(acc[city] ?? []), member];
-    return acc;
-  }, {});
+  const [markers, setMarkers] = useState<MapMarkerData[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  const load = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const { data } = await api.get<MapMarkerData[]>('/maps/members');
+      setMarkers(Array.isArray(data) ? data : []);
+    } catch (requestError) {
+      setError(apiErrorMessage(requestError));
+      setMarkers([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { void load(); }, []);
+
+  const memberById = new Map(members.map((member) => [member.id, member]));
 
   return (
-    <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1.5fr .8fr' }, gap: 2 }}>
-      <Card sx={{ minHeight: 560, position: 'relative', overflow: 'hidden' }}>
-        <Box sx={{ position: 'absolute', inset: 0, background: 'radial-gradient(circle at 52% 48%,#3b2a1c 0,#171717 22%,#090909 62%)' }} />
-        <Box sx={{ position: 'absolute', inset: 28, border: '1px solid', borderColor: 'divider', borderRadius: 4, opacity: 0.8 }} />
-        <Typography sx={{ position: 'absolute', top: 24, left: 28, zIndex: 2 }} variant="h6">Mapa aproximado dos membros</Typography>
-        <Typography sx={{ position: 'absolute', top: 57, left: 28, zIndex: 2 }} color="text.secondary" fontSize={13}>Localizações por cidade/região, sem endereço residencial.</Typography>
-        {Object.entries(grouped).map(([city, people], index) => {
-          const p = positions[city] ?? { top: `${28 + index * 9}%`, left: `${30 + (index % 3) * 18}%` };
-          return (
-            <Box key={city} sx={{ position: 'absolute', top: p.top, left: p.left, transform: 'translate(-50%,-50%)', zIndex: 3, textAlign: 'center' }}>
-              <Box sx={{ width: 48, height: 48, mx: 'auto', borderRadius: '50%', bgcolor: 'primary.main', color: '#fff', display: 'grid', placeItems: 'center', boxShadow: '0 0 0 8px rgba(155,107,62,.18)' }}><PersonPinCircleOutlined /></Box>
-              <Chip label={`${city} · ${people.length}`} size="small" sx={{ mt: 1, bgcolor: '#111' }} />
-            </Box>
-          );
-        })}
-      </Card>
-      <Stack spacing={1.5} sx={{ maxHeight: 560, overflowY: 'auto' }}>
-        {Object.entries(grouped).map(([city, people]) => (
-          <Card key={city}><CardContent>
-            <Stack direction="row" alignItems="center" spacing={1}><LocationOnOutlined color="primary" /><Typography variant="h6">{city}</Typography></Stack>
-            <Typography color="text.secondary" fontSize={13} mb={1.5}>{people.length} membro(s)</Typography>
-            <Stack spacing={1}>{people.map((m) => <Stack key={m.id} direction="row" spacing={1} alignItems="center"><Avatar src={m.photo} sx={{ width: 34, height: 34 }}>{m.name[0]}</Avatar><Box><Typography fontSize={14} fontWeight={700}>{m.name}</Typography><Typography color="text.secondary" fontSize={12}>{m.cell}</Typography></Box></Stack>)}</Stack>
-          </CardContent></Card>
-        ))}
+    <Stack spacing={2}>
+      <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" alignItems={{ xs: 'stretch', sm: 'center' }} gap={1}>
+        <Box>
+          <Typography variant="h5">Localização dos membros</Typography>
+          <Typography color="text.secondary">
+            Endereços cadastrados são convertidos em coordenadas e exibidos com acesso direto ao Google Maps.
+          </Typography>
+        </Box>
+        <Button startIcon={<RefreshOutlined />} onClick={() => void load()} disabled={loading}>Atualizar mapa</Button>
       </Stack>
-    </Box>
+
+      {error && <Alert severity="warning">{error}</Alert>}
+      {loading ? <Box py={8} textAlign="center"><CircularProgress /></Box> : (
+        <>
+          <MapView markers={markers} height={420} />
+          {markers.length === 0 && (
+            <Alert severity="info">
+              Nenhum membro possui endereço completo ou coordenadas válidas. Edite o cadastro e informe endereço, bairro, cidade, estado e CEP.
+            </Alert>
+          )}
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2,1fr)' }, gap: 2 }}>
+            {markers.map((marker) => {
+              const member = memberById.get(marker.id);
+              return (
+                <Card key={marker.id} variant="outlined">
+                  <CardContent>
+                    <Stack direction="row" spacing={1.5} alignItems="center">
+                      <Avatar src={member?.photo}>{marker.title.slice(0, 1)}</Avatar>
+                      <Box flex={1}>
+                        <Typography fontWeight={800}>{marker.title}</Typography>
+                        <Typography variant="body2" color="text.secondary">{marker.address}</Typography>
+                      </Box>
+                      <PersonPinCircleOutlined color="primary" />
+                    </Stack>
+                    <Stack direction="row" spacing={1} alignItems="center" mt={1.5}>
+                      <LocationOnOutlined fontSize="small" color="primary" />
+                      <Link href={marker.navigationUrl} target="_blank" rel="noreferrer">Abrir rota no Google Maps</Link>
+                    </Stack>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </Box>
+        </>
+      )}
+    </Stack>
   );
 }

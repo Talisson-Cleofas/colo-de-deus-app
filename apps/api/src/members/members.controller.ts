@@ -45,7 +45,7 @@ export class MembersController {
     }
     const safeDto = ['ADMIN', 'MISSION_LEADER', 'DEVELOPER'].includes(user.profile) ? dto : {
       name: dto.name, photo: dto.photo, phone: dto.phone, bio: dto.bio, instagram: dto.instagram,
-      birthDate: dto.birthDate, city: dto.city, state: dto.state, gifts: dto.gifts, formator: dto.formator,
+      birthDate: dto.birthDate, city: dto.city, state: dto.state, address: dto.address, neighborhood: dto.neighborhood, zipCode: dto.zipCode, latitude: dto.latitude, longitude: dto.longitude, googlePlaceId: dto.googlePlaceId, gifts: dto.gifts, formator: dto.formator,
     };
     const member = await this.sheets.updateMember(id, safeDto);
     return { member, message: 'Cadastro atualizado com sucesso.' };
@@ -129,6 +129,12 @@ export class MembersController {
       birthDate: dto.birthDate,
       city: dto.city,
       state: dto.state,
+      address: dto.address,
+      neighborhood: dto.neighborhood,
+      zipCode: dto.zipCode,
+      latitude: dto.latitude,
+      longitude: dto.longitude,
+      googlePlaceId: dto.googlePlaceId,
       gifts: dto.gifts,
       formator: dto.formator,
     });

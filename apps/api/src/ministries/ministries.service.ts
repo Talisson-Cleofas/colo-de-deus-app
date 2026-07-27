@@ -141,12 +141,34 @@ export class MinistriesService {
   }
   async removeMember(id:string, memberId:string, user:AuthenticatedUser) {
     const ministry = await this.getById(id); this.assertCanManage(user,ministry);
-    if ([ministry.leaderId,ministry.viceLeaderId].includes(memberId)) throw new ConflictException('Altere a liderança antes de remover este membro.');
-    const rows = await this.sheets.read('Participantes');
-    const row = rows.find((item) => item.tipo === 'MINISTERIO' && item.referencia_id === id && item.membro_id === memberId && this.sheets.parseActive(item.ativo || ''));
-    if (!row) throw new NotFoundException('Vínculo não encontrado.');
+    const isAdmin = ['ADMIN', 'MISSION_LEADER', 'DEVELOPER'].includes(user.profile);
+    const isLeader = ministry.leaderId === memberId;
+    const isViceLeader = ministry.viceLeaderId === memberId;
+
+    if ((isLeader || isViceLeader) && !isAdmin) {
+      throw new ConflictException('Somente a administração pode remover líder ou vice-líder do ministério.');
+    }
+
     const now = new Date().toISOString();
-    await this.sheets.updateRecord('Participantes','id',row.id,{...row,ativo:'FALSE',data_saida:now.slice(0,10),atualizado_em:now});
+    if (isLeader || isViceLeader) {
+      const ministryRows = await this.sheets.read(this.tab);
+      const source = ministryRows.find((item) => item.id === id);
+      if (!source) throw new NotFoundException('Ministério não encontrado na planilha.');
+      await this.sheets.updateRecord(this.tab, 'id', id, {
+        ...source,
+        lider_id: isLeader ? '' : (source.lider_id || ''),
+        vice_lider_id: isViceLeader ? '' : (source.vice_lider_id || ''),
+        atualizado_em: now,
+      });
+    }
+
+    const rows = await this.sheets.read('Participantes');
+    const linkedRows = rows.filter((item) => item.tipo === 'MINISTERIO' && item.referencia_id === id && item.membro_id === memberId && this.sheets.parseActive(item.ativo || ''));
+    if (!linkedRows.length && !isLeader && !isViceLeader) throw new NotFoundException('Vínculo não encontrado.');
+    for (const row of linkedRows) {
+      await this.sheets.updateRecord('Participantes','id',row.id,{...row,ativo:'FALSE',data_saida:now.slice(0,10),atualizado_em:now});
+    }
+    await this.sync.reconcileStructure('MINISTERIO', id);
   }
   async listAttendance(id:string,user:AuthenticatedUser):Promise<MinistryAttendanceRecord[]> {
     const ministry = await this.getById(id); this.assertCanManage(user,ministry);

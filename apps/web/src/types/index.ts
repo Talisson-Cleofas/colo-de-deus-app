@@ -3,7 +3,7 @@ export type AccessProfile = 'DEVELOPER' | 'MISSION_LEADER' | 'ADMIN' | 'MINISTRY
 export type Member = {
   id:string; name:string; email:string; photo:string; role:string; ministry:string; cell:string; phone:string;
   profile:AccessProfile; active:boolean; bio:string; instagram:string; birthDate:string; joinedAt:string;
-  city:string; state:string; gifts:string[]; formator:string;
+  city:string; state:string; address:string; neighborhood:string; zipCode:string; latitude:number|null; longitude:number|null; googlePlaceId:string; gifts:string[]; formator:string;
 };
 export type AuthUser = Member & { uid?: string; memberId?: string };
 export type MemberFacets={ministries:string[];cells:string[];roles:string[]};

@@ -10,6 +10,7 @@ import {
 } from '@mui/material';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api, apiErrorMessage } from '../services/api';
+import { MapsAdminCard } from '../components/maps/MapsAdminCard';
 
 type Integration = { key:string; name:string; configured:boolean; connected:boolean|null; message:string; lastCheckedAt:string };
 type SchemaRow = { tab:string; expected:string[]; current:string[]; valid:boolean };
@@ -57,6 +58,7 @@ export function TechnicalAdminPage() {
     </Tabs>
 
     {tab===0&&<Box sx={{display:'grid',gridTemplateColumns:{xs:'1fr',md:'repeat(2,1fr)',xl:'repeat(3,1fr)'},gap:2}}>
+      <MapsAdminCard/>
       {integrations.map(item=><Card key={item.key} variant="outlined"><CardContent>
         <Stack direction="row" justifyContent="space-between" alignItems="center"><StorageOutlined color={item.configured?'primary':'disabled'}/><Chip size="small" label={item.configured?'Configurado':'Não configurado'} color={item.configured?'success':'default'}/></Stack>
         <Typography variant="h6" mt={2}>{item.name}</Typography><Typography variant="body2" color="text.secondary" minHeight={42}>{item.message}</Typography>

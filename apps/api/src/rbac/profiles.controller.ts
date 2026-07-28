@@ -1,10 +1,13 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post } from '@nestjs/common';
 import { Roles } from '../auth/decorators/roles.decorator';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import type { AuthenticatedUser } from '../auth/types/auth-user.type';
 import { ProfilesService, type ProfileInput } from './profiles.service';
 @Controller('profiles')
 @Roles('DEVELOPER','MISSION_LEADER','ADMIN')
 export class ProfilesController {
  constructor(private readonly service:ProfilesService){}
+ @Get('assignable') assignable(@CurrentUser() user:AuthenticatedUser){return this.service.assignable(user.profile);}
  @Get() list(){return this.service.list();}
  @Post() @Roles('DEVELOPER') create(@Body() dto:ProfileInput){return this.service.create(dto);}
  @Patch(':id') @Roles('DEVELOPER') update(@Param('id') id:string,@Body() dto:ProfileInput){return this.service.update(id,dto);}

@@ -1,4 +1,6 @@
-export type AccessProfile = 'DEVELOPER' | 'MISSION_LEADER' | 'ADMIN' | 'MINISTRY_LEADER' | 'CELL_LEADER' | 'MEMBER';
+export type KnownAccessProfile = 'DEVELOPER' | 'MISSION_LEADER' | 'ADMIN' | 'MINISTRY_LEADER' | 'CELL_LEADER' | 'MEMBER';
+export type AccessProfile = KnownAccessProfile | (string & {});
+export type AccessProfileOption = { id?:string; code:string; name:string; description:string; level:number; active:boolean };
 
 export type Member = {
   id:string; name:string; email:string; photo:string; role:string; ministry:string; cell:string; phone:string;

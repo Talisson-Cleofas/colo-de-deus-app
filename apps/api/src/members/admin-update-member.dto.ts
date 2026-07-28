@@ -1,8 +1,8 @@
-import { IsArray, IsBoolean, IsIn, IsOptional, IsString, MaxLength } from 'class-validator';
+import { IsArray, IsBoolean, IsOptional, IsString, MaxLength } from 'class-validator';
 
 export class AdminUpdateMemberDto {
-  @IsOptional() @IsIn(['DEVELOPER','ADMIN','MINISTRY_LEADER','CELL_LEADER','MEMBER'])
-  profile?: 'ADMIN'|'MINISTRY_LEADER'|'CELL_LEADER'|'MEMBER';
+  @IsOptional() @IsString() @MaxLength(80)
+  profile?: string;
   @IsOptional() @IsBoolean() active?: boolean;
   @IsOptional() @IsString() @MaxLength(100) role?: string;
   @IsOptional() @IsString() @MaxLength(120) formator?: string;

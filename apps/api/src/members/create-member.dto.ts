@@ -3,7 +3,6 @@ import {
   IsArray,
   IsBoolean,
   IsEmail,
-  IsIn,
   IsOptional,
   IsString,
   IsNumber,
@@ -56,8 +55,10 @@ export class CreateMemberDto {
   @MaxLength(30)
   phone = '';
 
-  @IsIn(['DEVELOPER', 'ADMIN', 'MINISTRY_LEADER', 'CELL_LEADER', 'MEMBER'])
-  profile: 'DEVELOPER' | 'MISSION_LEADER' | 'ADMIN' | 'MINISTRY_LEADER' | 'CELL_LEADER' | 'MEMBER' = 'MEMBER';
+  @Transform(trim)
+  @IsString()
+  @MaxLength(80)
+  profile = 'MEMBER';
 
   @Type(() => Boolean)
   @IsBoolean()

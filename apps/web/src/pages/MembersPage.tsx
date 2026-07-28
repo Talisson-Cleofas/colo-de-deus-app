@@ -8,20 +8,22 @@ import {
   Paper, Stack, Tab, Table, TableBody, TableCell, TableContainer, TableHead, TablePagination,
   TableRow, Tabs, TextField, Tooltip, Typography,
 } from '@mui/material';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../auth/AuthContext';
 import { api, apiErrorMessage } from '../services/api';
-import type { AccessProfile, Member, MemberFacets } from '../types';
+import type { AccessProfile, AccessProfileOption, Member, MemberFacets } from '../types';
 import { MembersMapPanel } from './MembersMapPanel';
 
 const normalize=(value:string)=>value.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
-const profileLabels: Record<AccessProfile, string> = {
-  DEVELOPER: 'Desenvolvedor',
-  ADMIN: 'Administrador',
-  MISSION_LEADER: 'Líder da Missão',
-  MINISTRY_LEADER: 'Líder de Ministério',
-  CELL_LEADER: 'Líder de Célula',
-  MEMBER: 'Membro',
+const defaultProfileOptions: AccessProfileOption[] = [
+  { code:'DEVELOPER', name:'Desenvolvedor', description:'Administração técnica total da plataforma.', level:100, active:true },
+  { code:'MISSION_LEADER', name:'Líder da Missão', description:'Administração funcional da missão.', level:90, active:true },
+  { code:'MINISTRY_LEADER', name:'Líder de Ministério', description:'Gestão no escopo do ministério.', level:60, active:true },
+  { code:'CELL_LEADER', name:'Líder de Célula', description:'Gestão no escopo da célula.', level:40, active:true },
+  { code:'MEMBER', name:'Membro', description:'Acesso pessoal e consultas gerais.', level:10, active:true },
+];
+const legacyProfileLabels: Record<string,string> = {
+  ADMIN:'Administrador (legado)',
 };
 
 type MemberForm={
@@ -39,7 +41,7 @@ const memberToForm=(member:Member):MemberForm=>({
 
 export function MembersPage(){
   const {user,hasRole}=useAuth();
-  const isAdmin=hasRole('ADMIN','DEVELOPER');
+  const isAdmin=hasRole('ADMIN','MISSION_LEADER','DEVELOPER');
   const [tab,setTab]=useState(0);const [members,setMembers]=useState<Member[]>([]);
   const [facets,setFacets]=useState<MemberFacets>({ministries:[],cells:[],roles:[]});
   const [loading,setLoading]=useState(true);const [error,setError]=useState('');const [success,setSuccess]=useState('');
@@ -48,10 +50,44 @@ export function MembersPage(){
   const [page,setPage]=useState(0);const [rowsPerPage,setRowsPerPage]=useState(10);
   const [open,setOpen]=useState(false);const [saving,setSaving]=useState(false);const [formError,setFormError]=useState('');
   const [editing,setEditing]=useState<Member|null>(null);const [form,setForm]=useState<MemberForm>(emptyForm);
+  const [accessProfiles,setAccessProfiles]=useState<AccessProfileOption[]>([]);
+  const [profilesLoading,setProfilesLoading]=useState(true);
+  const [profilesError,setProfilesError]=useState('');
 
-  const load=async()=>{setLoading(true);setError('');try{const [m,f]=await Promise.all([api.get('/members',{params:{status:'all'}}),api.get('/members/facets')]);setMembers(m.data.members);setFacets(f.data)}catch(e){setError(apiErrorMessage(e))}finally{setLoading(false)}};
-  useEffect(()=>{void load()},[]);
+  const load=useCallback(async()=>{setLoading(true);setError('');try{const [m,f]=await Promise.all([api.get('/members',{params:{status:'all'}}),api.get('/members/facets')]);setMembers(m.data.members);setFacets(f.data)}catch(e){setError(apiErrorMessage(e))}finally{setLoading(false)}},[]);
+  const loadAccessProfiles=useCallback(async()=>{
+    setProfilesLoading(true);setProfilesError('');
+    try{
+      const {data}=await api.get<AccessProfileOption[]>('/profiles/assignable');
+      const valid=(Array.isArray(data)?data:[])
+        .filter((item)=>item&&item.active!==false&&Boolean(item.code))
+        .sort((a,b)=>(b.level??0)-(a.level??0));
+      setAccessProfiles(valid.length?valid:defaultProfileOptions.filter((item)=>item.code!=='DEVELOPER'||user?.profile==='DEVELOPER'));
+    }catch(e){
+      setProfilesError(apiErrorMessage(e));
+      const actor=user?.profile==='ADMIN'?'MISSION_LEADER':user?.profile;
+      const actorLevel=defaultProfileOptions.find((item)=>item.code===actor)?.level??0;
+      setAccessProfiles(defaultProfileOptions.filter((item)=>(user?.profile==='DEVELOPER')||(item.code!=='DEVELOPER'&&(item.level??0)<=actorLevel)));
+    }finally{setProfilesLoading(false)}
+  },[user?.profile]);
+  useEffect(()=>{void load()},[load]);
+  useEffect(()=>{if(isAdmin)void loadAccessProfiles()},[isAdmin,loadAccessProfiles]);
   useEffect(()=>{setPage(0)},[query,ministry,cell,profile,status]);
+
+  const profileNameMap=useMemo(()=>{
+    const map=new Map<string,string>();
+    for(const item of defaultProfileOptions)map.set(item.code,item.name);
+    for(const item of accessProfiles)map.set(item.code,item.name);
+    for(const [code,label] of Object.entries(legacyProfileLabels))map.set(code,label);
+    return map;
+  },[accessProfiles]);
+  const profileLabel=useCallback((code:string)=>profileNameMap.get(code)||code||'Perfil não informado',[profileNameMap]);
+  const filterProfileOptions=useMemo(()=>{
+    const codes=new Set<string>(members.map((member)=>String(member.profile)).filter(Boolean));
+    const options:AccessProfileOption[]=[...accessProfiles];
+    for(const code of codes){if(!options.some((item)=>item.code===code))options.push({code,name:profileLabel(code),description:'Perfil presente em cadastro existente.',level:0,active:true})}
+    return options.sort((a,b)=>(b.level??0)-(a.level??0)||a.name.localeCompare(b.name,'pt-BR'));
+  },[accessProfiles,members,profileLabel]);
 
   const filtered=useMemo(()=>{const term=normalize(query.trim());return members.filter((member)=>{
     const hay=normalize([member.name,member.email,member.role,member.ministry,member.cell,member.city,member.formator].join(' '));
@@ -102,7 +138,7 @@ export function MembersPage(){
         <TextField value={query} onChange={(e)=>setQuery(e.target.value)} fullWidth placeholder="Buscar por nome, e-mail, função, cidade ou formador" slotProps={{input:{startAdornment:<InputAdornment position="start"><SearchOutlined/></InputAdornment>}}}/>
         <TextField select value={ministry} onChange={(e)=>setMinistry(e.target.value)} label="Ministério" sx={{minWidth:190}}><MenuItem value="">Todos</MenuItem>{facets.ministries.map((v)=><MenuItem key={v} value={v}>{v}</MenuItem>)}</TextField>
         <TextField select value={cell} onChange={(e)=>setCell(e.target.value)} label="Célula" sx={{minWidth:180}}><MenuItem value="">Todas</MenuItem>{facets.cells.map((v)=><MenuItem key={v} value={v}>{v}</MenuItem>)}</TextField>
-        <TextField select value={profile} onChange={(e)=>setProfile(e.target.value)} label="Perfil" sx={{minWidth:190}}><MenuItem value="">Todos</MenuItem>{Object.entries(profileLabels).map(([value,label])=><MenuItem key={value} value={value}>{label}</MenuItem>)}</TextField>
+        <TextField select value={profile} onChange={(e)=>setProfile(e.target.value)} label="Perfil" sx={{minWidth:190}}><MenuItem value="">Todos</MenuItem>{filterProfileOptions.map((item)=><MenuItem key={item.code} value={item.code}>{item.name}</MenuItem>)}</TextField>
         {isAdmin&&<TextField select value={status} onChange={(e)=>setStatus(e.target.value)} label="Situação" sx={{minWidth:150}}><MenuItem value="all">Todos</MenuItem><MenuItem value="active">Ativos</MenuItem><MenuItem value="inactive">Inativos</MenuItem></TextField>}
       </Stack></Paper>
 
@@ -112,7 +148,7 @@ export function MembersPage(){
         </TableRow></TableHead><TableBody>
           {paginated.map((member)=><TableRow key={member.id} hover>
             <TableCell><Stack direction="row" spacing={1.5} alignItems="center"><Avatar src={member.photo}>{member.name.slice(0,1)}</Avatar><Box><Typography fontWeight={800}>{member.name}</Typography><Typography color="text.secondary" fontSize={12}>{member.email}<br/>{member.phone||'Telefone não informado'}</Typography></Box></Stack></TableCell>
-            <TableCell><Chip size="small" label={profileLabels[member.profile]}/></TableCell>
+            <TableCell><Chip size="small" label={profileLabel(member.profile)}/></TableCell>
             <TableCell>{member.ministry||'—'}</TableCell><TableCell>{member.cell||'—'}</TableCell><TableCell>{member.formator||'—'}</TableCell>
             <TableCell><Chip size="small" color={member.active?'success':'default'} label={member.active?'Ativo':'Inativo'}/></TableCell>
             <TableCell align="right"><Stack direction="row" justifyContent="flex-end">
@@ -136,7 +172,7 @@ export function MembersPage(){
           <TextField label="Telefone" value={form.phone} onChange={(e)=>setField('phone',e.target.value)}/>
           <TextField label="Data de nascimento" type="date" value={form.birthDate} onChange={(e)=>setField('birthDate',e.target.value)} slotProps={{inputLabel:{shrink:true}}}/>
           <TextField label="Função" value={form.role} onChange={(e)=>setField('role',e.target.value)} disabled={!isAdmin}/>
-          <TextField select label="Perfil de acesso" value={form.profile} onChange={(e)=>setField('profile',e.target.value as AccessProfile)} disabled={!isAdmin}><MenuItem value="MEMBER">Membro</MenuItem><MenuItem value="CELL_LEADER">Líder de Célula</MenuItem><MenuItem value="MINISTRY_LEADER">Líder de Ministério</MenuItem><MenuItem value="ADMIN">Administrador</MenuItem></TextField>
+          <TextField select label="Perfil de acesso" value={form.profile} onChange={(e)=>setField('profile',e.target.value as AccessProfile)} disabled={!isAdmin||profilesLoading} helperText={profilesLoading?'Carregando perfis configurados...':profilesError?'Usando perfis padrão por indisponibilidade temporária.':'Perfis ativos definidos no RBAC.'}>{editing&&form.profile&&!accessProfiles.some((item)=>item.code===form.profile)&&<MenuItem value={form.profile} disabled>{profileLabel(form.profile)} — não atribuível</MenuItem>}{accessProfiles.map((item)=><MenuItem key={item.code} value={item.code}>{item.name}</MenuItem>)}</TextField>
           <TextField select label="Ministério" value={form.ministry} onChange={(e)=>setField('ministry',e.target.value)} disabled={!isAdmin}><MenuItem value="">Sem ministério</MenuItem>{facets.ministries.map((v)=><MenuItem key={v} value={v}>{v}</MenuItem>)}</TextField>
           <TextField select label="Célula" value={form.cell} onChange={(e)=>setField('cell',e.target.value)} disabled={!isAdmin}><MenuItem value="">Sem célula</MenuItem>{facets.cells.map((v)=><MenuItem key={v} value={v}>{v}</MenuItem>)}</TextField>
           <TextField label="Endereço" value={form.address} onChange={(e)=>setField('address',e.target.value)} sx={{gridColumn:{md:'1 / -1'}}}/><TextField label="Bairro" value={form.neighborhood} onChange={(e)=>setField('neighborhood',e.target.value)}/><TextField label="CEP" value={form.zipCode} onChange={(e)=>setField('zipCode',e.target.value)}/><TextField label="Cidade" value={form.city} onChange={(e)=>setField('city',e.target.value)}/><TextField label="Estado" value={form.state} onChange={(e)=>setField('state',e.target.value)}/>

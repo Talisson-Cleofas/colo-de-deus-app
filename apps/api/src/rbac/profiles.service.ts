@@ -48,6 +48,27 @@ export class ProfilesService {
     let rows=await this.sheets.read('Perfis'); if(seed && !rows.length){await this.seed();rows=await this.sheets.read('Perfis');}
     return rows.map(r=>this.map(r)).filter(p=>p.code&&p.code!=='ADMIN').sort((a,b)=>b.level-a.level);
   }
+  async assignable(actorProfile: string): Promise<RbacProfile[]> {
+    const profiles = (await this.list()).filter((profile) => profile.active);
+    const normalizedActor = actorProfile === 'ADMIN' ? 'MISSION_LEADER' : actorProfile;
+    const actor = profiles.find((profile) => profile.code === normalizedActor)
+      ?? DEFAULT_PROFILES.find((profile) => profile.code === normalizedActor);
+
+    if (normalizedActor === 'DEVELOPER') return profiles;
+
+    const actorLevel = Number(actor?.level ?? 0);
+    return profiles.filter((profile) =>
+      profile.code !== 'DEVELOPER' && Number(profile.level ?? 0) <= actorLevel,
+    );
+  }
+
+  async assertAssignable(actorProfile: string, requestedProfile: string): Promise<void> {
+    const allowed = await this.assignable(actorProfile);
+    if (!allowed.some((profile) => profile.code === requestedProfile && profile.active)) {
+      throw new BadRequestException('Você não possui permissão para atribuir este perfil de acesso.');
+    }
+  }
+
   async create(dto:ProfileInput){
     const code=this.code(dto.code||dto.name||''); if(!code||!dto.name?.trim()) throw new BadRequestException('Código e nome são obrigatórios.');
     const all=await this.list(); if(all.some(p=>p.code===code)) throw new BadRequestException('Já existe um perfil com este código.');

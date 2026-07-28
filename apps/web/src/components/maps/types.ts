@@ -1,2 +1,24 @@
-export type MapMarkerData={id:string;title:string;description?:string;address?:string;category:'MEMBER'|'CELL'|'CENACLE'|'EVENT';latitude:number;longitude:number;navigationUrl:string;metadata?:Record<string,string>};
-export type IntegrationStatus={enabled:boolean;configured:boolean;message:string;connected?:boolean};
+export type MapMarkerData = {
+  id: string;
+  title: string;
+  name?: string;
+  photo?: string;
+  phone?: string;
+  ministry?: string;
+  cell?: string;
+  city?: string;
+  state?: string;
+  description?: string;
+  address?: string;
+  formattedAddress?: string;
+  category?: 'MEMBER' | 'CELL' | 'CENACLE' | 'EVENT';
+  latitude: number | null;
+  longitude: number | null;
+  navigationUrl?: string | null;
+  googleMapsUrl?: string | null;
+  mapsLastUpdate?: string;
+  geocodeStatus?: string;
+  metadata?: Record<string, string>;
+  distanceKm?: number;
+};
+export type IntegrationStatus = { enabled: boolean; configured: boolean; message: string; connected?: boolean };

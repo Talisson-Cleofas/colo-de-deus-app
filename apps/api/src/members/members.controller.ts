@@ -10,10 +10,12 @@ import { UpdateMemberDto } from './update-member.dto';
 import { AdminUpdateMemberDto } from './admin-update-member.dto';
 import { MemberProfileService } from './member-profile.service';
 import { MinistryScopeService } from '../rbac/ministry-scope.service';
+import { MapsSyncService } from '../google-maps/maps-sync.service';
+import { ProfilesService } from '../rbac/profiles.service';
 @ApiTags('members')
 @Controller('members')
 export class MembersController {
-  constructor(@Inject(MEMBER_REPOSITORY) private readonly sheets: IMemberRepository, private readonly profiles: MemberProfileService, private readonly ministryScope: MinistryScopeService) {}
+  constructor(@Inject(MEMBER_REPOSITORY) private readonly sheets: IMemberRepository, private readonly profiles: MemberProfileService, private readonly ministryScope: MinistryScopeService, private readonly mapsSync: MapsSyncService, private readonly accessProfiles: ProfilesService) {}
   private visibleTo(user: AuthenticatedUser, member: MemberRow): boolean {
     if (['ADMIN', 'MISSION_LEADER', 'DEVELOPER'].includes(user.profile)) return true;
     if (user.profile === 'MINISTRY_LEADER') return Boolean(user.ministry && member.ministry === user.ministry);
@@ -29,10 +31,12 @@ export class MembersController {
     return members.filter((member) => allowed.has(member.id));
   }
   @Post()
-  @Roles('ADMIN')
+  @Roles('ADMIN','MISSION_LEADER','DEVELOPER')
   @ApiOperation({ summary: 'Cadastrar um membro no Google Sheets' })
-  async create(@Body() dto: CreateMemberDto) {
+  async create(@Body() dto: CreateMemberDto, @CurrentUser() user: AuthenticatedUser) {
+    await this.accessProfiles.assertAssignable(user.profile, dto.profile);
     const member = await this.sheets.createMember(dto);
+    await this.mapsSync.syncMember(member.id, true);
     return { member, message: 'Membro cadastrado com sucesso.' };
   }
   @Put(':id')
@@ -43,19 +47,29 @@ export class MembersController {
     if (!['ADMIN', 'MISSION_LEADER', 'DEVELOPER'].includes(user.profile) && !isSelf) {
       throw new NotFoundException('Membro não encontrado ou sem permissão para edição.');
     }
+    if (dto.profile && ['ADMIN', 'MISSION_LEADER', 'DEVELOPER'].includes(user.profile)) {
+      await this.accessProfiles.assertAssignable(user.profile, dto.profile);
+    }
     const safeDto = ['ADMIN', 'MISSION_LEADER', 'DEVELOPER'].includes(user.profile) ? dto : {
       name: dto.name, photo: dto.photo, phone: dto.phone, bio: dto.bio, instagram: dto.instagram,
       birthDate: dto.birthDate, city: dto.city, state: dto.state, address: dto.address, neighborhood: dto.neighborhood, zipCode: dto.zipCode, latitude: dto.latitude, longitude: dto.longitude, googlePlaceId: dto.googlePlaceId, gifts: dto.gifts, formator: dto.formator,
     };
     const member = await this.sheets.updateMember(id, safeDto);
+    const addressChanged = ['address', 'neighborhood', 'city', 'state', 'zipCode'].some((key) => key in safeDto);
+    if (addressChanged) await this.mapsSync.syncMember(id, true);
     return { member, message: 'Cadastro atualizado com sucesso.' };
   }
   @Patch(':id/status')
-  @Roles('ADMIN')
+  @Roles('ADMIN','MISSION_LEADER','DEVELOPER')
   async status(@Param('id') id: string, @Body('active') active: boolean) {
     const member = await this.sheets.setMemberActive(id, Boolean(active));
     return { member, message: active ? 'Membro reativado com sucesso.' : 'Membro desativado com sucesso.' };
   }
+  @Get('map')
+  async map() {
+    return { status: 'SUCCESS', members: await this.mapsSync.list() };
+  }
+
   @Get('me/profile')
   async myProfile(@CurrentUser() user: AuthenticatedUser) {
     const memberId = user.memberId || user.id;
@@ -185,8 +199,11 @@ export class MembersController {
   @Get(':id/public-profile')
   async publicProfile(@Param('id') id:string, @CurrentUser() user:AuthenticatedUser) { return this.profiles.publicProfile(id,user); }
   @Patch(':id/admin')
-  @Roles('ADMIN')
-  async adminUpdate(@Param('id') id:string, @Body() dto:AdminUpdateMemberDto, @CurrentUser() user:AuthenticatedUser) { return this.profiles.adminUpdate(id,dto,user); }
+  @Roles('ADMIN','MISSION_LEADER','DEVELOPER')
+  async adminUpdate(@Param('id') id:string, @Body() dto:AdminUpdateMemberDto, @CurrentUser() user:AuthenticatedUser) {
+    if (dto.profile) await this.accessProfiles.assertAssignable(user.profile, dto.profile);
+    return this.profiles.adminUpdate(id,dto,user);
+  }
   @Get(':id')
   async detail(@Param('id') id:string, @CurrentUser() user: AuthenticatedUser) {
     const member=(await this.scopedMembers(user)).find((m)=>m.id===id);

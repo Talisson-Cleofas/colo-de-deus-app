@@ -14,7 +14,7 @@ export type MemberRow = {
   ministry: string;
   cell: string;
   phone: string;
-  profile: 'DEVELOPER' | 'MISSION_LEADER' | 'ADMIN' | 'MINISTRY_LEADER' | 'CELL_LEADER' | 'MEMBER';
+  profile: string;
   active: boolean;
   bio: string;
   instagram: string;
@@ -427,13 +427,14 @@ export class GoogleSheetsService {
     await this.updateRows(`'${String(tab).replace(/'/g, "''")}'!A${rowNumber}:${this.columnName(headers.length)}${rowNumber}`, [values]);
   }
 
-  private parseProfile(value: string): 'DEVELOPER' | 'MISSION_LEADER' | 'ADMIN' | 'MINISTRY_LEADER' | 'CELL_LEADER' | 'MEMBER' {
+  private parseProfile(value: string): string {
     const normalized = value.trim().toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
     if (['DEVELOPER', 'DESENVOLVEDOR'].includes(normalized)) return 'DEVELOPER';
     if (['MISSION_LEADER','LIDER_MISSAO','LIDER MISSAO','ADMIN'].includes(normalized)) return 'MISSION_LEADER';
     if (['LIDER_MINISTERIO', 'LIDER DE MINISTERIO', 'MINISTRY_LEADER'].includes(normalized)) return 'MINISTRY_LEADER';
     if (['LIDER', 'LEADER', 'LIDER_CELULA', 'LIDER DE CELULA', 'CELL_LEADER'].includes(normalized)) return 'CELL_LEADER';
-    return 'MEMBER';
+    if (['MEMBER', 'MEMBRO'].includes(normalized)) return 'MEMBER';
+    return normalized.replace(/[^A-Z0-9]+/g, '_').replace(/^_|_$/g, '') || 'MEMBER';
   }
 
   parseActive(value: string, defaultValue = false): boolean {

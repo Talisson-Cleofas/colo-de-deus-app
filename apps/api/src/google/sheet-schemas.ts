@@ -1,6 +1,6 @@
 export const SHEET_SCHEMAS = {
   Missao: ['id','nome','sigla','descricao','cidade','estado','pais','responsavel_id','ativo','criado_em','atualizado_em'],
-  Membros: ['id','nome','email','foto','funcao','ministerio','celula','telefone','perfil','ativo','deleted_at','deleted_by','created_at','created_by','updated_at','updated_by','bio','instagram','data_nascimento','criado_em','cidade','estado','dons','formador','atualizado_em','endereco','bairro','cep','latitude','longitude','google_place_id','localizacao_atualizada_em','foto_drive_file_id','foto_url'],
+  Membros: ['id','nome','email','foto','funcao','ministerio','celula','telefone','perfil','ativo','deleted_at','deleted_by','created_at','created_by','updated_at','updated_by','bio','instagram','data_nascimento','criado_em','cidade','estado','dons','formador','atualizado_em','endereco','bairro','cep','latitude','longitude','google_place_id','localizacao_atualizada_em','formatted_address','maps_last_update','geocode_status','geocode_provider','foto_drive_file_id','foto_url'],
   Usuarios: ['id','missao_id','ministerio_id','membro_id','firebase_uid','email','provedor','ultimo_login','ultimo_ip','ultimo_dispositivo','ultimo_acesso','ativo','criado_em','atualizado_em'],
   Perfis: ['id','codigo','nome','descricao','nivel','ativo','criado_em','atualizado_em'],
   Permissoes: ['id','codigo','recurso','acao','descricao','ativo','criado_em','atualizado_em'],

@@ -2,6 +2,7 @@ import { IsBoolean, IsEmail, IsIn, IsOptional, IsString, MaxLength, MinLength } 
 
 export class CreateMinistryDto {
   @IsOptional() @IsString() missionId?: string;
+  @IsOptional() @IsString() @MaxLength(60) code?: string;
   @IsString() @MinLength(2) @MaxLength(100) name!: string;
   @IsOptional() @IsString() @MaxLength(600) description?: string;
   @IsOptional() @IsEmail() leaderEmail?: string;
@@ -14,6 +15,7 @@ export class CreateMinistryDto {
 
 export class UpdateMinistryDto {
   @IsOptional() @IsString() missionId?: string;
+  @IsOptional() @IsString() @MaxLength(60) code?: string;
   @IsOptional() @IsString() @MinLength(2) @MaxLength(100) name?: string;
   @IsOptional() @IsString() @MaxLength(600) description?: string;
   @IsOptional() @IsEmail() leaderEmail?: string;

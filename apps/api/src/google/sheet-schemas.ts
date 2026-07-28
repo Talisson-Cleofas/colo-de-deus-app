@@ -5,7 +5,7 @@ export const SHEET_SCHEMAS = {
   Perfis: ['id','codigo','nome','descricao','nivel','ativo','criado_em','atualizado_em'],
   Permissoes: ['id','codigo','recurso','acao','descricao','ativo','criado_em','atualizado_em'],
   PerfisPermissoes: ['id','perfil_codigo','permissao_codigo','permitido','escopo','ativo','criado_em','atualizado_em'],
-  'Ministérios': ['id','missao_id','nome','descricao','lider_id','vice_lider_id','cor','icone','tipo','ordem','ativo','observacoes','criado_em','atualizado_em'],
+  'Ministérios': ['id','missao_id','codigo','nome','descricao','lider_id','vice_lider_id','cor','icone','tipo','ordem','ativo','observacoes','criado_em','atualizado_em'],
   'Células': ['id','missao_id','nome','lider_id','vice_lider_id','ministerio_id','endereco','bairro','cidade','estado','latitude','longitude','dia_semana','horario','ativo','deleted_at','deleted_by','created_at','created_by','updated_at','updated_by','criado_em','atualizado_em','cep','google_place_id','localizacao_atualizada_em','pasta_drive_id'],
   'Cenáculos': ['id','missao_id','nome','responsavel_id','vice_responsavel_id','ministerio_id','celula_id','endereco','bairro','cidade','estado','latitude','longitude','data','horario','data_fim','horario_fim','recorrente','status','encerrado_em','ativo','deleted_at','deleted_by','created_at','created_by','updated_at','updated_by','criado_em','atualizado_em','cep','google_place_id','localizacao_atualizada_em','pasta_drive_id'],
   Participantes: ['id','membro_id','tipo','referencia_id','funcao','data_entrada','data_saida','ativo','criado_em','atualizado_em'],

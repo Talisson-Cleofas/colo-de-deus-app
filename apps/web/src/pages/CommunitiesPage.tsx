@@ -7,12 +7,14 @@ import { CommunityCard } from '../components/communities/CommunityCard';
 import { api,apiErrorMessage } from '../services/api';
 import type { Community } from '../types/community';
 import { CellsMapPage } from './CellsMapPage';
+import { usePermission } from '../rbac/usePermission';
+import { Permission } from '../rbac/permissions';
 type Member={id:string;name:string;email:string;active:boolean};type Ministry={id:string;name:string};type CellOption={id:string;name:string};
 type CenacleStatus='UPCOMING'|'FINISHED'|'CANCELLED';
 const today=()=>new Date().toISOString().slice(0,10);
 const makeEmpty=()=>({name:'',description:'',leaderId:'',viceLeaderId:'',ministryId:'',cellId:'',weekday:'',startDate:today(),endDate:today(),recurrence:'NAO',time:'19:00',endTime:'21:00',address:'',neighborhood:'',city:'Brasília',state:'DF',latitude:0,longitude:0});
 export function CommunitiesPage({type}:{type:'CELL'|'CENACLE'}){
- const {hasRole}=useAuth();const canCreate=hasRole('ADMIN','DEVELOPER','MINISTRY_LEADER');const [open,setOpen]=useState(false);const [saving,setSaving]=useState(false);const [form,setForm]=useState(makeEmpty());
+ const {hasRole}=useAuth();const {hasPermission,hasMinistryModule}=usePermission();const canCreate=hasRole('ADMIN','DEVELOPER','MISSION_LEADER')||(type==='CELL'?hasPermission(Permission.CELLS_CREATE)&&hasMinistryModule('CELULAS'):hasPermission(Permission.CENACLES_CREATE)&&hasMinistryModule('CENACULO'));const [open,setOpen]=useState(false);const [saving,setSaving]=useState(false);const [form,setForm]=useState(makeEmpty());
  const [items,setItems]=useState<Community[]>([]);const [members,setMembers]=useState<Member[]>([]);const [ministries,setMinistries]=useState<Ministry[]>([]);const [cells,setCells]=useState<CellOption[]>([]);const [loading,setLoading]=useState(true);const [error,setError]=useState('');const [q,setQ]=useState('');const [neighborhood,setNeighborhood]=useState('');const [params,setParams]=useSearchParams();const mapActive=type==='CELL'&&params.get('tab')==='mapa';
  const status=(params.get('status')||'UPCOMING') as CenacleStatus;const periodStart=params.get('periodStart')||'';const periodEnd=params.get('periodEnd')||'';
  const singular=type==='CELL'?'célula':'cenáculo';const plural=type==='CELL'?'Células':'Cenáculos';

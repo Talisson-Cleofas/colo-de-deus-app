@@ -9,10 +9,11 @@ import { ProfilesService } from './profiles.service';
 import { PermissionsService } from './permissions.service';
 import { DEFAULT_PROFILE_PERMISSIONS } from './permission.defaults';
 import { MemoryCacheService } from '../performance/memory-cache.service';
+import { MinistryModuleService } from './ministry-module.service';
 
 @Injectable()
 export class PermissionService {
-  constructor(private readonly sheets: GoogleSheetsService, private readonly profiles: ProfilesService, private readonly permissionCrud: PermissionsService, private readonly cache: MemoryCacheService) {}
+  constructor(private readonly sheets: GoogleSheetsService, private readonly profiles: ProfilesService, private readonly permissionCrud: PermissionsService, private readonly cache: MemoryCacheService, private readonly ministryModules: MinistryModuleService) {}
 
   normalizeProfile(value: string): ProfileCode {
     const code = value.trim().toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
@@ -44,7 +45,7 @@ export class PermissionService {
     }, ['rbac'], 30 * 60_000);
   }
 
-  async forUser(user: AuthenticatedUser): Promise<UserPermissions> { return this.forProfile(user.profile); }
+  async forUser(user: AuthenticatedUser): Promise<UserPermissions> { const base=await this.forProfile(user.profile); return {...base,ministryModules:await this.ministryModules.modulesForUser(user)}; }
   async has(user: AuthenticatedUser, ...required: Permission[]): Promise<boolean> {
     const granted = await this.forUser(user);
     return required.every((permission)=>granted.permissions.includes(permission));

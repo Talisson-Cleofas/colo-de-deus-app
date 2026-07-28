@@ -19,7 +19,7 @@ export const DEFAULT_PERMISSIONS: RbacPermission[] = Object.values(Permission).m
 const all = Object.values(Permission);
 const read = all.filter((item) => item.endsWith(':READ'));
 const manageFunctional = all.filter((item) => !item.startsWith('TECHNICAL_ADMIN:') && !item.startsWith('INTEGRATIONS:') && !item.startsWith('LOGS:') && !item.startsWith('BACKUP:'));
-const leader = [Permission.DASHBOARD_READ,Permission.MEMBERS_READ,Permission.MEMBERS_UPDATE,Permission.MINISTRIES_READ,Permission.CELLS_READ,Permission.CELLS_MANAGE,Permission.CENACLES_READ,Permission.CENACLES_MANAGE,Permission.EVENTS_READ,Permission.EVENTS_CREATE,Permission.EVENTS_MANAGE,Permission.LECTIO_READ,Permission.SOMA_READ,Permission.REPORTS_READ];
+const leader = [Permission.DASHBOARD_READ,Permission.MEMBERS_READ,Permission.MEMBERS_UPDATE,Permission.MINISTRIES_READ,Permission.CELLS_READ,Permission.CELLS_CREATE,Permission.CELLS_UPDATE,Permission.CELLS_DELETE,Permission.ATTENDANCE_READ,Permission.ATTENDANCE_CREATE,Permission.CENACLES_READ,Permission.CENACLES_CREATE,Permission.CENACLES_UPDATE,Permission.CENACLES_DELETE,Permission.EVENTS_READ,Permission.EVENTS_CREATE,Permission.EVENTS_UPDATE,Permission.EVENTS_DELETE,Permission.LECTIO_READ,Permission.SOMA_READ,Permission.SOMA_WRITE,Permission.FINANCIAL_REPORT_READ,Permission.NOTIFICATIONS_READ,Permission.NOTIFICATIONS_CREATE,Permission.NOTIFICATIONS_SEND,Permission.REPORTS_READ];
 const member = [Permission.DASHBOARD_READ,Permission.MEMBERS_READ,Permission.MEMBERS_UPDATE,Permission.MINISTRIES_READ,Permission.CELLS_READ,Permission.CENACLES_READ,Permission.EVENTS_READ,Permission.LECTIO_READ,Permission.SOMA_READ];
 
 export const DEFAULT_PROFILE_PERMISSIONS: ProfilePermission[] = [

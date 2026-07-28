@@ -5,6 +5,7 @@ import { RbacModule } from './rbac/rbac.module';
 import { PermissionsGuard } from './rbac/guards/permissions.guard';
 import { MinistryScopeGuard } from './rbac/guards/ministry-scope.guard';
 import { CellLeaderGuard } from './rbac/guards/cell-leader.guard';
+import { MinistryModuleGuard } from './rbac/guards/ministry-module.guard';
 import { AuthModule } from './auth/auth.module';
 import { AdminModule } from './admin/admin.module';
 import { FirebaseAuthGuard } from './auth/guards/firebase-auth.guard';
@@ -71,6 +72,7 @@ import { PersistenceModule } from './persistence/persistence.module';
     { provide: APP_GUARD, useClass: RolesGuard },
     { provide: APP_GUARD, useClass: PermissionsGuard },
     { provide: APP_GUARD, useClass: MinistryScopeGuard },
+    { provide: APP_GUARD, useClass: MinistryModuleGuard },
     { provide: APP_GUARD, useClass: CellLeaderGuard },
     { provide: APP_INTERCEPTOR, useClass: PerformanceInterceptor },
     { provide: APP_INTERCEPTOR, useClass: AuditInterceptor },

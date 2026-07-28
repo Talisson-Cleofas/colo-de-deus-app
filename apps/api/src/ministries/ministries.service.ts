@@ -7,6 +7,7 @@ import { AddMinistryMemberDto, CreateMinistryDto, RegisterMinistryAttendanceDto,
 import type { MinistryAttendanceRecord, MinistryMemberRecord, MinistryRecord } from './ministries.types';
 @Injectable()
 export class MinistriesService {
+  private normalizeCode(value:string){return value.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().replace(/[^A-Z0-9]+/g,'_').replace(/^_|_$/g,'');}
   private readonly tab = 'Ministérios' as const;
   constructor(@Inject(MINISTRY_REPOSITORY) private readonly sheets: IMinistryRepository, private readonly sync: StructureSyncService) {}
   private async context() {
@@ -27,7 +28,7 @@ export class MinistriesService {
     const leader = byId.get(row.lider_id || '');
     const vice = byId.get(row.vice_lider_id || '');
     return {
-      id: row.id || '', missionId: row.missao_id || 'missao-brasilia', name: row.nome || '', description: row.descricao || '',
+      id: row.id || '', missionId: row.missao_id || 'missao-brasilia', code: row.codigo || this.normalizeCode(row.tipo || row.nome || ''), name: row.nome || '', description: row.descricao || '',
       leaderId: leader?.id || row.lider_id || '', leaderEmail: leader?.email || '', leaderName: leader?.name || '',
       viceLeaderId: vice?.id || row.vice_lider_id || '', viceLeaderEmail: vice?.email || '', viceLeaderName: vice?.name || '',
       color: row.cor || '', icon: row.icone || '', type: row.tipo || 'OUTRO', order: Number(row.ordem || 0),
@@ -72,7 +73,7 @@ export class MinistriesService {
     const now = new Date().toISOString();
     const id = randomUUID();
     await this.sheets.appendRecord(this.tab, {
-      id, missao_id:dto.missionId || 'missao-brasilia', nome:name, descricao:dto.description?.trim() || '', lider_id:leader?.id || '', vice_lider_id:vice?.id || '',
+      id, missao_id:dto.missionId || 'missao-brasilia', codigo:this.normalizeCode(dto.code || dto.type || name), nome:name, descricao:dto.description?.trim() || '', lider_id:leader?.id || '', vice_lider_id:vice?.id || '',
       cor:dto.color?.trim() || '#9e6939', icone:dto.icon?.trim() || '', tipo:dto.type?.trim() || 'OUTRO', ordem:0,
       ativo:'TRUE', observacoes:dto.notes?.trim() || '', criado_em:now, atualizado_em:now,
     });
@@ -100,6 +101,7 @@ export class MinistriesService {
     await this.sheets.updateRecord(this.tab, 'id', id, {
       ...source,
       missao_id:dto.missionId ?? current.missionId,
+      codigo:this.normalizeCode(dto.code ?? current.code ?? dto.type ?? current.type ?? current.name),
       nome:dto.name?.trim() ?? current.name,
       descricao:dto.description?.trim() ?? current.description,
       lider_id:isAdmin ? (leader?.id || '') : current.leaderId,

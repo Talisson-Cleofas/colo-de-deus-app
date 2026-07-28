@@ -11,11 +11,15 @@ import { MinistryScopeService } from './ministry-scope.service';
 import { MinistryScopeGuard } from './guards/ministry-scope.guard';
 import { CellScopeService } from './cell-scope.service';
 import { CellLeaderGuard } from './guards/cell-leader.guard';
+import { MinistryModuleService } from './ministry-module.service';
+import { MinistryModuleGuard } from './guards/ministry-module.guard';
+import { AuditModule } from '../audit/audit.module';
 
 @Global()
 @Module({
+  imports: [AuditModule],
   controllers: [RbacController, ProfilesController, PermissionsController],
-  providers: [ProfilesService, PermissionsService, PermissionService, PermissionsGuard, PermissionMiddleware, MinistryScopeService, MinistryScopeGuard, CellScopeService, CellLeaderGuard],
-  exports: [ProfilesService, PermissionsService, PermissionService, PermissionsGuard, PermissionMiddleware, MinistryScopeService, MinistryScopeGuard, CellScopeService, CellLeaderGuard],
+  providers: [ProfilesService, PermissionsService, PermissionService, PermissionsGuard, PermissionMiddleware, MinistryScopeService, MinistryScopeGuard, MinistryModuleService, MinistryModuleGuard, CellScopeService, CellLeaderGuard],
+  exports: [ProfilesService, PermissionsService, PermissionService, PermissionsGuard, PermissionMiddleware, MinistryScopeService, MinistryScopeGuard, MinistryModuleService, MinistryModuleGuard, CellScopeService, CellLeaderGuard],
 })
 export class RbacModule {}

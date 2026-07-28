@@ -1,6 +1,7 @@
 export type MinistryRecord = {
   id: string;
   missionId: string;
+  code: string;
   name: string;
   description: string;
   leaderId: string;

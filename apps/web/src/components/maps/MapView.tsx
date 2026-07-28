@@ -1,9 +1,4 @@
-import {
-  Alert,
-  Box,
-  CircularProgress,
-  Typography,
-} from '@mui/material';
+import { Alert, Box, CircularProgress, Typography } from '@mui/material';
 import { useEffect, useRef, useState } from 'react';
 import type { MapMarkerData } from './types';
 
@@ -35,7 +30,9 @@ type GoogleMapsApi = {
   ) => GoogleMarker;
 
   InfoWindow: new (
-    options: { content: string },
+    options: {
+      content: string;
+    },
   ) => GoogleInfoWindow;
 };
 
@@ -58,8 +55,9 @@ function loadGoogleMaps(): Promise<GoogleMapsApi> {
     return loader;
   }
 
-  const key = import.meta.env
-    .VITE_GOOGLE_MAPS_API_KEY as string | undefined;
+  const key = import.meta.env.VITE_GOOGLE_MAPS_API_KEY as
+    | string
+    | undefined;
 
   loader = new Promise((resolve, reject) => {
     if (!key) {
@@ -74,9 +72,9 @@ function loadGoogleMaps(): Promise<GoogleMapsApi> {
     const script = document.createElement('script');
 
     script.src =
-      `https://maps.googleapis.com/maps/api/js` +
-      `?key=${encodeURIComponent(key)}` +
-      '&language=pt-BR&region=BR';
+      `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(
+        key,
+      )}&language=pt-BR&region=BR`;
 
     script.async = true;
     script.defer = true;
@@ -84,19 +82,14 @@ function loadGoogleMaps(): Promise<GoogleMapsApi> {
     script.onload = () => {
       if (window.google?.maps) {
         resolve(window.google.maps);
-        return;
+      } else {
+        reject(new Error('Google Maps não carregou.'));
       }
-
-      reject(
-        new Error('Google Maps não carregou.'),
-      );
     };
 
     script.onerror = () => {
       reject(
-        new Error(
-          'Falha ao carregar Google Maps.',
-        ),
+        new Error('Falha ao carregar Google Maps.'),
       );
     };
 
@@ -110,40 +103,36 @@ const esc = (value: string) =>
   value.replace(
     /[&<>'"]/g,
     (char) =>
-      ({
-        '&': '&amp;',
-        '<': '&lt;',
-        '>': '&gt;',
-        "'": '&#39;',
-        '"': '&quot;',
-      })[char] ?? char,
+      (
+        {
+          '&': '&amp;',
+          '<': '&lt;',
+          '>': '&gt;',
+          "'": '&#39;',
+          '"': '&quot;',
+        } as Record<string, string>
+      )[char] ?? char,
   );
 
-type MapViewProps = {
+export function MapView({
+  markers,
+  height = 420,
+  userLocation,
+}: {
   markers: MapMarkerData[];
   height?: number;
   userLocation?: {
     latitude: number;
     longitude: number;
   } | null;
-};
+}) {
+  const elementRef = useRef<HTMLDivElement | null>(null);
 
-export function MapView({
-  markers,
-  height = 420,
-  userLocation,
-}: MapViewProps) {
-  const elementRef =
-    useRef<HTMLDivElement | null>(null);
+  const markerRefs = useRef<GoogleMarker[]>([]);
 
-  const markerRefs =
-    useRef<GoogleMarker[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const [loading, setLoading] =
-    useState(true);
-
-  const [error, setError] =
-    useState('');
+  const [error, setError] = useState('');
 
   useEffect(() => {
     let cancelled = false;
@@ -155,15 +144,12 @@ export function MapView({
       try {
         const maps = await loadGoogleMaps();
 
-        if (
-          cancelled ||
-          !elementRef.current
-        ) {
+        if (cancelled || !elementRef.current) {
           return;
         }
 
-        markerRefs.current.forEach(
-          (marker) => marker.setMap(null),
+        markerRefs.current.forEach((marker) =>
+          marker.setMap(null),
         );
 
         markerRefs.current = [];
@@ -175,14 +161,9 @@ export function MapView({
             latitude: number;
             longitude: number;
           } =>
-            typeof item.latitude ===
-              'number' &&
-            typeof item.longitude ===
-              'number' &&
-            !(
-              item.latitude === 0 &&
-              item.longitude === 0
-            ),
+            typeof item.latitude === 'number' &&
+            typeof item.longitude === 'number' &&
+            !(item.latitude === 0 && item.longitude === 0),
         );
 
         const center = userLocation
@@ -200,16 +181,13 @@ export function MapView({
                 lng: -47.882778,
               };
 
-        const map = new maps.Map(
-          elementRef.current,
-          {
-            center,
-            zoom: valid.length ? 8 : 4,
-            mapTypeControl: false,
-            streetViewControl: false,
-            fullscreenControl: true,
-          },
-        );
+        const map = new maps.Map(elementRef.current, {
+          center,
+          zoom: valid.length ? 8 : 4,
+          mapTypeControl: false,
+          streetViewControl: false,
+          fullscreenControl: true,
+        });
 
         const groups = new Map<
           string,
@@ -217,18 +195,15 @@ export function MapView({
         >();
 
         for (const item of valid) {
-          const groupKey =
+          const key =
             valid.length > 40
               ? `${item.latitude.toFixed(
                   2,
-                )}:${item.longitude.toFixed(
-                  2,
-                )}`
+                )}:${item.longitude.toFixed(2)}`
               : item.id;
 
-          groups.set(groupKey, [
-            ...(groups.get(groupKey) ??
-              []),
+          groups.set(key, [
+            ...(groups.get(key) ?? []),
             item,
           ]);
         }
@@ -236,93 +211,91 @@ export function MapView({
         for (const group of groups.values()) {
           const item = group[0];
 
-          const marker =
-            new maps.Marker({
-              map,
-              position: {
-                lat: item.latitude,
-                lng: item.longitude,
-              },
-              title:
-                group.length > 1
-                  ? `${group.length} membros`
-                  : item.title,
-              label:
-                group.length > 1
-                  ? String(group.length)
-                  : undefined,
-            });
+          const marker = new maps.Marker({
+            map,
+            position: {
+              lat: item.latitude,
+              lng: item.longitude,
+            },
+            title:
+              group.length > 1
+                ? `${group.length} membros`
+                : item.title,
+            label:
+              group.length > 1
+                ? String(group.length)
+                : undefined,
+          });
 
           const content =
             group.length > 1
               ? `<div><strong>${group.length} membros nesta região</strong><br>${group
                   .slice(0, 8)
-                  .map((entry) =>
-                    esc(entry.title),
-                  )
+                  .map((entry) => esc(entry.title))
                   .join('<br>')}</div>`
-              : `<div style="max-width:260px"><strong>${esc(
-                  item.title,
-                )}</strong><br>${esc(
-                  item.formattedAddress ||
-                    item.address ||
-                    '',
-                )}<br>${
-                  item.ministry
-                    ? `Ministério: ${esc(
-                        item.ministry,
-                      )}<br>`
-                    : ''
-                }${
-                  item.cell
-                    ? `Célula: ${esc(
-                        item.cell,
-                      )}<br>`
-                    : ''
-                }${
-                  item.phone
-                    ? `Telefone: ${esc(
-                        item.phone,
-                      )}<br>`
-                    : ''
-                }${
-                  item.googleMapsUrl ||
-                  item.navigationUrl
-                    ? `<a target="_blank" rel="noopener" href="${esc(
-                        item.googleMapsUrl ||
-                          item.navigationUrl ||
-                          '',
-                      )}">Abrir rota</a>`
-                    : ''
-                }</div>`;
+              : `<div style="max-width:260px">
+                    <strong>${esc(item.title)}</strong><br>
+                    ${esc(
+                      item.formattedAddress ??
+                        item.address ??
+                        '',
+                    )}<br>
+                    ${
+                      item.ministry
+                        ? `Ministério: ${esc(
+                            item.ministry,
+                          )}<br>`
+                        : ''
+                    }
+                    ${
+                      item.cell
+                        ? `Célula: ${esc(
+                            item.cell,
+                          )}<br>`
+                        : ''
+                    }
+                    ${
+                      item.phone
+                        ? `Telefone: ${esc(
+                            item.phone,
+                          )}<br>`
+                        : ''
+                    }
+                    ${
+                      item.googleMapsUrl ||
+                      item.navigationUrl
+                        ? `<a target="_blank" rel="noopener" href="${esc(
+                            item.googleMapsUrl ??
+                              item.navigationUrl ??
+                              '',
+                          )}">
+                            Abrir rota
+                          </a>`
+                        : ''
+                    }
+                 </div>`;
 
-          const info =
-            new maps.InfoWindow({
-              content,
-            });
+          const info = new maps.InfoWindow({
+            content,
+          });
 
-          marker.addListener(
-            'click',
-            () =>
-              info.open({
-                map,
-                anchor: marker,
-              }),
+          marker.addListener('click', () =>
+            info.open({
+              map,
+              anchor: marker,
+            }),
           );
 
-          markerRefs.current.push(
-            marker,
-          );
+          markerRefs.current.push(marker);
         }
 
         if (userLocation) {
-          const you =
-            new maps.Marker({
-              map,
-              position: center,
-              title: 'Você está aqui',
-              label: '●',
-            });
+          const you = new maps.Marker({
+            map,
+            position: center,
+            title: 'Você está aqui',
+            label: '●',
+          });
 
           markerRefs.current.push(you);
 
@@ -380,13 +353,9 @@ export function MapView({
       )}
 
       {error && (
-        <Alert
-          severity="warning"
-          sx={{ mt: 1 }}
-        >
-          Não foi possível carregar o
-          mapa. Exibindo lista
-          simplificada. {error}
+        <Alert severity="warning" sx={{ mt: 1 }}>
+          Não foi possível carregar o mapa.
+          Exibindo lista simplificada. {error}
         </Alert>
       )}
 
@@ -394,15 +363,14 @@ export function MapView({
         !error &&
         markers.every(
           (item) =>
-            item.latitude === null ||
-            item.longitude === null,
+            item.latitude == null ||
+            item.longitude == null,
         ) && (
           <Typography
             color="text.secondary"
             mt={1}
           >
-            Nenhuma coordenada válida
-            disponível.
+            Nenhuma coordenada válida disponível.
           </Typography>
         )}
     </Box>

@@ -10,12 +10,9 @@ import { AppModule } from './app.module';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const config = app.get(ConfigService);
+  const environment = config.get<string>('NODE_ENV', 'development');
 
-  const port = Number(
-    config.get('PORT') ??
-      config.get('API_PORT') ??
-      4000,
-  );
+  const port = Number(config.get('PORT') ?? config.get('API_PORT') ?? 4000);
 
   const webUrls = (config.get<string>('WEB_URL') ?? 'http://localhost:5173')
     .split(',')
@@ -23,6 +20,10 @@ async function bootstrap() {
     .filter(Boolean);
 
   app.setGlobalPrefix('api');
+  app.enableShutdownHooks();
+  if (config.get<string>('TRUST_PROXY') === 'true') {
+    app.getHttpAdapter().getInstance().set('trust proxy', 1);
+  }
   app.use(helmet());
   app.use(compression({ threshold: 2048, level: 6 }));
   app.enableCors({ origin: webUrls, credentials: true });
@@ -34,29 +35,27 @@ async function bootstrap() {
     }),
   );
 
-  const swaggerConfig = new DocumentBuilder()
-    .setTitle('Colo de Deus API')
-    .setDescription('API da Missão Brasília')
-    .setVersion('5.5.3')
-    .addBearerAuth()
-    .build();
+  const swaggerEnabled = config.get<string>('SWAGGER_ENABLED') === 'true';
+  if (swaggerEnabled) {
+    const swaggerConfig = new DocumentBuilder()
+      .setTitle('Colo de Deus API')
+      .setDescription('API da Missão Brasília')
+      .setVersion('7.2.1')
+      .addBearerAuth()
+      .build();
 
-  SwaggerModule.setup(
-    'docs',
-    app,
-    SwaggerModule.createDocument(app, swaggerConfig),
-  );
+    SwaggerModule.setup('docs', app, SwaggerModule.createDocument(app, swaggerConfig));
+  }
 
   await app.listen(port, '0.0.0.0');
 
-  const environment = config.get('NODE_ENV') ?? 'development';
   console.log('');
   console.log('==========================================');
   console.log('🚀 COLO DE DEUS API');
   console.log('==========================================');
   console.log(`Ambiente : ${environment}`);
   console.log(`API      : http://localhost:${port}/api`);
-  console.log(`Swagger  : http://localhost:${port}/docs`);
+  console.log(`Swagger  : ${swaggerEnabled ? `http://localhost:${port}/docs` : 'desativado'}`);
   console.log(`Porta    : ${port}`);
   console.log('==========================================');
   console.log('');

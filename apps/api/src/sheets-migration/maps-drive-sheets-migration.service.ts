@@ -4,8 +4,13 @@ import { GoogleSheetsService } from '../google/google-sheets.service';
 import { SHEET_SCHEMAS, type SheetName } from '../google/sheet-schemas';
 
 const TARGET_VERSION = '4.2.2';
-const LOCATION_TABS: SheetName[] = ['Membros', 'Células', 'Cenáculos', 'Eventos'];
-const NEW_TABS: SheetName[] = ['Arquivos', 'PastasDrive', 'HistoricoArquivos', 'Sistema', 'Migracoes'];
+const NEW_TABS: SheetName[] = [
+  'Arquivos',
+  'PastasDrive',
+  'HistoricoArquivos',
+  'Sistema',
+  'Migracoes',
+];
 
 export type MigrationPreview = {
   currentVersion: string;
@@ -39,7 +44,9 @@ export class MapsDriveSheetsMigrationService {
     for (const [tab, expected] of Object.entries(SHEET_SCHEMAS)) {
       const current = byTab.get(tab)?.current ?? [];
       if (!current.length && NEW_TABS.includes(tab as SheetName)) missingSheets.push(tab);
-      const missing = expected.filter((header) => !current.some((value) => value.trim() === header));
+      const missing = expected.filter(
+        (header) => !current.some((value) => value.trim() === header),
+      );
       if (missing.length) missingColumns[tab] = [...missing];
     }
 
@@ -97,8 +104,12 @@ export class MapsDriveSheetsMigrationService {
         [TARGET_VERSION, TARGET_VERSION, finishedAt, 'OK'],
       ]);
       await this.sheets.appendRecord('Migracoes', {
-        id: randomUUID(), versao: TARGET_VERSION, usuario: user,
-        inicio: startedAt, fim: finishedAt, status: 'OK',
+        id: randomUUID(),
+        versao: TARGET_VERSION,
+        usuario: user,
+        inicio: startedAt,
+        fim: finishedAt,
+        status: 'OK',
         detalhes: JSON.stringify({ createdSheets, columnsAdded }),
       });
     }

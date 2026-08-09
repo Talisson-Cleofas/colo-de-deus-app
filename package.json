@@ -1,6 +1,6 @@
 {
   "name": "colo-de-deus",
-  "version": "5.5.10",
+  "version": "7.2.1",
   "private": true,
   "packageManager": "npm@10.9.0",
   "workspaces": [
@@ -11,6 +11,7 @@
     "build": "turbo build",
     "lint": "turbo lint",
     "typecheck": "turbo typecheck",
+    "test": "npm run test --workspace=@colo/api",
     "format": "prettier --write \"**/*.{ts,tsx,js,json,md,yml,yaml,css}\"",
     "clean": "turbo clean && rimraf node_modules",
     "mobile:get": "cd mobile && flutter pub get",
@@ -21,7 +22,9 @@
     "brand:sync": "node scripts/sync-brand-assets.mjs",
     "validate": "npm run clean:artifacts && npm run typecheck && npm run build",
     "clean:artifacts": "node scripts/clean-artifacts.mjs",
-    "check:env": "node scripts/check-env.mjs"
+    "check:env": "node scripts/check-env.mjs",
+    "check:env:examples": "node scripts/check-env.mjs --examples",
+    "audit:production": "node scripts/audit-production.mjs"
   },
   "devDependencies": {
     "prettier": "^3.5.3",
@@ -32,7 +35,8 @@
   "engines": {
     "node": ">=22"
   },
-  "dependencies": {
-    "firebase": "^12.16.0"
+  "overrides": {
+    "brace-expansion@^1.0.0": "1.1.18",
+    "brace-expansion@^2.0.0": "2.1.4"
   }
 }

@@ -1,4 +1,4 @@
-const VERSION = 'colo-v5-5-6';
+const VERSION = 'colo-v7-2-0';
 const STATIC_CACHE = `${VERSION}-static`;
 const RUNTIME_CACHE = `${VERSION}-runtime`;
 const CORE = ['/', '/offline.html', '/manifest.webmanifest', '/brand/logo-oficial-branca.png', '/icons/icon-192.png', '/icons/icon-512.png', '/favicon.svg', '/icons/apple-touch-icon.png'];

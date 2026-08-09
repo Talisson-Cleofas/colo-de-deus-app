@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { RbacModule } from './rbac/rbac.module';
 import { PermissionsGuard } from './rbac/guards/permissions.guard';
@@ -36,10 +36,21 @@ import { SheetsMigrationModule } from './sheets-migration/sheets-migration.modul
 import { PerformanceModule } from './performance/performance.module';
 import { PerformanceInterceptor } from './performance/performance.interceptor';
 import { PersistenceModule } from './persistence/persistence.module';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true, validate: validateEnvironment }),
+    ThrottlerModule.forRootAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => [
+        {
+          ttl: Number(config.get<string>('THROTTLE_TTL_MS', '60000')),
+          limit: Number(config.get<string>('THROTTLE_LIMIT', '120')),
+        },
+      ],
+    }),
     PerformanceModule,
     GoogleModule,
     PersistenceModule,
@@ -68,6 +79,7 @@ import { PersistenceModule } from './persistence/persistence.module';
   ],
   controllers: [HealthController],
   providers: [
+    { provide: APP_GUARD, useClass: ThrottlerGuard },
     { provide: APP_GUARD, useClass: FirebaseAuthGuard },
     { provide: APP_GUARD, useClass: RolesGuard },
     { provide: APP_GUARD, useClass: PermissionsGuard },

@@ -1,78 +1,60 @@
-# Colo de Deus — Sprint 6
+# Colo de Deus — Sprint 7.2.1
 
-Monorepo da Missão Brasília com React 19, NestJS 11, Google Sheets, Google Drive, Firebase, PWA e Flutter para Android/iPhone.
+Monorepo da Missão Brasília com React 19, NestJS 11, Google Sheets, Firebase, PWA e um protótipo Flutter. A Sprint 7.2.1 mantém a estabilização da base e corrige o fluxo recorrente do Soma+: assinatura individual criada pela API, webhooks de assinatura e cobrança, reconciliação e cancelamento pelo app.
 
-## Entregas desta sprint
-- PWA instalável.
-- Navegação e telas visitadas disponíveis offline.
-- Fila local de operações para sincronizar quando a internet retornar.
-- Aplicativo Flutter compartilhado para Android e iOS.
-- Dashboard mobile, membros, Lectio, agenda e atalhos dos módulos anteriores.
-- Guias de publicação web, backend, Google Play e App Store.
-- GitHub Actions para Node e Flutter.
+## Requisitos
 
-## Web e API
+- Node.js 22
+- npm 10 ou superior
+- Flutter apenas para trabalhar no protótipo em `mobile/`
+
+## Instalação reproduzível
+
 ```bash
-cp apps/api/.env.example apps/api/.env
-cp apps/web/.env.example apps/web/.env
-npm install
+npm ci
+npm run check:env:examples
+cp apps/api/demo.env.example apps/api/.env
+cp apps/web/demo.env.example apps/web/.env
+npm run check:env
 npm run dev
 ```
-- Web: http://localhost:5173
-- API: http://localhost:4000/api
-- Swagger: http://localhost:4000/docs
 
-## Flutter
-Instale o Flutter e execute:
+- Web: `http://localhost:5173`
+- API: `http://localhost:4000/api`
+- Saúde: `http://localhost:4000/api/health`
+- Swagger: `http://localhost:4000/docs` apenas quando `SWAGGER_ENABLED=true`
+
+Para integração real, copie os arquivos `.env.example`, preencha Firebase e Google Sheets e mantenha `DEMO_MODE=false`. A API recusa inicialização em produção com modo demo, URLs sem HTTPS ou webhook financeiro inseguro.
+
+## Gates da entrega
+
+```bash
+npm run check:env:examples
+npm run lint
+npm run typecheck
+npm test
+npm run build
+npm run audit:production
+```
+
+## Execução local com contêineres
+
+```bash
+docker compose up --build
+```
+
+O Compose é deliberadamente demonstrativo e não deve ser reutilizado como arquivo de produção. Em produção, injete os segredos pelo provedor, use HTTPS e compile o frontend com `VITE_DEMO_MODE=false`.
+
+## Publicação
+
+Leia [docs/SPRINT-7.2.1-PRODUCAO.md](docs/SPRINT-7.2.1-PRODUCAO.md) e [MERCADO-PAGO-WEBHOOK-CONFIGURACAO.md](MERCADO-PAGO-WEBHOOK-CONFIGURACAO.md) antes de promover uma versão. Os guias incluem backup, novas abas, smoke tests, observabilidade e rollback.
+
+## Mobile
+
+`mobile/` continua sendo um protótipo compartilhado, não um binário homologado para as lojas. Para desenvolvimento:
+
 ```bash
 cd mobile
 flutter pub get
-flutter create . --platforms=android,ios
 flutter run --dart-define=DEMO_MODE=true --dart-define=API_URL=http://10.0.2.2:4000/api
 ```
-O comando `flutter create .` completa arquivos nativos dependentes da versão local do Flutter sem substituir a implementação em `lib/`.
-
-## PWA
-Para testar o service worker, gere e sirva o build:
-```bash
-npm run build --workspace=@colo/web
-npm run preview --workspace=@colo/web
-```
-Service workers só funcionam em produção/preview por HTTPS ou localhost.
-
-## Publicação
-Consulte `docs/publicacao/`:
-- `WEB-PWA.md`
-- `BACKEND-RENDER.md`
-- `ANDROID-GOOGLE-PLAY.md`
-- `IOS-APP-STORE.md`
-
-## Portas
-- API: 4000
-- Web: 5173
-
-## Sprint 6.1 — UI Profissional
-
-- Dashboard reconstruído em componentes menores e legíveis.
-- Sidebar compacta com botão Sair de 44 px, sem sobreposição.
-- Logo branca aplicada na navegação.
-- Tema preto, branco e bronze alinhado ao mockup aprovado.
-- Cards de acesso rápido, hero da Lectio e lista de eventos responsivos.
-
-## Sprint 6.2 — Navegação unificada
-
-- `/membros`: diretório e mapa de membros em abas.
-- `/perfil`: perfil e configurações em abas.
-- `/notificacoes`: central de notificações.
-- `/celulas?tab=mapa`: mapa incorporado ao módulo Células.
-- `/soma?tab=relatorios`: relatórios financeiros.
-- `/soma?tab=drive`: arquivos do Google Drive.
-
-## Sprint 6.4
-
-Na tela inicial, o quinto atalho agora é **Cenáculos**. O mapa deixou de aparecer como módulo independente no dashboard e permanece dentro de **Células > Mapa das células**.
-
-
-## Sprint 6.4.2 — Ministérios
-
-A navegação **Ministérios** foi restaurada na sidebar e está disponível em `/ministerios`.

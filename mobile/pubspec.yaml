@@ -1,7 +1,7 @@
 name: colo_de_deus_mobile
 description: Aplicativo Flutter da Colo de Deus - Missão Brasília.
 publish_to: none
-version: 6.0.0+6
+version: 7.2.1+8
 environment:
   sdk: '>=3.5.0 <4.0.0'
 dependencies:

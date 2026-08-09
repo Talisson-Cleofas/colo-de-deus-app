@@ -1,48 +1,611 @@
-import { ArrowBackOutlined, EditOutlined, SaveOutlined, VolunteerActivismOutlined } from '@mui/icons-material';
-import { Alert, Avatar, Box, Button, Card, CardContent, Chip, CircularProgress, Divider, FormControl, InputLabel, MenuItem, Select, Stack, Switch, Tab, Tabs, TextField, Typography } from '@mui/material';
+import {
+  ArrowBackOutlined,
+  EditOutlined,
+  SaveOutlined,
+  VolunteerActivismOutlined,
+} from '@mui/icons-material';
+import {
+  Alert,
+  Avatar,
+  Box,
+  Button,
+  Card,
+  CardContent,
+  Chip,
+  CircularProgress,
+  Divider,
+  FormControl,
+  InputLabel,
+  MenuItem,
+  Select,
+  Stack,
+  Switch,
+  Tab,
+  Tabs,
+  TextField,
+  Typography,
+} from '@mui/material';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { api, apiErrorMessage } from '../services/api';
 import type { AccessProfile, Member } from '../types';
 
-type Attendance={id:string;date:string;type:string;present:boolean;justification:string};
-type EventResponse={id:string;eventTitle:string;status:string;justification:string;createdAt:string};
-type Formation={id:string;name:string;status:string;progress:number;formator:string;startDate:string;endDate:string};
-type Responsibility={type:string;id:string;name:string;role:string};
-type Contribution={id:string;value:number;date:string;type:string;status:string;paymentMethod:string};
-type Change={id:string;action:string;userEmail:string;date:string};
-type Link={id:string;type:string;referenceId:string;name:string;role:string};
-type Option={id:string;name:string};
-type Payload={member:Member;summary:{presences:number;absences:number;justified:number;confirmedEvents:number;unconfirmedEvents:number;formations:number;responsibilities:number};attendance:Attendance[];eventResponses:EventResponse[];formations:Formation[];responsibilities:Responsibility[];contributions:Contribution[];changes:Change[];links:Link[];adminOptions?:{ministries:Option[];cells:Option[];cenacles:Option[];members:Option[]}};
-const formatDate=(v:string)=>v?new Date(v.length===10?`${v}T12:00:00`:v).toLocaleDateString('pt-BR'):'—';
-const money=(v:number)=>v.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+type Attendance = {
+  id: string;
+  date: string;
+  type: string;
+  present: boolean;
+  justification: string;
+};
+type EventResponse = {
+  id: string;
+  eventTitle: string;
+  status: string;
+  justification: string;
+  createdAt: string;
+};
+type Formation = {
+  id: string;
+  name: string;
+  status: string;
+  progress: number;
+  formator: string;
+  startDate: string;
+  endDate: string;
+};
+type Responsibility = { type: string; id: string; name: string; role: string };
+type Contribution = {
+  id: string;
+  value: number;
+  date: string;
+  type: string;
+  status: string;
+  paymentMethod: string;
+};
+type Change = { id: string; action: string; userEmail: string; date: string };
+type Link = { id: string; type: string; referenceId: string; name: string; role: string };
+type Option = { id: string; name: string };
+type Payload = {
+  member: Member;
+  privacy: {
+    isAdministrator: boolean;
+    isSelf: boolean;
+    canViewPublicProfile: boolean;
+    canViewCareData: boolean;
+    canViewFinancial: boolean;
+    canViewHistory: boolean;
+  };
+  summary: {
+    presences: number;
+    absences: number;
+    justified: number;
+    confirmedEvents: number;
+    unconfirmedEvents: number;
+    formations: number;
+    responsibilities: number;
+  };
+  attendance: Attendance[];
+  eventResponses: EventResponse[];
+  formations: Formation[];
+  responsibilities: Responsibility[];
+  contributions: Contribution[];
+  changes: Change[];
+  links: Link[];
+  adminOptions?: { ministries: Option[]; cells: Option[]; cenacles: Option[]; members: Option[] };
+};
+const formatDate = (v: string) =>
+  v ? new Date(v.length === 10 ? `${v}T12:00:00` : v).toLocaleDateString('pt-BR') : '—';
+const money = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
-export function MemberProfilePage(){
- const {id=''}=useParams();const navigate=useNavigate();const {user}=useAuth();const isAdmin=user?.profile==='ADMIN'||user?.profile==='DEVELOPER';
- const [data,setData]=useState<Payload|null>(null);const [loading,setLoading]=useState(true);const [saving,setSaving]=useState(false);const [tab,setTab]=useState(0);const [error,setError]=useState('');const [success,setSuccess]=useState('');
- const [admin,setAdmin]=useState({profile:'MEMBER' as AccessProfile,active:true,role:'',formator:'',ministryId:'',cellId:'',cenacleIds:[] as string[],leadMinistryIds:[] as string[],leadCellIds:[] as string[],leadCenacleIds:[] as string[]});
- const load=async()=>{setLoading(true);setError('');try{const r=await api.get<Payload>(`/members/${id}/profile-complete`);setData(r.data);const m=r.data.member;const links=r.data.links;setAdmin({profile:m.profile,active:m.active,role:m.role,formator:m.formator||'',ministryId:links.find(x=>x.type==='MINISTERIO')?.referenceId||'',cellId:links.find(x=>x.type==='CELULA')?.referenceId||'',cenacleIds:links.filter(x=>x.type==='CENACULO').map(x=>x.referenceId),leadMinistryIds:r.data.responsibilities.filter(x=>x.type==='MINISTERIO'&&x.role==='Líder').map(x=>x.id),leadCellIds:r.data.responsibilities.filter(x=>x.type==='CELULA'&&x.role==='Líder').map(x=>x.id),leadCenacleIds:r.data.responsibilities.filter(x=>x.type==='CENACULO'&&x.role==='Responsável').map(x=>x.id)});}catch(e){setError(apiErrorMessage(e));}finally{setLoading(false)}};
- useEffect(()=>{void load()},[id]);
- const save=async()=>{setSaving(true);setError('');try{await api.patch(`/members/${id}/admin`,admin);setSuccess('Perfil administrativo atualizado.');await load();}catch(e){setError(apiErrorMessage(e));}finally{setSaving(false)}};
- const m=data?.member;const initials=useMemo(()=>m?.name.split(' ').slice(0,2).map(x=>x[0]).join('').toUpperCase()||'M',[m?.name]);
- if(loading)return <Box display="grid" minHeight={360} sx={{placeItems:'center'}}><CircularProgress/></Box>;
- if(!data||!m)return <Alert severity="error">{error||'Perfil não encontrado.'}</Alert>;
- const s=data.summary,o=data.adminOptions;
- return <Box><Button startIcon={<ArrowBackOutlined/>} onClick={()=>navigate('/membros')} sx={{mb:2}}>Voltar aos membros</Button>{error&&<Alert severity="error" sx={{mb:2}}>{error}</Alert>}{success&&<Alert severity="success" sx={{mb:2}} onClose={()=>setSuccess('')}>{success}</Alert>}
- <Card sx={{overflow:'hidden'}}><Box sx={{height:150,background:'radial-gradient(circle at 20% 20%,rgba(155,103,55,.38),transparent 35%),linear-gradient(120deg,#21170f,#080808)'}}/><CardContent sx={{mt:-8,p:{xs:2,md:4}}}><Stack direction={{xs:'column',sm:'row'}} alignItems={{xs:'center',sm:'flex-end'}} spacing={2}><Avatar src={m.photo} sx={{width:132,height:132,fontSize:40,border:'5px solid',borderColor:'background.paper'}}>{initials}</Avatar><Box flex={1} textAlign={{xs:'center',sm:'left'}}><Typography variant="h4" fontWeight={900}>{m.name}</Typography><Typography color="primary.main" fontWeight={800}>{m.role||'Membro'}</Typography><Stack direction="row" gap={1} flexWrap="wrap" mt={1}><Chip label={m.profile}/><Chip label={m.active?'Ativo':'Inativo'} color={m.active?'success':'default'}/>{m.ministry&&<Chip label={m.ministry}/>}</Stack></Box>{isAdmin&&<Button startIcon={<EditOutlined/>} onClick={()=>setTab(6)}>Administrar</Button>}</Stack>
- <Box sx={{display:'grid',gridTemplateColumns:{xs:'repeat(2,1fr)',md:'repeat(7,1fr)'},gap:1.5,my:3}}>{[['Presenças',s.presences],['Faltas',s.absences],['Justificadas',s.justified],['Confirmados',s.confirmedEvents],['Não confirmados',s.unconfirmedEvents],['Formações',s.formations],['Responsabilidades',s.responsibilities]].map(([l,v])=><Card key={String(l)} variant="outlined"><CardContent><Typography variant="h5" fontWeight={900}>{v}</Typography><Typography variant="caption" color="text.secondary">{l}</Typography></CardContent></Card>)}</Box>
- <Tabs value={tab} onChange={(_,v)=>setTab(v)} variant="scrollable" scrollButtons="auto"><Tab label="Perfil interno"/><Tab label="Presenças e faltas"/><Tab label="Eventos"/><Tab label="Formações"/><Tab label="Responsabilidades"/><Tab label="Soma+ e alterações"/>{isAdmin&&<Tab label="Administração"/>}</Tabs><Divider sx={{mb:3}}/>
- {tab===0&&<Stack spacing={2}><Typography>{m.bio||'Sem biografia cadastrada.'}</Typography><Stack direction="row" gap={1} flexWrap="wrap">{m.gifts?.map(g=><Chip key={g} icon={<VolunteerActivismOutlined/>} label={g}/>)}</Stack><Info label="Cidade/Estado" value={[m.city,m.state].filter(Boolean).join(' - ')}/><Info label="Instagram" value={m.instagram}/>{isAdmin&&<><Info label="E-mail" value={m.email}/><Info label="Telefone" value={m.phone}/><Info label="Nascimento" value={formatDate(m.birthDate)}/><Info label="Formador" value={m.formator}/></>}</Stack>}
- {tab===1&&<ListEmpty empty="Nenhum histórico de presença.">{data.attendance.map(x=><Row key={x.id} title={`${formatDate(x.date)} • ${x.type}`} status={x.present?'Presente':'Falta'} detail={!x.present?(x.justification||'Sem justificativa'):''}/>)}</ListEmpty>}
- {tab===2&&<ListEmpty empty="Nenhuma resposta de evento.">{data.eventResponses.map(x=><Row key={x.id} title={x.eventTitle} status={x.status} detail={`${formatDate(x.createdAt)}${x.justification?` • ${x.justification}`:''}`}/>)}</ListEmpty>}
- {tab===3&&<ListEmpty empty="Nenhuma formação vinculada.">{data.formations.map(x=><Row key={x.id} title={x.name} status={`${x.progress}%`} detail={`${x.status||'Em andamento'} • Formador: ${x.formator||'Não informado'}`}/>)}</ListEmpty>}
- {tab===4&&<ListEmpty empty="Nenhuma responsabilidade cadastrada.">{data.responsibilities.map(x=><Row key={`${x.type}-${x.id}`} title={x.name} status={x.role} detail={x.type}/>)}</ListEmpty>}
- {tab===5&&<Stack spacing={3}><Box><Typography variant="h6" fontWeight={800} mb={1}>Contribuições do Soma+</Typography><ListEmpty empty="Nenhuma contribuição registrada.">{data.contributions.map(x=><Row key={x.id} title={`${money(x.value)} • ${x.type}`} status={x.status} detail={`${formatDate(x.date)} • ${x.paymentMethod}`}/>)}</ListEmpty></Box><Box><Typography variant="h6" fontWeight={800} mb={1}>Histórico de alterações</Typography><ListEmpty empty="Nenhuma alteração registrada.">{data.changes.map(x=><Row key={x.id} title={x.action} status={formatDate(x.date)} detail={x.userEmail}/>)}</ListEmpty></Box></Stack>}
- {tab===6&&isAdmin&&o&&<Stack spacing={3}><Alert severity="warning">Campos sensíveis e vínculos são alterados somente por ADMIN ou DEVELOPER e validados novamente no backend.</Alert><Box sx={{display:'grid',gridTemplateColumns:{xs:'1fr',md:'1fr 1fr'},gap:2}}><FormControl><InputLabel>Perfil de acesso</InputLabel><Select label="Perfil de acesso" value={admin.profile} onChange={e=>setAdmin(v=>({...v,profile:e.target.value as AccessProfile}))}>{['DEVELOPER','MISSION_LEADER','MINISTRY_LEADER','CELL_LEADER','MEMBER'].map(x=><MenuItem key={x} value={x}>{x}</MenuItem>)}</Select></FormControl><TextField label="Função" value={admin.role} onChange={e=>setAdmin(v=>({...v,role:e.target.value}))}/><FormControl><InputLabel>Ministério principal</InputLabel><Select label="Ministério principal" value={admin.ministryId} onChange={e=>setAdmin(v=>({...v,ministryId:e.target.value}))}><MenuItem value="">Sem ministério</MenuItem>{o.ministries.map(x=><MenuItem key={x.id} value={x.id}>{x.name}</MenuItem>)}</Select></FormControl><FormControl><InputLabel>Célula principal</InputLabel><Select label="Célula principal" value={admin.cellId} onChange={e=>setAdmin(v=>({...v,cellId:e.target.value}))}><MenuItem value="">Sem célula</MenuItem>{o.cells.map(x=><MenuItem key={x.id} value={x.id}>{x.name}</MenuItem>)}</Select></FormControl><FormControl><InputLabel>Formador</InputLabel><Select label="Formador" value={admin.formator} onChange={e=>setAdmin(v=>({...v,formator:e.target.value}))}><MenuItem value="">Sem formador</MenuItem>{o.members.map(x=><MenuItem key={x.id} value={x.name}>{x.name}</MenuItem>)}</Select></FormControl><Stack direction="row" alignItems="center"><Switch checked={admin.active} onChange={e=>setAdmin(v=>({...v,active:e.target.checked}))}/><Typography>{admin.active?'Cadastro ativo':'Cadastro inativo'}</Typography></Stack></Box><Multi title="Cenáculos vinculados" options={o.cenacles} value={admin.cenacleIds} set={v=>setAdmin(x=>({...x,cenacleIds:v}))}/><Multi title="Liderança de ministérios" options={o.ministries} value={admin.leadMinistryIds} set={v=>setAdmin(x=>({...x,leadMinistryIds:v}))}/><Multi title="Liderança de células" options={o.cells} value={admin.leadCellIds} set={v=>setAdmin(x=>({...x,leadCellIds:v}))}/><Multi title="Responsabilidade de cenáculos" options={o.cenacles} value={admin.leadCenacleIds} set={v=>setAdmin(x=>({...x,leadCenacleIds:v}))}/><Button variant="contained" startIcon={saving?<CircularProgress size={18}/>:<SaveOutlined/>} disabled={saving} onClick={save} sx={{alignSelf:'flex-start'}}>Salvar administração do perfil</Button></Stack>}
- </CardContent></Card></Box>
+export function MemberProfilePage() {
+  const { id = '' } = useParams();
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const isAdmin =
+    user?.profile === 'ADMIN' ||
+    user?.profile === 'DEVELOPER' ||
+    user?.profile === 'MISSION_LEADER';
+  const [data, setData] = useState<Payload | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [tab, setTab] = useState(0);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const [admin, setAdmin] = useState({
+    profile: 'MEMBER' as AccessProfile,
+    active: true,
+    role: '',
+    formator: '',
+    ministryId: '',
+    cellId: '',
+    cenacleIds: [] as string[],
+    leadMinistryIds: [] as string[],
+    leadCellIds: [] as string[],
+    leadCenacleIds: [] as string[],
+  });
+  const load = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const r = await api.get<Payload>(`/members/${id}/profile-complete`);
+      setData(r.data);
+      const m = r.data.member;
+      const links = r.data.links;
+      setAdmin({
+        profile: m.profile,
+        active: m.active,
+        role: m.role,
+        formator: m.formator || '',
+        ministryId: links.find((x) => x.type === 'MINISTERIO')?.referenceId || '',
+        cellId: links.find((x) => x.type === 'CELULA')?.referenceId || '',
+        cenacleIds: links.filter((x) => x.type === 'CENACULO').map((x) => x.referenceId),
+        leadMinistryIds: r.data.responsibilities
+          .filter((x) => x.type === 'MINISTERIO' && x.role === 'Líder')
+          .map((x) => x.id),
+        leadCellIds: r.data.responsibilities
+          .filter((x) => x.type === 'CELULA' && x.role === 'Líder')
+          .map((x) => x.id),
+        leadCenacleIds: r.data.responsibilities
+          .filter((x) => x.type === 'CENACULO' && x.role === 'Responsável')
+          .map((x) => x.id),
+      });
+    } catch (e) {
+      setError(apiErrorMessage(e));
+    } finally {
+      setLoading(false);
+    }
+  };
+  useEffect(() => {
+    void load();
+  }, [id]);
+  const save = async () => {
+    setSaving(true);
+    setError('');
+    try {
+      await api.patch(`/members/${id}/admin`, admin);
+      setSuccess('Perfil administrativo atualizado.');
+      await load();
+    } catch (e) {
+      setError(apiErrorMessage(e));
+    } finally {
+      setSaving(false);
+    }
+  };
+  const m = data?.member;
+  const initials = useMemo(
+    () =>
+      m?.name
+        .split(' ')
+        .slice(0, 2)
+        .map((x) => x[0])
+        .join('')
+        .toUpperCase() || 'M',
+    [m?.name],
+  );
+  if (loading)
+    return (
+      <Box display="grid" minHeight={360} sx={{ placeItems: 'center' }}>
+        <CircularProgress />
+      </Box>
+    );
+  if (!data || !m) return <Alert severity="error">{error || 'Perfil não encontrado.'}</Alert>;
+  const s = data.summary,
+    o = data.adminOptions;
+  const summaryItems = data.privacy.canViewCareData
+    ? [
+        ['Presenças', s.presences],
+        ['Faltas', s.absences],
+        ['Justificadas', s.justified],
+        ['Confirmados', s.confirmedEvents],
+        ['Não confirmados', s.unconfirmedEvents],
+        ['Formações', s.formations],
+        ['Responsabilidades', s.responsibilities],
+      ]
+    : [['Responsabilidades', s.responsibilities]];
+  return (
+    <Box>
+      <Button startIcon={<ArrowBackOutlined />} onClick={() => navigate('/membros')} sx={{ mb: 2 }}>
+        Voltar aos membros
+      </Button>
+      {error && (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {error}
+        </Alert>
+      )}
+      {success && (
+        <Alert severity="success" sx={{ mb: 2 }} onClose={() => setSuccess('')}>
+          {success}
+        </Alert>
+      )}
+      <Card sx={{ overflow: 'hidden' }}>
+        <Box
+          sx={{
+            height: 150,
+            background:
+              'radial-gradient(circle at 20% 20%,rgba(155,103,55,.38),transparent 35%),linear-gradient(120deg,#21170f,#080808)',
+          }}
+        />
+        <CardContent sx={{ mt: -8, p: { xs: 2, md: 4 } }}>
+          <Stack
+            direction={{ xs: 'column', sm: 'row' }}
+            alignItems={{ xs: 'center', sm: 'flex-end' }}
+            spacing={2}
+          >
+            <Avatar
+              src={m.photo}
+              sx={{
+                width: 132,
+                height: 132,
+                fontSize: 40,
+                border: '5px solid',
+                borderColor: 'background.paper',
+              }}
+            >
+              {initials}
+            </Avatar>
+            <Box flex={1} textAlign={{ xs: 'center', sm: 'left' }}>
+              <Typography variant="h4" fontWeight={900}>
+                {m.name}
+              </Typography>
+              <Typography color="primary.main" fontWeight={800}>
+                {m.role || 'Membro'}
+              </Typography>
+              <Stack direction="row" gap={1} flexWrap="wrap" mt={1}>
+                <Chip label={m.profile} />
+                <Chip
+                  label={m.active ? 'Ativo' : 'Inativo'}
+                  color={m.active ? 'success' : 'default'}
+                />
+                {m.ministry && <Chip label={m.ministry} />}
+              </Stack>
+            </Box>
+            {isAdmin && (
+              <Button startIcon={<EditOutlined />} onClick={() => setTab(6)}>
+                Administrar
+              </Button>
+            )}
+          </Stack>
+          <Box
+            sx={{
+              display: 'grid',
+              gridTemplateColumns: {
+                xs: 'repeat(2,1fr)',
+                md: `repeat(${summaryItems.length},1fr)`,
+              },
+              gap: 1.5,
+              my: 3,
+            }}
+          >
+            {summaryItems.map(([l, v]) => (
+              <Card key={String(l)} variant="outlined">
+                <CardContent>
+                  <Typography variant="h5" fontWeight={900}>
+                    {v}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    {l}
+                  </Typography>
+                </CardContent>
+              </Card>
+            ))}
+          </Box>
+          <Tabs
+            value={tab}
+            onChange={(_, v) => setTab(v)}
+            variant="scrollable"
+            scrollButtons="auto"
+          >
+            <Tab value={0} label="Perfil interno" />
+            {data.privacy.canViewCareData && <Tab value={1} label="Presenças e faltas" />}
+            {data.privacy.canViewCareData && <Tab value={2} label="Eventos" />}
+            {data.privacy.canViewCareData && <Tab value={3} label="Formações" />}
+            <Tab value={4} label="Responsabilidades" />
+            {(data.privacy.canViewFinancial || data.privacy.canViewHistory) && (
+              <Tab value={5} label="Soma+ e alterações" />
+            )}
+            {isAdmin && <Tab value={6} label="Administração" />}
+          </Tabs>
+          <Divider sx={{ mb: 3 }} />
+          {tab === 0 && (
+            <Stack spacing={2}>
+              <Typography>{m.bio || 'Sem biografia cadastrada.'}</Typography>
+              <Stack direction="row" gap={1} flexWrap="wrap">
+                {m.gifts?.map((g) => (
+                  <Chip key={g} icon={<VolunteerActivismOutlined />} label={g} />
+                ))}
+              </Stack>
+              <Info label="Cidade/Estado" value={[m.city, m.state].filter(Boolean).join(' - ')} />
+              <Info label="Instagram" value={m.instagram} />
+              {isAdmin && (
+                <>
+                  <Info label="E-mail" value={m.email} />
+                  <Info label="Telefone" value={m.phone} />
+                  <Info label="Nascimento" value={formatDate(m.birthDate)} />
+                  <Info label="Formador" value={m.formator} />
+                </>
+              )}
+            </Stack>
+          )}
+          {tab === 1 && (
+            <ListEmpty empty="Nenhum histórico de presença.">
+              {data.attendance.map((x) => (
+                <Row
+                  key={x.id}
+                  title={`${formatDate(x.date)} • ${x.type}`}
+                  status={x.present ? 'Presente' : 'Falta'}
+                  detail={!x.present ? x.justification || 'Sem justificativa' : ''}
+                />
+              ))}
+            </ListEmpty>
+          )}
+          {tab === 2 && (
+            <ListEmpty empty="Nenhuma resposta de evento.">
+              {data.eventResponses.map((x) => (
+                <Row
+                  key={x.id}
+                  title={x.eventTitle}
+                  status={x.status}
+                  detail={`${formatDate(x.createdAt)}${x.justification ? ` • ${x.justification}` : ''}`}
+                />
+              ))}
+            </ListEmpty>
+          )}
+          {tab === 3 && (
+            <ListEmpty empty="Nenhuma formação vinculada.">
+              {data.formations.map((x) => (
+                <Row
+                  key={x.id}
+                  title={x.name}
+                  status={`${x.progress}%`}
+                  detail={`${x.status || 'Em andamento'} • Formador: ${x.formator || 'Não informado'}`}
+                />
+              ))}
+            </ListEmpty>
+          )}
+          {tab === 4 && (
+            <ListEmpty empty="Nenhuma responsabilidade cadastrada.">
+              {data.responsibilities.map((x) => (
+                <Row key={`${x.type}-${x.id}`} title={x.name} status={x.role} detail={x.type} />
+              ))}
+            </ListEmpty>
+          )}
+          {tab === 5 && (
+            <Stack spacing={3}>
+              {data.privacy.canViewFinancial && (
+                <Box>
+                  <Typography variant="h6" fontWeight={800} mb={1}>
+                    Contribuições do Soma+
+                  </Typography>
+                  <ListEmpty empty="Nenhuma contribuição registrada.">
+                    {data.contributions.map((x) => (
+                      <Row
+                        key={x.id}
+                        title={`${money(x.value)} • ${x.type}`}
+                        status={x.status}
+                        detail={`${formatDate(x.date)} • ${x.paymentMethod}`}
+                      />
+                    ))}
+                  </ListEmpty>
+                </Box>
+              )}
+              {data.privacy.canViewHistory && (
+                <Box>
+                  <Typography variant="h6" fontWeight={800} mb={1}>
+                    Histórico de alterações
+                  </Typography>
+                  <ListEmpty empty="Nenhuma alteração registrada.">
+                    {data.changes.map((x) => (
+                      <Row
+                        key={x.id}
+                        title={x.action}
+                        status={formatDate(x.date)}
+                        detail={x.userEmail}
+                      />
+                    ))}
+                  </ListEmpty>
+                </Box>
+              )}
+            </Stack>
+          )}
+          {tab === 6 && isAdmin && o && (
+            <Stack spacing={3}>
+              <Alert severity="warning">
+                Campos sensíveis e vínculos são alterados somente por ADMIN ou DEVELOPER e validados
+                novamente no backend.
+              </Alert>
+              <Box
+                sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2 }}
+              >
+                <FormControl>
+                  <InputLabel>Perfil de acesso</InputLabel>
+                  <Select
+                    label="Perfil de acesso"
+                    value={admin.profile}
+                    onChange={(e) =>
+                      setAdmin((v) => ({ ...v, profile: e.target.value as AccessProfile }))
+                    }
+                  >
+                    {[
+                      'DEVELOPER',
+                      'MISSION_LEADER',
+                      'MINISTRY_LEADER',
+                      'CELL_LEADER',
+                      'MEMBER',
+                    ].map((x) => (
+                      <MenuItem key={x} value={x}>
+                        {x}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+                <TextField
+                  label="Função"
+                  value={admin.role}
+                  onChange={(e) => setAdmin((v) => ({ ...v, role: e.target.value }))}
+                />
+                <FormControl>
+                  <InputLabel>Ministério principal</InputLabel>
+                  <Select
+                    label="Ministério principal"
+                    value={admin.ministryId}
+                    onChange={(e) => setAdmin((v) => ({ ...v, ministryId: e.target.value }))}
+                  >
+                    <MenuItem value="">Sem ministério</MenuItem>
+                    {o.ministries.map((x) => (
+                      <MenuItem key={x.id} value={x.id}>
+                        {x.name}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+                <FormControl>
+                  <InputLabel>Célula principal</InputLabel>
+                  <Select
+                    label="Célula principal"
+                    value={admin.cellId}
+                    onChange={(e) => setAdmin((v) => ({ ...v, cellId: e.target.value }))}
+                  >
+                    <MenuItem value="">Sem célula</MenuItem>
+                    {o.cells.map((x) => (
+                      <MenuItem key={x.id} value={x.id}>
+                        {x.name}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+                <FormControl>
+                  <InputLabel>Formador</InputLabel>
+                  <Select
+                    label="Formador"
+                    value={admin.formator}
+                    onChange={(e) => setAdmin((v) => ({ ...v, formator: e.target.value }))}
+                  >
+                    <MenuItem value="">Sem formador</MenuItem>
+                    {o.members.map((x) => (
+                      <MenuItem key={x.id} value={x.name}>
+                        {x.name}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+                <Stack direction="row" alignItems="center">
+                  <Switch
+                    checked={admin.active}
+                    onChange={(e) => setAdmin((v) => ({ ...v, active: e.target.checked }))}
+                  />
+                  <Typography>{admin.active ? 'Cadastro ativo' : 'Cadastro inativo'}</Typography>
+                </Stack>
+              </Box>
+              <Multi
+                title="Cenáculos vinculados"
+                options={o.cenacles}
+                value={admin.cenacleIds}
+                set={(v) => setAdmin((x) => ({ ...x, cenacleIds: v }))}
+              />
+              <Multi
+                title="Liderança de ministérios"
+                options={o.ministries}
+                value={admin.leadMinistryIds}
+                set={(v) => setAdmin((x) => ({ ...x, leadMinistryIds: v }))}
+              />
+              <Multi
+                title="Liderança de células"
+                options={o.cells}
+                value={admin.leadCellIds}
+                set={(v) => setAdmin((x) => ({ ...x, leadCellIds: v }))}
+              />
+              <Multi
+                title="Responsabilidade de cenáculos"
+                options={o.cenacles}
+                value={admin.leadCenacleIds}
+                set={(v) => setAdmin((x) => ({ ...x, leadCenacleIds: v }))}
+              />
+              <Button
+                variant="contained"
+                startIcon={saving ? <CircularProgress size={18} /> : <SaveOutlined />}
+                disabled={saving}
+                onClick={save}
+                sx={{ alignSelf: 'flex-start' }}
+              >
+                Salvar administração do perfil
+              </Button>
+            </Stack>
+          )}
+        </CardContent>
+      </Card>
+    </Box>
+  );
 }
-function Info({label,value}:{label:string;value?:string}){return <Box><Typography variant="caption" color="text.secondary">{label}</Typography><Typography>{value||'Não informado'}</Typography></Box>}
-function Row({title,status,detail}:{title:string;status:string;detail?:string}){return <Card variant="outlined"><CardContent><Stack direction={{xs:'column',sm:'row'}} justifyContent="space-between" gap={1}><Box><Typography fontWeight={800}>{title}</Typography>{detail&&<Typography color="text.secondary" variant="body2">{detail}</Typography>}</Box><Chip label={status} size="small"/></Stack></CardContent></Card>}
-function ListEmpty({children,empty}:{children:ReactNode;empty:string}){return <Stack spacing={1}>{children}{!Array.isArray(children)||children.length===0?<Typography color="text.secondary">{empty}</Typography>:null}</Stack>}
-function Multi({title,options,value,set}:{title:string;options:Option[];value:string[];set:(v:string[])=>void}){return <Box><Typography fontWeight={800} mb={1}>{title}</Typography><Stack direction="row" gap={1} flexWrap="wrap">{options.map(o=><Chip key={o.id} label={o.name} clickable color={value.includes(o.id)?'primary':'default'} variant={value.includes(o.id)?'filled':'outlined'} onClick={()=>set(value.includes(o.id)?value.filter(x=>x!==o.id):[...value,o.id])}/>)}</Stack></Box>}
+function Info({ label, value }: { label: string; value?: string }) {
+  return (
+    <Box>
+      <Typography variant="caption" color="text.secondary">
+        {label}
+      </Typography>
+      <Typography>{value || 'Não informado'}</Typography>
+    </Box>
+  );
+}
+function Row({ title, status, detail }: { title: string; status: string; detail?: string }) {
+  return (
+    <Card variant="outlined">
+      <CardContent>
+        <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" gap={1}>
+          <Box>
+            <Typography fontWeight={800}>{title}</Typography>
+            {detail && (
+              <Typography color="text.secondary" variant="body2">
+                {detail}
+              </Typography>
+            )}
+          </Box>
+          <Chip label={status} size="small" />
+        </Stack>
+      </CardContent>
+    </Card>
+  );
+}
+function ListEmpty({ children, empty }: { children: ReactNode; empty: string }) {
+  return (
+    <Stack spacing={1}>
+      {children}
+      {!Array.isArray(children) || children.length === 0 ? (
+        <Typography color="text.secondary">{empty}</Typography>
+      ) : null}
+    </Stack>
+  );
+}
+function Multi({
+  title,
+  options,
+  value,
+  set,
+}: {
+  title: string;
+  options: Option[];
+  value: string[];
+  set: (v: string[]) => void;
+}) {
+  return (
+    <Box>
+      <Typography fontWeight={800} mb={1}>
+        {title}
+      </Typography>
+      <Stack direction="row" gap={1} flexWrap="wrap">
+        {options.map((o) => (
+          <Chip
+            key={o.id}
+            label={o.name}
+            clickable
+            color={value.includes(o.id) ? 'primary' : 'default'}
+            variant={value.includes(o.id) ? 'filled' : 'outlined'}
+            onClick={() =>
+              set(value.includes(o.id) ? value.filter((x) => x !== o.id) : [...value, o.id])
+            }
+          />
+        ))}
+      </Stack>
+    </Box>
+  );
+}

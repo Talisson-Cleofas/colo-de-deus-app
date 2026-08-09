@@ -11,7 +11,7 @@ import {
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../auth/AuthContext';
 import { api, apiErrorMessage } from '../services/api';
-import type { AccessProfile, AccessProfileOption, Member, MemberFacets, Ministry } from '../types';
+import type { AccessProfile, AccessProfileOption, Member, MemberFacets } from '../types';
 import { MembersMapPanel } from './MembersMapPanel';
 
 const normalize=(value:string)=>value.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
@@ -44,7 +44,6 @@ export function MembersPage(){
   const isAdmin=hasRole('ADMIN','MISSION_LEADER','DEVELOPER');
   const [tab,setTab]=useState(0);const [members,setMembers]=useState<Member[]>([]);
   const [facets,setFacets]=useState<MemberFacets>({ministries:[],cells:[],roles:[]});
-  const [ministryOptions,setMinistryOptions]=useState<Ministry[]>([]);
   const [loading,setLoading]=useState(true);const [error,setError]=useState('');const [success,setSuccess]=useState('');
   const [query,setQuery]=useState('');const [ministry,setMinistry]=useState('');const [cell,setCell]=useState('');
   const [profile,setProfile]=useState('');const [status,setStatus]=useState(isAdmin?'all':'active');
@@ -55,24 +54,7 @@ export function MembersPage(){
   const [profilesLoading,setProfilesLoading]=useState(true);
   const [profilesError,setProfilesError]=useState('');
 
-  const load=useCallback(async()=>{
-    setLoading(true);setError('');
-    try{
-      const [membersResponse,facetsResponse,ministriesResponse]=await Promise.all([
-        api.get<{members:Member[]}>('/members',{params:{status:'all'}}),
-        api.get<MemberFacets>('/members/facets'),
-        api.get<Ministry[]>('/ministries'),
-      ]);
-      setMembers(Array.isArray(membersResponse.data?.members)?membersResponse.data.members:[]);
-      setFacets(facetsResponse.data??{ministries:[],cells:[],roles:[]});
-      setMinistryOptions(
-        (Array.isArray(ministriesResponse.data)?ministriesResponse.data:[])
-          .filter((item)=>item&&item.active!==false&&Boolean(item.name?.trim()))
-          .sort((a,b)=>a.name.localeCompare(b.name,'pt-BR'))
-      );
-    }catch(e){setError(apiErrorMessage(e))}
-    finally{setLoading(false)}
-  },[]);
+  const load=useCallback(async()=>{setLoading(true);setError('');try{const [m,f]=await Promise.all([api.get('/members',{params:{status:'all'}}),api.get('/members/facets')]);setMembers(m.data.members);setFacets(f.data)}catch(e){setError(apiErrorMessage(e))}finally{setLoading(false)}},[]);
   const loadAccessProfiles=useCallback(async()=>{
     setProfilesLoading(true);setProfilesError('');
     try{
@@ -106,12 +88,6 @@ export function MembersPage(){
     for(const code of codes){if(!options.some((item)=>item.code===code))options.push({code,name:profileLabel(code),description:'Perfil presente em cadastro existente.',level:0,active:true})}
     return options.sort((a,b)=>(b.level??0)-(a.level??0)||a.name.localeCompare(b.name,'pt-BR'));
   },[accessProfiles,members,profileLabel]);
-  const ministryFilterOptions=useMemo(()=>{
-    const names=new Set<string>();
-    for(const item of ministryOptions){if(item.name?.trim())names.add(item.name.trim())}
-    for(const name of facets.ministries){if(name?.trim())names.add(name.trim())}
-    return [...names].sort((a,b)=>a.localeCompare(b,'pt-BR'));
-  },[facets.ministries,ministryOptions]);
 
   const filtered=useMemo(()=>{const term=normalize(query.trim());return members.filter((member)=>{
     const hay=normalize([member.name,member.email,member.role,member.ministry,member.cell,member.city,member.formator].join(' '));
@@ -160,7 +136,7 @@ export function MembersPage(){
     {loading?<Box textAlign="center" py={10}><CircularProgress/></Box>:tab===1?<MembersMapPanel members={members.filter((m)=>m.active)}/>:<>
       <Paper sx={{p:2,mb:2}}><Stack direction={{xs:'column',xl:'row'}} spacing={1.5}>
         <TextField value={query} onChange={(e)=>setQuery(e.target.value)} fullWidth placeholder="Buscar por nome, e-mail, função, cidade ou formador" slotProps={{input:{startAdornment:<InputAdornment position="start"><SearchOutlined/></InputAdornment>}}}/>
-        <TextField select value={ministry} onChange={(e)=>setMinistry(e.target.value)} label="Ministério" sx={{minWidth:190}}><MenuItem value="">Todos</MenuItem>{ministryFilterOptions.map((v)=><MenuItem key={v} value={v}>{v}</MenuItem>)}</TextField>
+        <TextField select value={ministry} onChange={(e)=>setMinistry(e.target.value)} label="Ministério" sx={{minWidth:190}}><MenuItem value="">Todos</MenuItem>{facets.ministries.map((v)=><MenuItem key={v} value={v}>{v}</MenuItem>)}</TextField>
         <TextField select value={cell} onChange={(e)=>setCell(e.target.value)} label="Célula" sx={{minWidth:180}}><MenuItem value="">Todas</MenuItem>{facets.cells.map((v)=><MenuItem key={v} value={v}>{v}</MenuItem>)}</TextField>
         <TextField select value={profile} onChange={(e)=>setProfile(e.target.value)} label="Perfil" sx={{minWidth:190}}><MenuItem value="">Todos</MenuItem>{filterProfileOptions.map((item)=><MenuItem key={item.code} value={item.code}>{item.name}</MenuItem>)}</TextField>
         {isAdmin&&<TextField select value={status} onChange={(e)=>setStatus(e.target.value)} label="Situação" sx={{minWidth:150}}><MenuItem value="all">Todos</MenuItem><MenuItem value="active">Ativos</MenuItem><MenuItem value="inactive">Inativos</MenuItem></TextField>}
@@ -197,7 +173,7 @@ export function MembersPage(){
           <TextField label="Data de nascimento" type="date" value={form.birthDate} onChange={(e)=>setField('birthDate',e.target.value)} slotProps={{inputLabel:{shrink:true}}}/>
           <TextField label="Função" value={form.role} onChange={(e)=>setField('role',e.target.value)} disabled={!isAdmin}/>
           <TextField select label="Perfil de acesso" value={form.profile} onChange={(e)=>setField('profile',e.target.value as AccessProfile)} disabled={!isAdmin||profilesLoading} helperText={profilesLoading?'Carregando perfis configurados...':profilesError?'Usando perfis padrão por indisponibilidade temporária.':'Perfis ativos definidos no RBAC.'}>{editing&&form.profile&&!accessProfiles.some((item)=>item.code===form.profile)&&<MenuItem value={form.profile} disabled>{profileLabel(form.profile)} — não atribuível</MenuItem>}{accessProfiles.map((item)=><MenuItem key={item.code} value={item.code}>{item.name}</MenuItem>)}</TextField>
-          <TextField select label="Ministério" value={form.ministry} onChange={(e)=>setField('ministry',e.target.value)} disabled={!isAdmin}><MenuItem value="">Sem ministério</MenuItem>{form.ministry&&!ministryOptions.some((item)=>item.name===form.ministry)&&<MenuItem value={form.ministry} disabled>{form.ministry} — não disponível</MenuItem>}{ministryOptions.map((item)=><MenuItem key={item.id} value={item.name}>{item.name}</MenuItem>)}</TextField>
+          <TextField select label="Ministério" value={form.ministry} onChange={(e)=>setField('ministry',e.target.value)} disabled={!isAdmin}><MenuItem value="">Sem ministério</MenuItem>{facets.ministries.map((v)=><MenuItem key={v} value={v}>{v}</MenuItem>)}</TextField>
           <TextField select label="Célula" value={form.cell} onChange={(e)=>setField('cell',e.target.value)} disabled={!isAdmin}><MenuItem value="">Sem célula</MenuItem>{facets.cells.map((v)=><MenuItem key={v} value={v}>{v}</MenuItem>)}</TextField>
           <TextField label="Endereço" value={form.address} onChange={(e)=>setField('address',e.target.value)} sx={{gridColumn:{md:'1 / -1'}}}/><TextField label="Bairro" value={form.neighborhood} onChange={(e)=>setField('neighborhood',e.target.value)}/><TextField label="CEP" value={form.zipCode} onChange={(e)=>setField('zipCode',e.target.value)}/><TextField label="Cidade" value={form.city} onChange={(e)=>setField('city',e.target.value)}/><TextField label="Estado" value={form.state} onChange={(e)=>setField('state',e.target.value)}/>
           <TextField label="Instagram" value={form.instagram} onChange={(e)=>setField('instagram',e.target.value)}/><TextField label="Formador" value={form.formator} onChange={(e)=>setField('formator',e.target.value)} disabled={!isAdmin}/>

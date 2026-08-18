@@ -2,6 +2,8 @@
   command = "npm install && npm run build -- --filter=@colo/web"
   publish = "apps/web/dist"
 
+# Mantém o deploy de produção vinculado ao build validado do frontend.
+
 [[redirects]]
   from = "/*"
   to = "/index.html"

@@ -10,3 +10,4 @@ export * from './interfaces/payment-repository.interface';
 export * from './interfaces/webhook-repository.interface';
 export * from './interfaces/financial-report-repository.interface';
 export * from './interfaces/receipt-repository.interface';
+export * from './interfaces/missionary-agenda-repository.interface';

@@ -22,6 +22,7 @@ import {
   SettingsOutlined,
   SettingsSuggestOutlined,
   SpeedOutlined,
+  TravelExploreOutlined,
   VolunteerActivismOutlined,
 } from '@mui/icons-material';
 import {
@@ -62,35 +63,157 @@ type MenuItem = {
 
 const items: MenuItem[] = [
   { icon: <HomeOutlined />, label: 'Início', path: '/', permission: Permission.DASHBOARD_READ },
-  { icon: <ArticleOutlined />, label: 'Lectio Divina', path: '/lectio', permission: Permission.LECTIO_READ },
-  { icon: <CalendarMonthOutlined />, label: 'Agenda', path: '/agenda', permission: Permission.EVENTS_READ },
-  { icon: <CelebrationOutlined />, label: 'Eventos', path: '/eventos', permission: Permission.EVENTS_READ },
-  { icon: <FavoriteBorderOutlined />, label: 'Soma+', path: '/soma', permission: Permission.SOMA_READ },
-  { icon: <GroupsOutlined />, label: 'Células', path: '/celulas', permission: Permission.CELLS_READ },
-  { icon: <GroupsOutlined />, label: 'Cenáculos', path: '/cenaculos', permission: Permission.CENACLES_READ },
-  { icon: <GroupsOutlined />, label: 'Membros', path: '/membros', permission: Permission.MEMBERS_READ },
-  { icon: <MapOutlined />, label: 'Mapa', path: '/mapa', anyOf: [Permission.MEMBERS_READ, Permission.CELLS_READ, Permission.CENACLES_READ] },
-  { icon: <NotificationsNoneOutlined />, label: 'Notificações', path: '/notificacoes', permission: Permission.DASHBOARD_READ },
-  { icon: <CakeOutlined />, label: 'Aniversários', path: '/aniversarios', permission: Permission.MEMBERS_READ },
-  { icon: <AssessmentOutlined />, label: 'Relatórios', path: '/relatorios', permission: Permission.REPORTS_READ },
-  { icon: <AccountCircleOutlined />, label: 'Perfil', path: '/perfil', permission: Permission.DASHBOARD_READ },
+  {
+    icon: <ArticleOutlined />,
+    label: 'Lectio Divina',
+    path: '/lectio',
+    permission: Permission.LECTIO_READ,
+  },
+  {
+    icon: <CalendarMonthOutlined />,
+    label: 'Agenda',
+    path: '/agenda',
+    permission: Permission.EVENTS_READ,
+  },
+  {
+    icon: <TravelExploreOutlined />,
+    label: 'Agenda Missionária',
+    path: '/agenda-missionaria',
+    permission: Permission.MISSIONARY_AGENDA_READ,
+  },
+  {
+    icon: <CelebrationOutlined />,
+    label: 'Eventos',
+    path: '/eventos',
+    permission: Permission.EVENTS_READ,
+  },
+  {
+    icon: <FavoriteBorderOutlined />,
+    label: 'Soma+',
+    path: '/soma',
+    permission: Permission.SOMA_READ,
+  },
+  {
+    icon: <GroupsOutlined />,
+    label: 'Células',
+    path: '/celulas',
+    permission: Permission.CELLS_READ,
+  },
+  {
+    icon: <GroupsOutlined />,
+    label: 'Cenáculos',
+    path: '/cenaculos',
+    permission: Permission.CENACLES_READ,
+  },
+  {
+    icon: <GroupsOutlined />,
+    label: 'Membros',
+    path: '/membros',
+    permission: Permission.MEMBERS_READ,
+  },
+  {
+    icon: <MapOutlined />,
+    label: 'Mapa',
+    path: '/mapa',
+    anyOf: [Permission.MEMBERS_READ, Permission.CELLS_READ, Permission.CENACLES_READ],
+  },
+  {
+    icon: <NotificationsNoneOutlined />,
+    label: 'Notificações',
+    path: '/notificacoes',
+    permission: Permission.DASHBOARD_READ,
+  },
+  {
+    icon: <CakeOutlined />,
+    label: 'Aniversários',
+    path: '/aniversarios',
+    permission: Permission.MEMBERS_READ,
+  },
+  {
+    icon: <AssessmentOutlined />,
+    label: 'Relatórios',
+    path: '/relatorios',
+    permission: Permission.REPORTS_READ,
+  },
+  {
+    icon: <AccountCircleOutlined />,
+    label: 'Perfil',
+    path: '/perfil',
+    permission: Permission.DASHBOARD_READ,
+  },
 ];
 
 const organizationItems: MenuItem[] = [
-  { icon: <HubOutlined />, label: 'Dashboard', path: '/organizacao', permission: Permission.SETTINGS_READ },
-  { icon: <AccountTreeOutlined />, label: 'Missões', path: '/missoes', permission: Permission.MINISTRIES_READ, hiddenFor: ['MEMBER'] },
-  { icon: <VolunteerActivismOutlined />, label: 'Ministérios', path: '/ministerios', permission: Permission.MINISTRIES_READ },
-  { icon: <AccountCircleOutlined />, label: 'Perfis', path: '/configuracoes/perfis', permission: Permission.SETTINGS_MANAGE },
-  { icon: <SecurityOutlined />, label: 'Permissões', path: '/configuracoes/rbac', permission: Permission.SETTINGS_MANAGE },
-  { icon: <HistoryOutlined />, label: 'Auditoria', path: '/auditoria', anyOf: [Permission.LOGS_READ, Permission.SETTINGS_READ] },
+  {
+    icon: <HubOutlined />,
+    label: 'Dashboard',
+    path: '/organizacao',
+    permission: Permission.SETTINGS_READ,
+  },
+  {
+    icon: <AccountTreeOutlined />,
+    label: 'Missões',
+    path: '/missoes',
+    permission: Permission.MINISTRIES_READ,
+    hiddenFor: ['MEMBER'],
+  },
+  {
+    icon: <VolunteerActivismOutlined />,
+    label: 'Ministérios',
+    path: '/ministerios',
+    permission: Permission.MINISTRIES_READ,
+  },
+  {
+    icon: <AccountCircleOutlined />,
+    label: 'Perfis',
+    path: '/configuracoes/perfis',
+    permission: Permission.SETTINGS_MANAGE,
+  },
+  {
+    icon: <SecurityOutlined />,
+    label: 'Permissões',
+    path: '/configuracoes/rbac',
+    permission: Permission.SETTINGS_MANAGE,
+  },
+  {
+    icon: <HistoryOutlined />,
+    label: 'Auditoria',
+    path: '/auditoria',
+    anyOf: [Permission.LOGS_READ, Permission.SETTINGS_READ],
+  },
 ];
 
 const adminItems: MenuItem[] = [
-  { icon: <DeleteOutline />, label: 'Lixeira', path: '/lixeira', anyOf: [Permission.SETTINGS_MANAGE, Permission.MEMBERS_DELETE] },
-  { icon: <SettingsOutlined />, label: 'Configurações', path: '/configuracoes', permission: Permission.SETTINGS_READ },
-  { icon: <SettingsSuggestOutlined />, label: 'Integrações', path: '/configuracoes/integracoes', permission: Permission.INTEGRATIONS_READ },
-  { icon: <SpeedOutlined />, label: 'Performance', path: '/configuracoes/performance', permission: Permission.SETTINGS_READ },
-  { icon: <SettingsSuggestOutlined />, label: 'Administração técnica', path: '/configuracoes/tecnico', permission: Permission.TECHNICAL_ADMIN_READ },
+  {
+    icon: <DeleteOutline />,
+    label: 'Lixeira',
+    path: '/lixeira',
+    anyOf: [Permission.SETTINGS_MANAGE, Permission.MEMBERS_DELETE],
+  },
+  {
+    icon: <SettingsOutlined />,
+    label: 'Configurações',
+    path: '/configuracoes',
+    permission: Permission.SETTINGS_READ,
+  },
+  {
+    icon: <SettingsSuggestOutlined />,
+    label: 'Integrações',
+    path: '/configuracoes/integracoes',
+    permission: Permission.INTEGRATIONS_READ,
+  },
+  {
+    icon: <SpeedOutlined />,
+    label: 'Performance',
+    path: '/configuracoes/performance',
+    permission: Permission.SETTINGS_READ,
+  },
+  {
+    icon: <SettingsSuggestOutlined />,
+    label: 'Administração técnica',
+    path: '/configuracoes/tecnico',
+    permission: Permission.TECHNICAL_ADMIN_READ,
+  },
 ];
 
 export function AppShell({ children }: { children: ReactNode }) {
@@ -109,7 +232,10 @@ export function AppShell({ children }: { children: ReactNode }) {
     setOpen(false);
   };
 
-  const renderMenuItem = ({ icon, label, path, permission, anyOf, hiddenFor }: MenuItem, nested = false) => {
+  const renderMenuItem = (
+    { icon, label, path, permission, anyOf, hiddenFor }: MenuItem,
+    nested = false,
+  ) => {
     if (user && hiddenFor?.includes(user.profile)) return null;
     const selected = path === '/' ? location.pathname === '/' : location.pathname.startsWith(path);
 
@@ -128,10 +254,17 @@ export function AppShell({ children }: { children: ReactNode }) {
         >
           <ListItemIcon sx={{ minWidth: 40, color: selected ? 'primary.main' : 'text.secondary' }}>
             {path === '/notificacoes' ? (
-              <Badge color="primary" badgeContent={safeUnreadCount} max={99} invisible={safeUnreadCount === 0}>
+              <Badge
+                color="primary"
+                badgeContent={safeUnreadCount}
+                max={99}
+                invisible={safeUnreadCount === 0}
+              >
                 {icon}
               </Badge>
-            ) : icon}
+            ) : (
+              icon
+            )}
           </ListItemIcon>
           <ListItemText primary={label} primaryTypographyProps={{ fontSize: nested ? 14 : 15 }} />
         </ListItemButton>
@@ -140,22 +273,45 @@ export function AppShell({ children }: { children: ReactNode }) {
   };
 
   const drawerContent = (
-    <Box sx={{ height: '100%', px: 2.5, py: 2.25, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+    <Box
+      sx={{
+        height: '100%',
+        px: 2.5,
+        py: 2.25,
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'hidden',
+      }}
+    >
       <Brand />
       <List sx={{ mt: 2, flex: 1, minHeight: 0, overflowY: 'auto', pr: 0.5 }}>
         {items.map((item) => renderMenuItem(item))}
-        <Can anyOf={[Permission.SETTINGS_READ, Permission.SETTINGS_MANAGE, Permission.MINISTRIES_READ, Permission.LOGS_READ]}>
+        <Can
+          anyOf={[
+            Permission.SETTINGS_READ,
+            Permission.SETTINGS_MANAGE,
+            Permission.MINISTRIES_READ,
+            Permission.LOGS_READ,
+          ]}
+        >
           <ListItemButton
             onClick={() => setOrganizationOpen((value) => !value)}
             selected={location.pathname.startsWith('/organizacao')}
             sx={{ minHeight: 46, mb: 0.25, px: 1.75, borderRadius: 2 }}
           >
-            <ListItemIcon sx={{ minWidth: 40, color: 'text.secondary' }}><AccountTreeOutlined /></ListItemIcon>
-            <ListItemText primary="Organização" primaryTypographyProps={{ fontSize: 15, fontWeight: 700 }} />
+            <ListItemIcon sx={{ minWidth: 40, color: 'text.secondary' }}>
+              <AccountTreeOutlined />
+            </ListItemIcon>
+            <ListItemText
+              primary="Organização"
+              primaryTypographyProps={{ fontSize: 15, fontWeight: 700 }}
+            />
             {organizationOpen ? <ExpandLess /> : <ExpandMore />}
           </ListItemButton>
           <Collapse in={organizationOpen} timeout="auto" unmountOnExit>
-            <List disablePadding>{organizationItems.map((item) => renderMenuItem(item, true))}</List>
+            <List disablePadding>
+              {organizationItems.map((item) => renderMenuItem(item, true))}
+            </List>
           </Collapse>
         </Can>
         {adminItems.map((item) => renderMenuItem(item))}
@@ -169,7 +325,9 @@ export function AppShell({ children }: { children: ReactNode }) {
           }}
           sx={{ minHeight: 44, height: 44, px: 1.75, borderRadius: 2, color: 'text.secondary' }}
         >
-          <ListItemIcon sx={{ minWidth: 40, color: 'inherit' }}><LogoutOutlined fontSize="small" /></ListItemIcon>
+          <ListItemIcon sx={{ minWidth: 40, color: 'inherit' }}>
+            <LogoutOutlined fontSize="small" />
+          </ListItemIcon>
           <ListItemText primary="Sair" primaryTypographyProps={{ fontSize: 15, fontWeight: 500 }} />
         </ListItemButton>
       </Box>
@@ -222,16 +380,29 @@ export function AppShell({ children }: { children: ReactNode }) {
           )}
           <Box sx={{ flex: 1 }} />
           <Can permission={Permission.DASHBOARD_READ}>
-            <Tooltip title={safeUnreadCount ? `${safeUnreadCount} notificação(ões) não lida(s)` : 'Notificações'}>
+            <Tooltip
+              title={
+                safeUnreadCount ? `${safeUnreadCount} notificação(ões) não lida(s)` : 'Notificações'
+              }
+            >
               <IconButton aria-label="Abrir notificações" onClick={() => go('/notificacoes')}>
-                <Badge color="primary" badgeContent={safeUnreadCount} max={99} invisible={safeUnreadCount === 0}>
+                <Badge
+                  color="primary"
+                  badgeContent={safeUnreadCount}
+                  max={99}
+                  invisible={safeUnreadCount === 0}
+                >
                   <NotificationsNoneOutlined />
                 </Badge>
               </IconButton>
             </Tooltip>
           </Can>
           <Tooltip title="Abrir perfil">
-            <IconButton aria-label="Abrir perfil" onClick={() => go('/perfil')} sx={{ ml: 1, p: 0.25 }}>
+            <IconButton
+              aria-label="Abrir perfil"
+              onClick={() => go('/perfil')}
+              sx={{ ml: 1, p: 0.25 }}
+            >
               <Avatar src={user?.photo} alt={user?.name ?? 'Perfil'} sx={{ width: 42, height: 42 }}>
                 {user?.name?.[0] ?? '?'}
               </Avatar>

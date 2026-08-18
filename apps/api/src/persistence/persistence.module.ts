@@ -14,6 +14,7 @@ import { GoogleSheetsCellRepository } from './adapters/google-sheets/google-shee
 import { GoogleSheetsEventRepository } from './adapters/google-sheets/google-sheets-event.repository';
 import { GoogleSheetsLectioRepository } from './adapters/google-sheets/google-sheets-lectio.repository';
 import { GoogleSheetsMemberRepository } from './adapters/google-sheets/google-sheets-member.repository';
+import { GoogleSheetsMissionaryAgendaRepository } from './adapters/google-sheets/google-sheets-missionary-agenda.repository';
 import { GoogleSheetsMinistryRepository } from './adapters/google-sheets/google-sheets-ministry.repository';
 import { GoogleSheetsNotificationRepository } from './adapters/google-sheets/google-sheets-notification.repository';
 import { GoogleSheetsSomaRepository } from './adapters/google-sheets/google-sheets-soma.repository';
@@ -23,6 +24,7 @@ import { CELL_REPOSITORY } from './interfaces/cell-repository.interface';
 import { EVENT_REPOSITORY } from './interfaces/event-repository.interface';
 import { LECTIO_REPOSITORY } from './interfaces/lectio-repository.interface';
 import { MEMBER_REPOSITORY } from './interfaces/member-repository.interface';
+import { MISSIONARY_AGENDA_REPOSITORY } from './interfaces/missionary-agenda-repository.interface';
 import { MINISTRY_REPOSITORY } from './interfaces/ministry-repository.interface';
 import { NOTIFICATION_REPOSITORY } from './interfaces/notification-repository.interface';
 import { SOMA_REPOSITORY } from './interfaces/soma-repository.interface';
@@ -36,7 +38,9 @@ function repositoryProvider(token: symbol, googleSheetsRepository: Type<unknown>
     useFactory: (config: ConfigService, sheetsRepository: unknown) => {
       const provider = config.get<string>('DATABASE_PROVIDER', 'google-sheets');
       if (provider !== 'google-sheets') {
-        throw new Error(`DATABASE_PROVIDER=${provider} ainda não possui adapter implementado. Use google-sheets.`);
+        throw new Error(
+          `DATABASE_PROVIDER=${provider} ainda não possui adapter implementado. Use google-sheets.`,
+        );
       }
       return sheetsRepository;
     },
@@ -56,6 +60,7 @@ const adapters = [
   GoogleSheetsWebhookRepository,
   GoogleSheetsFinancialReportRepository,
   GoogleSheetsReceiptRepository,
+  GoogleSheetsMissionaryAgendaRepository,
 ];
 
 const repositories: Provider[] = [
@@ -71,6 +76,7 @@ const repositories: Provider[] = [
   repositoryProvider(WEBHOOK_REPOSITORY, GoogleSheetsWebhookRepository),
   repositoryProvider(FINANCIAL_REPORT_REPOSITORY, GoogleSheetsFinancialReportRepository),
   repositoryProvider(RECEIPT_REPOSITORY, GoogleSheetsReceiptRepository),
+  repositoryProvider(MISSIONARY_AGENDA_REPOSITORY, GoogleSheetsMissionaryAgendaRepository),
   { provide: UNIT_OF_WORK, useClass: InMemoryUnitOfWork },
 ];
 
@@ -78,6 +84,22 @@ const repositories: Provider[] = [
 @Module({
   imports: [GoogleModule],
   providers: [...adapters, ...repositories, RepositoryFactory],
-  exports: [MEMBER_REPOSITORY, EVENT_REPOSITORY, CELL_REPOSITORY, MINISTRY_REPOSITORY, LECTIO_REPOSITORY, NOTIFICATION_REPOSITORY, SOMA_REPOSITORY, AUDIT_REPOSITORY, PAYMENT_REPOSITORY, WEBHOOK_REPOSITORY, FINANCIAL_REPORT_REPOSITORY, RECEIPT_REPOSITORY, UNIT_OF_WORK, RepositoryFactory],
+  exports: [
+    MEMBER_REPOSITORY,
+    EVENT_REPOSITORY,
+    CELL_REPOSITORY,
+    MINISTRY_REPOSITORY,
+    LECTIO_REPOSITORY,
+    NOTIFICATION_REPOSITORY,
+    SOMA_REPOSITORY,
+    AUDIT_REPOSITORY,
+    PAYMENT_REPOSITORY,
+    WEBHOOK_REPOSITORY,
+    FINANCIAL_REPORT_REPOSITORY,
+    RECEIPT_REPOSITORY,
+    MISSIONARY_AGENDA_REPOSITORY,
+    UNIT_OF_WORK,
+    RepositoryFactory,
+  ],
 })
 export class PersistenceModule {}

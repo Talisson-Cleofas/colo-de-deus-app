@@ -36,6 +36,7 @@ import { SheetsMigrationModule } from './sheets-migration/sheets-migration.modul
 import { PerformanceModule } from './performance/performance.module';
 import { PerformanceInterceptor } from './performance/performance.interceptor';
 import { PersistenceModule } from './persistence/persistence.module';
+import { MissionaryAgendaModule } from './missionary-agenda/missionary-agenda.module';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 
 @Module({
@@ -64,6 +65,7 @@ import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
     IntegrationsModule,
     LectioModule,
     EventsModule,
+    MissionaryAgendaModule,
     SomaModule,
     FilesModule,
     GoogleDriveModule,

@@ -151,6 +151,7 @@ type MercadoPagoAuthorizedPayment = {
 const ADMIN_ROLES = ['ADMIN', 'DEVELOPER', 'MISSION_LEADER'];
 const nowIso = () => new Date().toISOString();
 const number = (value: unknown) => Number(value || 0);
+const currency = (value: unknown) => Math.round((number(value) + Number.EPSILON) * 100) / 100;
 const text = (value: unknown) => String(value ?? '');
 const normalizeMonth = (value?: string) =>
   /^\d{4}-\d{2}$/.test(value || '') ? value! : new Date().toISOString().slice(0, 7);
@@ -588,7 +589,7 @@ export class SomaService implements OnModuleInit, OnModuleDestroy {
     });
     const approved = rows.filter((x) => x.status === 'approved');
     const sum = (list: MercadoPagoPaymentRecord[], key: 'amount' | 'fee_amount' | 'net_amount') =>
-      list.reduce((s, x) => s + number(x[key]), 0);
+      currency(list.reduce((s, x) => s + number(x[key]), 0));
     const today = new Date().toISOString().slice(0, 10);
     const weekAgo = new Date(Date.now() - 6 * 86400000).toISOString().slice(0, 10);
     const month = today.slice(0, 7),
@@ -678,6 +679,15 @@ export class SomaService implements OnModuleInit, OnModuleDestroy {
       byCell: byOrg('cell'),
       payments: rows,
     };
+  }
+
+  async personalFinancialReport(
+    user: AuthenticatedUser,
+    filter: { from?: string; to?: string; status?: string; method?: string } = {},
+  ): Promise<FinancialReport> {
+    if (ADMIN_ROLES.includes(user.profile))
+      throw new ForbiddenException('Use o centro financeiro para consultar o relatório geral.');
+    return this.financialReport(user, filter);
   }
   async summary(month = normalizeMonth()) {
     const report = await this.financialReport({ profile: 'ADMIN' } as AuthenticatedUser, {
@@ -1055,14 +1065,19 @@ export class SomaService implements OnModuleInit, OnModuleDestroy {
       : await this.findMemberByEmail(email);
     const created = text(payment.date_created || nowIso());
     const approved = text(payment.date_approved);
-    const fees = (payment.fee_details || []).reduce((s, x) => s + number(x.amount), 0);
-    const net =
-      number(payment.transaction_details?.net_received_amount) ||
-      Math.max(0, number(payment.transaction_amount) - fees);
+    const amount = currency(payment.transaction_amount);
+    const listedFees = currency(
+      (payment.fee_details || []).reduce((s, x) => s + number(x.amount), 0),
+    );
+    const providerNet = currency(payment.transaction_details?.net_received_amount);
+    const net = providerNet > 0 ? providerNet : currency(Math.max(0, amount - listedFees));
+    // fee_details pode omitir impostos/encargos. O líquido consolidado do provedor é a fonte
+    // contábil autoritativa e garante bruto = taxas + líquido.
+    const fees = providerNet > 0 ? currency(Math.max(0, amount - providerNet)) : listedFees;
     const hash = this.receipts.hash({
       payment_id: paymentId,
       member_id: member?.id || parsed.memberId,
-      amount: number(payment.transaction_amount),
+      amount,
       date_approved: approved,
     });
     const old = (await this.paymentRows()).find((x) => x.payment_id === paymentId);
@@ -1372,6 +1387,13 @@ export class SomaService implements OnModuleInit, OnModuleDestroy {
     };
   }
   private rowToPayment(row: Record<string, string>): MercadoPagoPaymentRecord {
+    const amount = currency(row.amount);
+    const storedFees = currency(row.fee_amount);
+    const hasStoredNet = text(row.net_amount) !== '';
+    const net = hasStoredNet
+      ? currency(row.net_amount)
+      : currency(Math.max(0, amount - storedFees));
+    const fees = hasStoredNet ? currency(Math.max(0, amount - net)) : storedFees;
     return {
       id: text(row.id || row.payment_id),
       payment_id: text(row.payment_id || row.id),
@@ -1381,10 +1403,10 @@ export class SomaService implements OnModuleInit, OnModuleDestroy {
       external_reference: text(row.external_reference),
       status: text(row.status),
       status_detail: text(row.status_detail),
-      amount: number(row.amount),
+      amount,
       total_paid_amount: number(row.total_paid_amount || row.amount),
-      fee_amount: number(row.fee_amount),
-      net_amount: number(row.net_amount || row.amount),
+      fee_amount: fees,
+      net_amount: net,
       currency: text(row.currency || 'BRL'),
       payment_method: text(row.payment_method),
       payment_type: text(row.payment_type),

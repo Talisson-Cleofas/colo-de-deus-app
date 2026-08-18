@@ -186,6 +186,8 @@ export const SHEET_SCHEMAS = {
     'ativo',
     'criado_em',
     'atualizado_em',
+    'externo_nome',
+    'externo_contato',
   ],
   Presenças: [
     'id',

@@ -131,7 +131,9 @@ test('executa aprovação: líder da agenda → líder de missão → líder de 
     users.mission,
   );
   assert.equal(approved.status, 'AGUARDANDO_INDICACOES');
-  assert.equal((await service.findOne(created.id, users.ministry)).canSelectMembers, true);
+  const ministryView = await service.findOne(created.id, users.ministry);
+  assert.equal(ministryView.canEdit, true);
+  assert.equal(ministryView.canSelectMembers, true);
 
   const sent = await service.sendToMembers(
     created.id,

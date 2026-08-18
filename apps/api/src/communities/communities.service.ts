@@ -228,10 +228,24 @@ export class CommunitiesService {
       .filter((r) => r.tipo === lt && this.sheets.parseActive(r.ativo || ''))
       .forEach((r) => {
         const m = memberMap.get(r.membro_id);
-        if (m)
+        const participant = m
+          ? this.person(m, r.funcao || 'PARTICIPANTE')
+          : r.externo_nome
+            ? {
+                id: r.id,
+                name: r.externo_nome,
+                email: '',
+                photo: '',
+                role: 'MEMBRO_EXTERNO',
+                phone: r.externo_contato || '',
+                function: r.funcao || 'PARTICIPANTE',
+                external: true,
+              }
+            : null;
+        if (participant)
           participantsBy.set(r.referencia_id, [
             ...(participantsBy.get(r.referencia_id) || []),
-            this.person(m, r.funcao || 'PARTICIPANTE'),
+            participant,
           ]);
       });
     return scopedRows
@@ -241,6 +255,13 @@ export class CommunitiesService {
         const leader = memberMap.get(leaderId || '');
         const vice = memberMap.get(viceId || '');
         const editable = user ? this.canEdit(user, type, row) : false;
+        const canAddExternalParticipants = Boolean(
+          user &&
+          type === 'CELL' &&
+          (user.profile === 'DEVELOPER' ||
+            (user.profile === 'MINISTRY_LEADER' && this.managesAllCellsCache) ||
+            (user.profile === 'CELL_LEADER' && this.cellScopeIdsCache.has(row.id))),
+        );
         const currentStatus = type === 'CENACLE' ? this.cenacleStatus(row) : undefined;
         return {
           id: row.id || '',
@@ -300,6 +321,7 @@ export class CommunitiesService {
           active: this.sheets.parseActive(row.ativo || ''),
           canEdit: editable,
           canManageParticipants: editable,
+          canAddExternalParticipants,
         };
       })
       .filter((i) => i.active)
@@ -771,9 +793,44 @@ export class CommunitiesService {
     const item = await this.detail(id, user);
     if (!item.canManageParticipants)
       throw new ForbiddenException('Sem permissão para gerenciar participantes.');
-    const member = (await this.sheets.listMembers()).find((m) => m.id === dto.memberId && m.active);
-    if (!member) throw new NotFoundException('Membro ativo não encontrado.');
-    await this.upsertParticipant(item.type, id, dto.memberId, dto.function || 'PARTICIPANTE');
+    if (dto.memberId) {
+      const member = (await this.sheets.listMembers()).find(
+        (m) => m.id === dto.memberId && m.active,
+      );
+      if (!member) throw new NotFoundException('Membro ativo não encontrado.');
+      await this.upsertParticipant(item.type, id, dto.memberId, dto.function || 'PARTICIPANTE');
+      return this.detail(id, user);
+    }
+    if (!item.canAddExternalParticipants)
+      throw new ForbiddenException(
+        'Somente o líder do Ministério de Células ou os líderes da célula podem adicionar pessoas externas.',
+      );
+    const name = dto.externalName.trim();
+    if (!name) throw new BadRequestException('Informe o nome da pessoa externa.');
+    const rows = await this.sheets.read('Participantes');
+    const duplicate = rows.some(
+      (row) =>
+        row.tipo === 'CELULA' &&
+        row.referencia_id === id &&
+        row.externo_nome?.trim().toLocaleLowerCase('pt-BR') === name.toLocaleLowerCase('pt-BR') &&
+        this.sheets.parseActive(row.ativo || '', true),
+    );
+    if (duplicate) throw new ConflictException('Esta pessoa externa já participa da célula.');
+    const now = new Date().toISOString();
+    await this.sheets.appendRecord('Participantes', {
+      id: randomUUID(),
+      membro_id: '',
+      externo_nome: name,
+      externo_contato: dto.externalContact.trim(),
+      tipo: 'CELULA',
+      referencia_id: id,
+      funcao: dto.function || 'PARTICIPANTE',
+      data_entrada: now.slice(0, 10),
+      data_saida: '',
+      ativo: 'TRUE',
+      criado_em: now,
+      atualizado_em: now,
+    });
     return this.detail(id, user);
   }
   async removeParticipant(id: string, memberId: string, user: AuthenticatedUser) {
@@ -787,7 +844,7 @@ export class CommunitiesService {
       (x) =>
         x.tipo === lt &&
         x.referencia_id === id &&
-        x.membro_id === memberId &&
+        (x.membro_id === memberId || (!x.membro_id && x.id === memberId)) &&
         this.sheets.parseActive(x.ativo || ''),
     );
     if (!r) throw new NotFoundException('Vínculo não encontrado.');

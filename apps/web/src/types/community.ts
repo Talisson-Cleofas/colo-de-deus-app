@@ -38,4 +38,5 @@ export type Community = {
   active: boolean;
   canEdit?: boolean;
   canManageParticipants?: boolean;
+  canAddExternalParticipants?: boolean;
 };

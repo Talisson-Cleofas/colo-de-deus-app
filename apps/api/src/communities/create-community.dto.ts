@@ -29,6 +29,8 @@ export class CreateCommunityDto {
 }
 export class UpdateCommunityDto extends CreateCommunityDto {}
 export class AddCommunityParticipantDto {
-  @IsString() memberId!: string;
+  @IsOptional() @IsString() memberId = '';
+  @IsOptional() @IsString() externalName = '';
+  @IsOptional() @IsString() externalContact = '';
   @IsOptional() @IsString() function = 'PARTICIPANTE';
 }

@@ -52,6 +52,8 @@ export function CommunityDetailPage() {
   const [editOpen, setEditOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
   const [memberId, setMemberId] = useState('');
+  const [participantName, setParticipantName] = useState('');
+  const [participantContact, setParticipantContact] = useState('');
   const [form, setForm] = useState<any>({});
   const [duplicateOpen, setDuplicateOpen] = useState(false);
   const [duplicateForm, setDuplicateForm] = useState({
@@ -153,9 +155,16 @@ export function CommunityDetailPage() {
   };
   const add = async () => {
     try {
-      await api.post(`/communities/${c.id}/participants`, { memberId, function: 'PARTICIPANTE' });
+      await api.post(`/communities/${c.id}/participants`, {
+        memberId,
+        externalName: memberId ? '' : participantName,
+        externalContact: memberId ? '' : participantContact,
+        function: 'PARTICIPANTE',
+      });
       setAddOpen(false);
       setMemberId('');
+      setParticipantName('');
+      setParticipantContact('');
       await load();
     } catch (e) {
       setError(apiErrorMessage(e));
@@ -370,10 +379,18 @@ export function CommunityDetailPage() {
               <Stack direction="row" gap={1.5} alignItems="center">
                 <Avatar src={p.photo} />
                 <Box flex={1}>
-                  <Typography fontWeight={700}>{p.name}</Typography>
+                  <Stack direction="row" gap={1} alignItems="center" flexWrap="wrap">
+                    <Typography fontWeight={700}>{p.name}</Typography>
+                    {p.external && <Chip size="small" label="Não cadastrado no app" />}
+                  </Stack>
                   <Typography color="text.secondary" fontSize={13}>
                     {p.function || p.role}
                   </Typography>
+                  {p.phone && (
+                    <Typography color="text.secondary" fontSize={13}>
+                      {p.phone}
+                    </Typography>
+                  )}
                 </Box>
                 {c.canManageParticipants &&
                   !isMember &&
@@ -750,26 +767,60 @@ export function CommunityDetailPage() {
       <Dialog open={addOpen} onClose={() => setAddOpen(false)} fullWidth maxWidth="sm">
         <DialogTitle>Adicionar participante</DialogTitle>
         <DialogContent dividers>
-          <TextField
-            fullWidth
-            select
-            label="Membro"
-            value={memberId}
-            onChange={(e) => setMemberId(e.target.value)}
-          >
-            <MenuItem value="">Selecione</MenuItem>
-            {members
-              .filter((m) => !c.participants.some((p) => p.id === m.id))
-              .map((m) => (
-                <MenuItem key={m.id} value={m.id}>
-                  {m.name} — {m.email}
-                </MenuItem>
-              ))}
-          </TextField>
+          <Stack spacing={2}>
+            {c.canAddExternalParticipants && (
+              <Alert severity="info">
+                Se a pessoa ainda não estiver cadastrada, digite o nome completo e informe o
+                contato.
+              </Alert>
+            )}
+            <Autocomplete
+              freeSolo={Boolean(c.canAddExternalParticipants)}
+              options={members.filter((m) => !c.participants.some((p) => p.id === m.id))}
+              value={members.find((m) => m.id === memberId) || participantName || null}
+              getOptionLabel={(option) => (typeof option === 'string' ? option : option.name)}
+              onChange={(_, value) =>
+                typeof value === 'string'
+                  ? (setMemberId(''), setParticipantName(value))
+                  : value
+                    ? (setMemberId(value.id),
+                      setParticipantName(value.name),
+                      setParticipantContact(value.phone || ''))
+                    : (setMemberId(''), setParticipantName(''), setParticipantContact(''))
+              }
+              onInputChange={(_, value, reason) => {
+                if (reason === 'input') {
+                  setMemberId('');
+                  setParticipantName(value);
+                }
+              }}
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label={
+                    c.canAddExternalParticipants
+                      ? 'Membro cadastrado ou nome externo'
+                      : 'Membro cadastrado'
+                  }
+                />
+              )}
+            />
+            {!memberId && c.canAddExternalParticipants && participantName.trim() && (
+              <TextField
+                label="Contato da pessoa externa"
+                value={participantContact}
+                onChange={(event) => setParticipantContact(event.target.value)}
+              />
+            )}
+          </Stack>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setAddOpen(false)}>Cancelar</Button>
-          <Button variant="contained" disabled={!memberId} onClick={add}>
+          <Button
+            variant="contained"
+            disabled={!memberId && !participantName.trim()}
+            onClick={add}
+          >
             Adicionar
           </Button>
         </DialogActions>

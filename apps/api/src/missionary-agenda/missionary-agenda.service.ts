@@ -145,7 +145,13 @@ export class MissionaryAgendaService {
       membersSentAt: row.membros_enviados_em || '',
       participantIds,
       participantNames: participantIds.map((id) => ctx.memberNames.get(id) || id),
-      canEdit: (agendaLeader || central) && ['RASCUNHO', 'NAO_APROVADA'].includes(status),
+      canEdit:
+        (agendaLeader && ['RASCUNHO', 'NAO_APROVADA'].includes(status)) ||
+        (central &&
+          ['RASCUNHO', 'NAO_APROVADA', 'AGUARDANDO_APROVACAO', 'AGUARDANDO_INDICACOES'].includes(
+            status,
+          )) ||
+        (ministryLeader && status === 'AGUARDANDO_INDICACOES'),
       canSubmit: (agendaLeader || central) && ['RASCUNHO', 'NAO_APROVADA'].includes(status),
       canReview: central && status === 'AGUARDANDO_APROVACAO',
       canSelectMembers: (ministryLeader || central) && status === 'AGUARDANDO_INDICACOES',

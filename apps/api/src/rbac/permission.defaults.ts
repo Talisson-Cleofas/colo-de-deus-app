@@ -94,7 +94,6 @@ const member = [
   Permission.CELLS_READ,
   Permission.CENACLES_READ,
   Permission.EVENTS_READ,
-  Permission.MISSIONARY_AGENDA_READ,
   Permission.LECTIO_READ,
   Permission.SOMA_READ,
 ];

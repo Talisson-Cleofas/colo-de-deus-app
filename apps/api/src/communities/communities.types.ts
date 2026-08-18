@@ -38,6 +38,7 @@ export type Cell = {
   active: boolean;
   canEdit?: boolean;
   canManageParticipants?: boolean;
+  canAddExternalParticipants?: boolean;
 };
 export type AttendanceRecord = {
   id: string;

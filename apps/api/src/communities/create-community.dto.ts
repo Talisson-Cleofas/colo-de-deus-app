@@ -2,10 +2,15 @@ import { IsBoolean, IsIn, IsNumber, IsOptional, IsString } from 'class-validator
 
 export class CreateCommunityDto {
   @IsString() name!: string;
-  @IsIn(['CELL','CENACLE']) type!: 'CELL'|'CENACLE';
+  @IsIn(['CELL', 'CENACLE']) type!: 'CELL' | 'CENACLE';
   @IsOptional() @IsString() description = '';
   @IsOptional() @IsString() leaderId = '';
+  @IsOptional() @IsString() leaderName = '';
+  @IsOptional() @IsString() leaderContact = '';
   @IsOptional() @IsString() viceLeaderId = '';
+  @IsOptional() @IsString() viceLeaderName = '';
+  @IsOptional() @IsString() viceLeaderContact = '';
+  @IsOptional() @IsString() modality = '';
   @IsOptional() @IsString() ministryId = '';
   @IsOptional() @IsString() cellId = '';
   @IsOptional() @IsString() weekday = '';
@@ -23,4 +28,7 @@ export class CreateCommunityDto {
   @IsOptional() @IsBoolean() active = true;
 }
 export class UpdateCommunityDto extends CreateCommunityDto {}
-export class AddCommunityParticipantDto { @IsString() memberId!: string; @IsOptional() @IsString() function = 'PARTICIPANTE'; }
+export class AddCommunityParticipantDto {
+  @IsString() memberId!: string;
+  @IsOptional() @IsString() function = 'PARTICIPANTE';
+}

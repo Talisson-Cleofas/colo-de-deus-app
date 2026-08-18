@@ -134,6 +134,11 @@ export const SHEET_SCHEMAS = {
     'google_place_id',
     'localizacao_atualizada_em',
     'pasta_drive_id',
+    'modalidade',
+    'lider_nome',
+    'lider_contato',
+    'vice_lider_nome',
+    'vice_lider_contato',
   ],
   Cenáculos: [
     'id',

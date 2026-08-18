@@ -1,34 +1,581 @@
-import { AddOutlined, HistoryOutlined, MapOutlined, SearchOutlined, ViewListOutlined } from '@mui/icons-material';
-import { Alert, Box, Button, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, InputAdornment, MenuItem, Paper, Stack, Tab, Tabs, TextField, Typography } from '@mui/material';
-import { useEffect,useMemo,useState } from 'react';
+import {
+  AddOutlined,
+  HistoryOutlined,
+  MapOutlined,
+  SearchOutlined,
+  ViewListOutlined,
+} from '@mui/icons-material';
+import {
+  Alert,
+  Autocomplete,
+  Box,
+  Button,
+  CircularProgress,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  InputAdornment,
+  MenuItem,
+  Paper,
+  Stack,
+  Tab,
+  Tabs,
+  TextField,
+  Typography,
+} from '@mui/material';
+import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { CommunityCard } from '../components/communities/CommunityCard';
-import { api,apiErrorMessage } from '../services/api';
+import { api, apiErrorMessage } from '../services/api';
 import type { Community } from '../types/community';
 import { CellsMapPage } from './CellsMapPage';
 import { usePermission } from '../rbac/usePermission';
 import { Permission } from '../rbac/permissions';
-type Member={id:string;name:string;email:string;active:boolean};type Ministry={id:string;name:string};type CellOption={id:string;name:string};
-type CenacleStatus='UPCOMING'|'FINISHED'|'CANCELLED';
-const today=()=>new Date().toISOString().slice(0,10);
-const makeEmpty=()=>({name:'',description:'',leaderId:'',viceLeaderId:'',ministryId:'',cellId:'',weekday:'',startDate:today(),endDate:today(),recurrence:'NAO',time:'19:00',endTime:'21:00',address:'',neighborhood:'',city:'Brasília',state:'DF',latitude:0,longitude:0});
-export function CommunitiesPage({type}:{type:'CELL'|'CENACLE'}){
- const {hasRole}=useAuth();const {hasPermission,hasMinistryModule}=usePermission();const canCreate=hasRole('ADMIN','DEVELOPER','MISSION_LEADER')||(type==='CELL'?hasPermission(Permission.CELLS_CREATE)&&hasMinistryModule('CELULAS'):hasPermission(Permission.CENACLES_CREATE)&&hasMinistryModule('CENACULO'));const [open,setOpen]=useState(false);const [saving,setSaving]=useState(false);const [form,setForm]=useState(makeEmpty());
- const [items,setItems]=useState<Community[]>([]);const [members,setMembers]=useState<Member[]>([]);const [ministries,setMinistries]=useState<Ministry[]>([]);const [cells,setCells]=useState<CellOption[]>([]);const [loading,setLoading]=useState(true);const [error,setError]=useState('');const [q,setQ]=useState('');const [neighborhood,setNeighborhood]=useState('');const [params,setParams]=useSearchParams();const mapActive=type==='CELL'&&params.get('tab')==='mapa';
- const status=(params.get('status')||'UPCOMING') as CenacleStatus;const periodStart=params.get('periodStart')||'';const periodEnd=params.get('periodEnd')||'';
- const singular=type==='CELL'?'célula':'cenáculo';const plural=type==='CELL'?'Células':'Cenáculos';
- const load=async()=>{setLoading(true);setError('');try{const [communities,memberRes,ministryRes,cellRes]=await Promise.all([api.get<Community[]>('/communities',{params:{type,status:type==='CENACLE'?status:'ALL',periodStart,periodEnd}}),api.get<{members:Member[]}>('/members',{params:{status:'active'}}),api.get<Ministry[]>('/ministries'),api.get<Community[]>('/communities',{params:{type:'CELL',status:'ALL'}})]);setItems(communities.data);setMembers(memberRes.data.members);setMinistries(ministryRes.data);setCells(cellRes.data.map(c=>({id:c.id,name:c.name})))}catch(e){setError(apiErrorMessage(e))}finally{setLoading(false)}};
- useEffect(()=>{void load()},[type,status,periodStart,periodEnd]);
- const setStatus=(value:CenacleStatus)=>{const next=new URLSearchParams(params);next.set('status',value);setParams(next)};
- const setPeriod=(key:'periodStart'|'periodEnd',value:string)=>{const next=new URLSearchParams(params);value?next.set(key,value):next.delete(key);setParams(next)};
- const neighborhoods=[...new Set(items.map(i=>i.neighborhood).filter(Boolean))].sort();const filtered=useMemo(()=>items.filter(i=>(!q||[i.name,i.leader.name,i.neighborhood,i.description,i.ministryName,i.cellName].join(' ').toLowerCase().includes(q.toLowerCase()))&&(!neighborhood||i.neighborhood===neighborhood)),[items,q,neighborhood]);
- const create=async()=>{setSaving(true);setError('');try{await api.post('/communities',{...form,type});setOpen(false);setForm(makeEmpty());await load()}catch(e){setError(apiErrorMessage(e))}finally{setSaving(false)}};
- const valid=!!form.name.trim()&&!!form.leaderId&&(type==='CELL'||(!!form.startDate&&!!form.time&&!!form.endDate&&!!form.endTime));
- return <Box><Box display="flex" justifyContent="space-between" alignItems="center" flexWrap="wrap" gap={2}><Box><Typography variant="h4">{plural}</Typography><Typography color="text.secondary">{type==='CELL'?'Liderança, participantes, localização, horários e presença.':'Encontros com data, horário, histórico e preservação de presenças.'}</Typography></Box>{canCreate&&<Button variant="contained" startIcon={<AddOutlined/>} onClick={()=>setOpen(true)}>Novo {singular}</Button>}</Box>
-  {type==='CELL'?<Paper sx={{mt:2}}><Tabs value={mapActive?1:0} onChange={(_,v)=>setParams(v===1?{tab:'mapa'}:{})}><Tab icon={<ViewListOutlined/>} iconPosition="start" label="Lista de células"/><Tab icon={<MapOutlined/>} iconPosition="start" label="Mapa das células"/></Tabs></Paper>:<Paper sx={{mt:2}}><Tabs value={status} onChange={(_,v)=>setStatus(v)}><Tab value="UPCOMING" label="Próximos"/><Tab value="FINISHED" icon={<HistoryOutlined/>} iconPosition="start" label="Encerrados"/><Tab value="CANCELLED" label="Cancelados"/></Tabs></Paper>}
-  {error&&<Alert severity="error" sx={{mt:2}}>{error}</Alert>}
-  {mapActive?<Box mt={3}><CellsMapPage embedded type="CELL"/></Box>:<><Box sx={{display:'grid',gridTemplateColumns:{xs:'1fr',md:type==='CENACLE'?'2fr 1fr 1fr 1fr':'2fr 1fr'},gap:2,my:3}}><TextField placeholder={`Buscar ${singular} por nome, responsável, ministério ou bairro`} value={q} onChange={e=>setQ(e.target.value)} InputProps={{startAdornment:<InputAdornment position="start"><SearchOutlined/></InputAdornment>}}/><TextField select label="Bairro" value={neighborhood} onChange={e=>setNeighborhood(e.target.value)}><MenuItem value="">Todos</MenuItem>{neighborhoods.map(n=><MenuItem key={n} value={n}>{n}</MenuItem>)}</TextField>{type==='CENACLE'&&<><TextField type="date" label="De" value={periodStart} onChange={e=>setPeriod('periodStart',e.target.value)} InputLabelProps={{shrink:true}}/><TextField type="date" label="Até" value={periodEnd} onChange={e=>setPeriod('periodEnd',e.target.value)} InputLabelProps={{shrink:true}}/></>}</Box>{loading?<Box textAlign="center" py={8}><CircularProgress/></Box>:filtered.length?<Box sx={{display:'grid',gridTemplateColumns:{xs:'1fr',md:'repeat(2,1fr)',xl:'repeat(3,1fr)'},gap:2}}>{filtered.map(c=><CommunityCard key={c.id} community={c}/>)}</Box>:<Paper sx={{p:5,textAlign:'center'}}><Typography variant="h6">Nenhum {singular} encontrado</Typography><Typography color="text.secondary">Ajuste os filtros ou cadastre um novo encontro.</Typography></Paper>}</>}
- <Dialog open={open} onClose={()=>setOpen(false)} fullWidth maxWidth="md"><DialogTitle>Criar {singular}</DialogTitle><DialogContent dividers><Stack spacing={2}><TextField required label="Nome" value={form.name} onChange={e=>setForm({...form,name:e.target.value})}/><TextField label="Descrição" multiline minRows={2} value={form.description} onChange={e=>setForm({...form,description:e.target.value})}/><Box sx={{display:'grid',gridTemplateColumns:{xs:'1fr',md:'repeat(3,1fr)'},gap:2}}><TextField select label="Ministério" value={form.ministryId} onChange={e=>setForm({...form,ministryId:e.target.value})}><MenuItem value="">Sem ministério</MenuItem>{ministries.map(m=><MenuItem key={m.id} value={m.id}>{m.name}</MenuItem>)}</TextField><TextField select required label={type==='CELL'?'Líder':'Responsável'} value={form.leaderId} onChange={e=>setForm({...form,leaderId:e.target.value})}>{members.map(m=><MenuItem key={m.id} value={m.id}>{m.name}</MenuItem>)}</TextField><TextField select label={type==='CELL'?'Vice-líder':'Vice-responsável'} value={form.viceLeaderId} onChange={e=>setForm({...form,viceLeaderId:e.target.value})}><MenuItem value="">Sem vice</MenuItem>{members.filter(m=>m.id!==form.leaderId).map(m=><MenuItem key={m.id} value={m.id}>{m.name}</MenuItem>)}</TextField></Box>{type==='CENACLE'&&<TextField select label="Célula vinculada" value={form.cellId} onChange={e=>setForm({...form,cellId:e.target.value})}><MenuItem value="">Sem célula vinculada</MenuItem>{cells.map(c=><MenuItem key={c.id} value={c.id}>{c.name}</MenuItem>)}</TextField>}{type==='CELL'?<Box sx={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:2}}><TextField label="Dia da semana" value={form.weekday} onChange={e=>setForm({...form,weekday:e.target.value})}/><TextField type="time" label="Horário" value={form.time} onChange={e=>setForm({...form,time:e.target.value})} InputLabelProps={{shrink:true}}/></Box>:<Box sx={{display:'grid',gridTemplateColumns:{xs:'1fr 1fr',md:'repeat(4,1fr)'},gap:2}}><TextField required type="date" label="Data inicial" value={form.startDate} onChange={e=>setForm({...form,startDate:e.target.value,endDate:form.endDate||e.target.value})} InputLabelProps={{shrink:true}}/><TextField required type="time" label="Hora inicial" value={form.time} onChange={e=>setForm({...form,time:e.target.value})} InputLabelProps={{shrink:true}}/><TextField required type="date" label="Data final" value={form.endDate} onChange={e=>setForm({...form,endDate:e.target.value})} InputLabelProps={{shrink:true}}/><TextField required type="time" label="Hora final" value={form.endTime} onChange={e=>setForm({...form,endTime:e.target.value})} InputLabelProps={{shrink:true}}/></Box>}<TextField label="Endereço" value={form.address} onChange={e=>setForm({...form,address:e.target.value})}/><Box sx={{display:'grid',gridTemplateColumns:{xs:'1fr',md:'2fr 2fr 1fr'},gap:2}}><TextField label="Bairro" value={form.neighborhood} onChange={e=>setForm({...form,neighborhood:e.target.value})}/><TextField label="Cidade" value={form.city} onChange={e=>setForm({...form,city:e.target.value})}/><TextField label="Estado" value={form.state} onChange={e=>setForm({...form,state:e.target.value})}/></Box></Stack></DialogContent><DialogActions><Button onClick={()=>setOpen(false)}>Cancelar</Button><Button variant="contained" disabled={saving||!valid} onClick={create}>Criar {singular}</Button></DialogActions></Dialog>
- </Box>
+type Member = { id: string; name: string; email: string; phone?: string; active: boolean };
+type Ministry = { id: string; name: string };
+type CellOption = { id: string; name: string };
+type CenacleStatus = 'UPCOMING' | 'FINISHED' | 'CANCELLED';
+const today = () => new Date().toISOString().slice(0, 10);
+const makeEmpty = () => ({
+  name: '',
+  description: '',
+  leaderId: '',
+  leaderName: '',
+  leaderContact: '',
+  viceLeaderId: '',
+  viceLeaderName: '',
+  viceLeaderContact: '',
+  modality: 'Presencial',
+  ministryId: '',
+  cellId: '',
+  weekday: '',
+  startDate: today(),
+  endDate: today(),
+  recurrence: 'NAO',
+  time: '19:00',
+  endTime: '21:00',
+  address: '',
+  neighborhood: '',
+  city: 'Brasília',
+  state: 'DF',
+  latitude: 0,
+  longitude: 0,
+});
+export function CommunitiesPage({ type }: { type: 'CELL' | 'CENACLE' }) {
+  const { hasRole } = useAuth();
+  const { hasPermission, hasMinistryModule } = usePermission();
+  const canCreate =
+    hasRole('ADMIN', 'DEVELOPER', 'MISSION_LEADER') ||
+    (type === 'CELL'
+      ? hasPermission(Permission.CELLS_CREATE) && hasMinistryModule('CELULAS')
+      : hasPermission(Permission.CENACLES_CREATE) && hasMinistryModule('CENACULO'));
+  const [open, setOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState(makeEmpty());
+  const [items, setItems] = useState<Community[]>([]);
+  const [members, setMembers] = useState<Member[]>([]);
+  const [ministries, setMinistries] = useState<Ministry[]>([]);
+  const [cells, setCells] = useState<CellOption[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [q, setQ] = useState('');
+  const [neighborhood, setNeighborhood] = useState('');
+  const [params, setParams] = useSearchParams();
+  const mapActive = type === 'CELL' && params.get('tab') === 'mapa';
+  const status = (params.get('status') || 'UPCOMING') as CenacleStatus;
+  const periodStart = params.get('periodStart') || '';
+  const periodEnd = params.get('periodEnd') || '';
+  const singular = type === 'CELL' ? 'célula' : 'cenáculo';
+  const plural = type === 'CELL' ? 'Células' : 'Cenáculos';
+  const load = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const [communities, memberRes, ministryRes, cellRes] = await Promise.all([
+        api.get<Community[]>('/communities', {
+          params: { type, status: type === 'CENACLE' ? status : 'ALL', periodStart, periodEnd },
+        }),
+        api.get<{ members: Member[] }>('/members', { params: { status: 'active' } }),
+        api.get<Ministry[]>('/ministries'),
+        api.get<Community[]>('/communities', { params: { type: 'CELL', status: 'ALL' } }),
+      ]);
+      setItems(communities.data);
+      setMembers(memberRes.data.members);
+      setMinistries(ministryRes.data);
+      setCells(cellRes.data.map((c) => ({ id: c.id, name: c.name })));
+    } catch (e) {
+      setError(apiErrorMessage(e));
+    } finally {
+      setLoading(false);
+    }
+  };
+  useEffect(() => {
+    void load();
+  }, [type, status, periodStart, periodEnd]);
+  const setStatus = (value: CenacleStatus) => {
+    const next = new URLSearchParams(params);
+    next.set('status', value);
+    setParams(next);
+  };
+  const setPeriod = (key: 'periodStart' | 'periodEnd', value: string) => {
+    const next = new URLSearchParams(params);
+    value ? next.set(key, value) : next.delete(key);
+    setParams(next);
+  };
+  const neighborhoods = [...new Set(items.map((i) => i.neighborhood).filter(Boolean))].sort();
+  const filtered = useMemo(
+    () =>
+      items.filter(
+        (i) =>
+          (!q ||
+            [i.name, i.leader.name, i.neighborhood, i.description, i.ministryName, i.cellName]
+              .join(' ')
+              .toLowerCase()
+              .includes(q.toLowerCase())) &&
+          (!neighborhood || i.neighborhood === neighborhood),
+      ),
+    [items, q, neighborhood],
+  );
+  const create = async () => {
+    setSaving(true);
+    setError('');
+    try {
+      await api.post('/communities', { ...form, type });
+      setOpen(false);
+      setForm(makeEmpty());
+      await load();
+    } catch (e) {
+      setError(apiErrorMessage(e));
+    } finally {
+      setSaving(false);
+    }
+  };
+  const valid =
+    !!form.name.trim() &&
+    (type === 'CELL'
+      ? !!form.leaderId || !!form.leaderName.trim()
+      : !!form.leaderId && !!form.startDate && !!form.time && !!form.endDate && !!form.endTime);
+  return (
+    <Box>
+      <Box
+        display="flex"
+        justifyContent="space-between"
+        alignItems="center"
+        flexWrap="wrap"
+        gap={2}
+      >
+        <Box>
+          <Typography variant="h4">{plural}</Typography>
+          <Typography color="text.secondary">
+            {type === 'CELL'
+              ? 'Liderança, participantes, localização, horários e presença.'
+              : 'Encontros com data, horário, histórico e preservação de presenças.'}
+          </Typography>
+        </Box>
+        {canCreate && (
+          <Button variant="contained" startIcon={<AddOutlined />} onClick={() => setOpen(true)}>
+            Novo {singular}
+          </Button>
+        )}
+      </Box>
+      {type === 'CELL' ? (
+        <Paper sx={{ mt: 2 }}>
+          <Tabs
+            value={mapActive ? 1 : 0}
+            onChange={(_, v) => setParams(v === 1 ? { tab: 'mapa' } : {})}
+          >
+            <Tab icon={<ViewListOutlined />} iconPosition="start" label="Lista de células" />
+            <Tab icon={<MapOutlined />} iconPosition="start" label="Mapa das células" />
+          </Tabs>
+        </Paper>
+      ) : (
+        <Paper sx={{ mt: 2 }}>
+          <Tabs value={status} onChange={(_, v) => setStatus(v)}>
+            <Tab value="UPCOMING" label="Próximos" />
+            <Tab
+              value="FINISHED"
+              icon={<HistoryOutlined />}
+              iconPosition="start"
+              label="Encerrados"
+            />
+            <Tab value="CANCELLED" label="Cancelados" />
+          </Tabs>
+        </Paper>
+      )}
+      {error && (
+        <Alert severity="error" sx={{ mt: 2 }}>
+          {error}
+        </Alert>
+      )}
+      {mapActive ? (
+        <Box mt={3}>
+          <CellsMapPage embedded type="CELL" />
+        </Box>
+      ) : (
+        <>
+          <Box
+            sx={{
+              display: 'grid',
+              gridTemplateColumns: {
+                xs: '1fr',
+                md: type === 'CENACLE' ? '2fr 1fr 1fr 1fr' : '2fr 1fr',
+              },
+              gap: 2,
+              my: 3,
+            }}
+          >
+            <TextField
+              placeholder={`Buscar ${singular} por nome, responsável, ministério ou bairro`}
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchOutlined />
+                  </InputAdornment>
+                ),
+              }}
+            />
+            <TextField
+              select
+              label="Bairro"
+              value={neighborhood}
+              onChange={(e) => setNeighborhood(e.target.value)}
+            >
+              <MenuItem value="">Todos</MenuItem>
+              {neighborhoods.map((n) => (
+                <MenuItem key={n} value={n}>
+                  {n}
+                </MenuItem>
+              ))}
+            </TextField>
+            {type === 'CENACLE' && (
+              <>
+                <TextField
+                  type="date"
+                  label="De"
+                  value={periodStart}
+                  onChange={(e) => setPeriod('periodStart', e.target.value)}
+                  InputLabelProps={{ shrink: true }}
+                />
+                <TextField
+                  type="date"
+                  label="Até"
+                  value={periodEnd}
+                  onChange={(e) => setPeriod('periodEnd', e.target.value)}
+                  InputLabelProps={{ shrink: true }}
+                />
+              </>
+            )}
+          </Box>
+          {loading ? (
+            <Box textAlign="center" py={8}>
+              <CircularProgress />
+            </Box>
+          ) : filtered.length ? (
+            <Box
+              sx={{
+                display: 'grid',
+                gridTemplateColumns: { xs: '1fr', md: 'repeat(2,1fr)', xl: 'repeat(3,1fr)' },
+                gap: 2,
+              }}
+            >
+              {filtered.map((c) => (
+                <CommunityCard key={c.id} community={c} />
+              ))}
+            </Box>
+          ) : (
+            <Paper sx={{ p: 5, textAlign: 'center' }}>
+              <Typography variant="h6">Nenhum {singular} encontrado</Typography>
+              <Typography color="text.secondary">
+                Ajuste os filtros ou cadastre um novo encontro.
+              </Typography>
+            </Paper>
+          )}
+        </>
+      )}
+      <Dialog open={open} onClose={() => setOpen(false)} fullWidth maxWidth="md">
+        <DialogTitle>Criar {singular}</DialogTitle>
+        <DialogContent dividers>
+          <Stack spacing={2}>
+            <TextField
+              required
+              label="Nome"
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+            />
+            <TextField
+              label="Descrição"
+              multiline
+              minRows={2}
+              value={form.description}
+              onChange={(e) => setForm({ ...form, description: e.target.value })}
+            />
+            <TextField
+              select
+              label="Ministério"
+              value={form.ministryId}
+              onChange={(e) => setForm({ ...form, ministryId: e.target.value })}
+            >
+              <MenuItem value="">Sem ministério</MenuItem>
+              {ministries.map((m) => (
+                <MenuItem key={m.id} value={m.id}>
+                  {m.name}
+                </MenuItem>
+              ))}
+            </TextField>
+            {type === 'CELL' ? (
+              <>
+                <Alert severity="info">
+                  Selecione um membro cadastrado ou digite livremente o nome de uma liderança que
+                  ainda não possui acesso ao app.
+                </Alert>
+                <Box
+                  sx={{
+                    display: 'grid',
+                    gridTemplateColumns: { xs: '1fr', md: '2fr 1fr' },
+                    gap: 2,
+                  }}
+                >
+                  <Autocomplete
+                    freeSolo
+                    options={members}
+                    value={members.find((m) => m.id === form.leaderId) || form.leaderName || null}
+                    getOptionLabel={(option) => (typeof option === 'string' ? option : option.name)}
+                    onChange={(_, value) =>
+                      typeof value === 'string'
+                        ? setForm({ ...form, leaderId: '', leaderName: value })
+                        : value
+                          ? setForm({
+                              ...form,
+                              leaderId: value.id,
+                              leaderName: value.name,
+                              leaderContact: value.phone || form.leaderContact,
+                            })
+                          : setForm({ ...form, leaderId: '', leaderName: '' })
+                    }
+                    onInputChange={(_, value, reason) =>
+                      reason === 'input' && setForm({ ...form, leaderId: '', leaderName: value })
+                    }
+                    renderInput={(params) => (
+                      <TextField
+                        {...params}
+                        required
+                        label="Líder cadastrado ou externo"
+                        helperText={
+                          form.leaderId
+                            ? 'Vinculado a um membro do app'
+                            : 'Nome externo — não terá acesso ao app'
+                        }
+                      />
+                    )}
+                  />
+                  <TextField
+                    label="Contato do líder"
+                    value={form.leaderContact}
+                    onChange={(e) => setForm({ ...form, leaderContact: e.target.value })}
+                  />
+                  <Autocomplete
+                    freeSolo
+                    options={members.filter((m) => m.id !== form.leaderId)}
+                    value={
+                      members.find((m) => m.id === form.viceLeaderId) || form.viceLeaderName || null
+                    }
+                    getOptionLabel={(option) => (typeof option === 'string' ? option : option.name)}
+                    onChange={(_, value) =>
+                      typeof value === 'string'
+                        ? setForm({ ...form, viceLeaderId: '', viceLeaderName: value })
+                        : value
+                          ? setForm({
+                              ...form,
+                              viceLeaderId: value.id,
+                              viceLeaderName: value.name,
+                              viceLeaderContact: value.phone || form.viceLeaderContact,
+                            })
+                          : setForm({ ...form, viceLeaderId: '', viceLeaderName: '' })
+                    }
+                    onInputChange={(_, value, reason) =>
+                      reason === 'input' &&
+                      setForm({ ...form, viceLeaderId: '', viceLeaderName: value })
+                    }
+                    renderInput={(params) => (
+                      <TextField {...params} label="Pré-líder cadastrado ou externo" />
+                    )}
+                  />
+                  <TextField
+                    label="Contato do pré-líder"
+                    value={form.viceLeaderContact}
+                    onChange={(e) => setForm({ ...form, viceLeaderContact: e.target.value })}
+                  />
+                </Box>
+                <Box
+                  sx={{
+                    display: 'grid',
+                    gridTemplateColumns: { xs: '1fr', md: 'repeat(3,1fr)' },
+                    gap: 2,
+                  }}
+                >
+                  <TextField
+                    select
+                    label="Modalidade"
+                    value={form.modality}
+                    onChange={(e) => setForm({ ...form, modality: e.target.value })}
+                  >
+                    <MenuItem value="Presencial">Presencial</MenuItem>
+                    <MenuItem value="On-line">On-line</MenuItem>
+                  </TextField>
+                  <TextField
+                    label="Dia da semana"
+                    value={form.weekday}
+                    onChange={(e) => setForm({ ...form, weekday: e.target.value })}
+                  />
+                  <TextField
+                    type="time"
+                    label="Horário"
+                    value={form.time}
+                    onChange={(e) => setForm({ ...form, time: e.target.value })}
+                    InputLabelProps={{ shrink: true }}
+                  />
+                </Box>
+              </>
+            ) : (
+              <>
+                <Box
+                  sx={{
+                    display: 'grid',
+                    gridTemplateColumns: { xs: '1fr', md: 'repeat(2,1fr)' },
+                    gap: 2,
+                  }}
+                >
+                  <TextField
+                    select
+                    required
+                    label="Responsável"
+                    value={form.leaderId}
+                    onChange={(e) => setForm({ ...form, leaderId: e.target.value })}
+                  >
+                    {members.map((m) => (
+                      <MenuItem key={m.id} value={m.id}>
+                        {m.name}
+                      </MenuItem>
+                    ))}
+                  </TextField>
+                  <TextField
+                    select
+                    label="Vice-responsável"
+                    value={form.viceLeaderId}
+                    onChange={(e) => setForm({ ...form, viceLeaderId: e.target.value })}
+                  >
+                    <MenuItem value="">Sem vice</MenuItem>
+                    {members
+                      .filter((m) => m.id !== form.leaderId)
+                      .map((m) => (
+                        <MenuItem key={m.id} value={m.id}>
+                          {m.name}
+                        </MenuItem>
+                      ))}
+                  </TextField>
+                </Box>
+                <TextField
+                  select
+                  label="Célula vinculada"
+                  value={form.cellId}
+                  onChange={(e) => setForm({ ...form, cellId: e.target.value })}
+                >
+                  <MenuItem value="">Sem célula vinculada</MenuItem>
+                  {cells.map((c) => (
+                    <MenuItem key={c.id} value={c.id}>
+                      {c.name}
+                    </MenuItem>
+                  ))}
+                </TextField>
+                <Box
+                  sx={{
+                    display: 'grid',
+                    gridTemplateColumns: { xs: '1fr 1fr', md: 'repeat(4,1fr)' },
+                    gap: 2,
+                  }}
+                >
+                  <TextField
+                    required
+                    type="date"
+                    label="Data inicial"
+                    value={form.startDate}
+                    onChange={(e) =>
+                      setForm({
+                        ...form,
+                        startDate: e.target.value,
+                        endDate: form.endDate || e.target.value,
+                      })
+                    }
+                    InputLabelProps={{ shrink: true }}
+                  />
+                  <TextField
+                    required
+                    type="time"
+                    label="Hora inicial"
+                    value={form.time}
+                    onChange={(e) => setForm({ ...form, time: e.target.value })}
+                    InputLabelProps={{ shrink: true }}
+                  />
+                  <TextField
+                    required
+                    type="date"
+                    label="Data final"
+                    value={form.endDate}
+                    onChange={(e) => setForm({ ...form, endDate: e.target.value })}
+                    InputLabelProps={{ shrink: true }}
+                  />
+                  <TextField
+                    required
+                    type="time"
+                    label="Hora final"
+                    value={form.endTime}
+                    onChange={(e) => setForm({ ...form, endTime: e.target.value })}
+                    InputLabelProps={{ shrink: true }}
+                  />
+                </Box>
+              </>
+            )}
+            <TextField
+              label="Endereço"
+              value={form.address}
+              onChange={(e) => setForm({ ...form, address: e.target.value })}
+            />
+            <Box
+              sx={{
+                display: 'grid',
+                gridTemplateColumns: { xs: '1fr', md: '2fr 2fr 1fr' },
+                gap: 2,
+              }}
+            >
+              <TextField
+                label="Bairro"
+                value={form.neighborhood}
+                onChange={(e) => setForm({ ...form, neighborhood: e.target.value })}
+              />
+              <TextField
+                label="Cidade"
+                value={form.city}
+                onChange={(e) => setForm({ ...form, city: e.target.value })}
+              />
+              <TextField
+                label="Estado"
+                value={form.state}
+                onChange={(e) => setForm({ ...form, state: e.target.value })}
+              />
+            </Box>
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpen(false)}>Cancelar</Button>
+          <Button variant="contained" disabled={saving || !valid} onClick={create}>
+            Criar {singular}
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </Box>
+  );
 }

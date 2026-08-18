@@ -47,6 +47,24 @@ export class CommunitiesService {
       function: func,
     };
   }
+  private externalPerson(
+    rowId: string,
+    kind: 'leader' | 'vice',
+    name: string,
+    phone: string,
+    func: string,
+  ): Participant {
+    return {
+      id: `external:${kind}:${rowId}`,
+      name,
+      email: '',
+      photo: '',
+      role: 'LIDERANCA_EXTERNA',
+      phone,
+      function: func,
+      external: true,
+    };
+  }
   private userId(user: AuthenticatedUser) {
     return user.memberId || user.id;
   }
@@ -231,16 +249,34 @@ export class CommunitiesService {
           description: row.descricao || '',
           leader: leader
             ? this.person(leader, type === 'CELL' ? 'LIDER' : 'RESPONSAVEL')
-            : {
-                id: '',
-                name: type === 'CELL' ? 'Sem líder' : 'Sem responsável',
-                photo: '',
-                role: '',
-                phone: '',
-              },
+            : type === 'CELL' && row.lider_nome
+              ? this.externalPerson(
+                  row.id || '',
+                  'leader',
+                  row.lider_nome,
+                  row.lider_contato || '',
+                  'LIDER',
+                )
+              : {
+                  id: '',
+                  name: type === 'CELL' ? 'Sem líder' : 'Sem responsável',
+                  photo: '',
+                  role: '',
+                  phone: '',
+                },
           coLeaders: vice
             ? [this.person(vice, type === 'CELL' ? 'VICE_LIDER' : 'VICE_RESPONSAVEL')]
-            : [],
+            : type === 'CELL' && row.vice_lider_nome
+              ? [
+                  this.externalPerson(
+                    row.id || '',
+                    'vice',
+                    row.vice_lider_nome,
+                    row.vice_lider_contato || '',
+                    'VICE_LIDER',
+                  ),
+                ]
+              : [],
           participants: participantsBy.get(row.id) || [],
           ministryId: row.ministerio_id || '',
           ministryName: ministryMap.get(row.ministerio_id) || '',
@@ -252,6 +288,7 @@ export class CommunitiesService {
           time: row.horario || '',
           endTime: type === 'CENACLE' ? row.horario_fim || row.horario || '' : '',
           recurrence: type === 'CENACLE' ? row.recorrente || 'NAO' : '',
+          modality: type === 'CELL' ? row.modalidade || '' : '',
           status: currentStatus,
           closedAt: row.encerrado_em || '',
           address: row.endereco || '',
@@ -301,8 +338,12 @@ export class CommunitiesService {
     )
       throw new ForbiddenException('Você só pode criar registros no seu próprio ministério.');
     const members = await this.sheets.listMembers();
+    if (dto.type === 'CELL' && !dto.leaderId && !dto.leaderName.trim())
+      throw new BadRequestException('Informe um líder cadastrado ou o nome do líder externo.');
     if (dto.leaderId && !members.some((m) => m.id === dto.leaderId && m.active))
       throw new NotFoundException('Responsável ativo não encontrado.');
+    if (dto.viceLeaderId && !members.some((m) => m.id === dto.viceLeaderId && m.active))
+      throw new NotFoundException('Vice-líder ativo não encontrado.');
     const sheet = this.sheet(dto.type);
     const duplicate = (await this.sheets.read(sheet)).some(
       (r) =>
@@ -334,8 +375,13 @@ export class CommunitiesService {
         missao_id: 'missao-brasilia',
         nome: dto.name.trim(),
         descricao: dto.description || '',
-        lider_id: dto.leaderId || this.userId(user),
+        lider_id: dto.leaderId || '',
         vice_lider_id: dto.viceLeaderId || '',
+        modalidade: dto.modality || '',
+        lider_nome: dto.leaderName.trim(),
+        lider_contato: dto.leaderContact.trim(),
+        vice_lider_nome: dto.viceLeaderName.trim(),
+        vice_lider_contato: dto.viceLeaderContact.trim(),
         ministerio_id: dto.ministryId || '',
         endereco: geo.endereco,
         bairro: dto.neighborhood || '',
@@ -429,6 +475,16 @@ export class CommunitiesService {
       user.profile,
     );
     const now = new Date().toISOString();
+    const leaderWasProvided = Boolean(dto.leaderId || dto.leaderName.trim());
+    const nextLeaderId = leaderWasProvided ? dto.leaderId || '' : row.lider_id || '';
+    const nextLeaderName = leaderWasProvided ? dto.leaderName.trim() : row.lider_nome || '';
+    if (type === 'CELL' && !nextLeaderId && !nextLeaderName)
+      throw new BadRequestException('Informe um líder cadastrado ou o nome do líder externo.');
+    const members = await this.sheets.listMembers();
+    if (dto.leaderId && !members.some((m) => m.id === dto.leaderId && m.active))
+      throw new NotFoundException('Responsável ativo não encontrado.');
+    if (dto.viceLeaderId && !members.some((m) => m.id === dto.viceLeaderId && m.active))
+      throw new NotFoundException('Vice-líder ativo não encontrado.');
     const addressChanged = (dto.address ?? row.endereco) !== row.endereco;
     const geo = addressChanged
       ? await this.location(dto.address || '')
@@ -444,10 +500,13 @@ export class CommunitiesService {
         ...row,
         nome: dto.name?.trim() || row.nome,
         descricao: dto.description ?? row.descricao,
-        lider_id: adminOrMinistry ? dto.leaderId || row.lider_id : row.lider_id,
-        vice_lider_id: adminOrMinistry
-          ? (dto.viceLeaderId ?? row.vice_lider_id)
-          : row.vice_lider_id,
+        lider_id: adminOrMinistry ? nextLeaderId : row.lider_id,
+        vice_lider_id: adminOrMinistry ? dto.viceLeaderId || '' : row.vice_lider_id,
+        modalidade: dto.modality ?? row.modalidade,
+        lider_nome: adminOrMinistry ? nextLeaderName : row.lider_nome,
+        lider_contato: adminOrMinistry ? dto.leaderContact.trim() : row.lider_contato,
+        vice_lider_nome: adminOrMinistry ? dto.viceLeaderName.trim() : row.vice_lider_nome,
+        vice_lider_contato: adminOrMinistry ? dto.viceLeaderContact.trim() : row.vice_lider_contato,
         ministerio_id: adminOrMinistry ? dto.ministryId || row.ministerio_id : row.ministerio_id,
         endereco: geo.endereco,
         bairro: dto.neighborhood ?? row.bairro,

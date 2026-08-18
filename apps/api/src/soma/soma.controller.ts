@@ -97,6 +97,16 @@ export class SomaController {
   ) {
     return this.service.financialReport(user, { from, to, status, method });
   }
+  @Get('financial/my-report')
+  personalFinancialReport(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+    @Query('status') status?: string,
+    @Query('method') method?: string,
+  ) {
+    return this.service.personalFinancialReport(user, { from, to, status, method });
+  }
   @Get('financial/export/:format')
   @RequirePermissions(Permission.FINANCIAL_REPORT_READ)
   @RequireMinistryModule('FINANCAS')

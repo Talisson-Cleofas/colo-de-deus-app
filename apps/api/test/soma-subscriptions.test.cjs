@@ -76,6 +76,32 @@ function signedInput({ dataId, type, action, requestId }) {
   };
 }
 
+test('relatório pessoal limita o membro e reconcilia taxa com o líquido do provedor', async () => {
+  const { service, sheets, user } = fixture();
+  sheets.tabs.set('Pagamentos', [
+    {
+      id: 'payment-1', payment_id: 'payment-1', member_id: 'member-1', member_name: 'Membro Teste',
+      payer_email: 'membro@example.com', status: 'approved', amount: '5', fee_amount: '0.12',
+      net_amount: '4.76', date_created: '2026-08-17T12:00:00.000Z',
+      date_approved: '2026-08-17T12:00:05.000Z', reference_month: '2026-08',
+    },
+    {
+      id: 'payment-2', payment_id: 'payment-2', member_id: 'member-2', member_name: 'Outro Membro',
+      payer_email: 'outro@example.com', status: 'approved', amount: '100', fee_amount: '5',
+      net_amount: '95', date_created: '2026-08-17T12:00:00.000Z',
+      date_approved: '2026-08-17T12:00:05.000Z', reference_month: '2026-08',
+    },
+  ]);
+  const report = await service.personalFinancialReport(user, { from: '2026-01-01', to: '2026-12-31' });
+  assert.equal(report.payments.length, 1);
+  assert.equal(report.payments[0].payment_id, 'payment-1');
+  assert.equal(report.totals.gross, 5);
+  assert.equal(report.totals.fees, 0.24);
+  assert.equal(report.totals.net, 4.76);
+  assert.equal(report.totals.gross, report.totals.fees + report.totals.net);
+  await assert.rejects(service.personalFinancialReport({ ...user, profile: 'ADMIN' }), /centro financeiro/);
+});
+
 test('cria assinatura pendente individual e não duplica o checkout', async () => {
   const { service, sheets, user } = fixture();
   const calls = [];

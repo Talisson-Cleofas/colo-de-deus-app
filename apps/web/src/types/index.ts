@@ -295,6 +295,10 @@ export type MissionaryAgenda = {
   membersSentAt: string;
   participantIds: string[];
   participantNames: string[];
+  accompanyingIds: string[];
+  accompanyingNames: string[];
+  intercessorIds: string[];
+  intercessorNames: string[];
   canEdit: boolean;
   canSubmit: boolean;
   canReview: boolean;

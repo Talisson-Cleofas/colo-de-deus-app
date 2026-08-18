@@ -90,10 +90,17 @@ export class MissionaryAgendaService {
         (user.profile === 'MINISTRY_LEADER' && user.ministry === ministry.nome)),
     );
   }
-  private participantIds(id: string, ctx: Awaited<ReturnType<MissionaryAgendaService['context']>>) {
+  private participantIds(
+    id: string,
+    ctx: Awaited<ReturnType<MissionaryAgendaService['context']>>,
+    role = 'ENVIADO',
+  ) {
     return ctx.participants
       .filter(
-        (item) => item.agenda_id === id && this.repository.parseActive(item.ativo || '', true),
+        (item) =>
+          item.agenda_id === id &&
+          this.repository.parseActive(item.ativo || '', true) &&
+          (item.funcao || 'ENVIADO') === role,
       )
       .map((item) => item.membro_id)
       .filter(Boolean);
@@ -104,6 +111,8 @@ export class MissionaryAgendaService {
     user: AuthenticatedUser,
   ): MissionaryAgenda {
     const participantIds = this.participantIds(row.id || '', ctx),
+      accompanyingIds = this.participantIds(row.id || '', ctx, 'ACOMPANHANTE'),
+      intercessorIds = this.participantIds(row.id || '', ctx, 'INTERCESSOR'),
       status = (row.status || 'RASCUNHO') as MissionaryAgendaStatus;
     const agendaLeader = row.responsavel_id === this.userId(user),
       central = this.central(user),
@@ -145,6 +154,10 @@ export class MissionaryAgendaService {
       membersSentAt: row.membros_enviados_em || '',
       participantIds,
       participantNames: participantIds.map((id) => ctx.memberNames.get(id) || id),
+      accompanyingIds,
+      accompanyingNames: accompanyingIds.map((id) => ctx.memberNames.get(id) || id),
+      intercessorIds,
+      intercessorNames: intercessorIds.map((id) => ctx.memberNames.get(id) || id),
       canEdit:
         (agendaLeader && ['RASCUNHO', 'NAO_APROVADA'].includes(status)) ||
         (central &&
@@ -173,7 +186,20 @@ export class MissionaryAgendaService {
       ['AGUARDANDO_INDICACOES', 'ENVIADA_AOS_MEMBROS', 'CONCLUIDA'].includes(item.status)
     )
       return true;
-    return item.status === 'ENVIADA_AOS_MEMBROS' && item.participantIds.includes(this.userId(user));
+    const assigned = [
+      ...item.participantIds,
+      ...item.accompanyingIds,
+      ...item.intercessorIds,
+    ].includes(this.userId(user));
+    return (
+      assigned &&
+      [
+        'AGUARDANDO_APROVACAO',
+        'AGUARDANDO_INDICACOES',
+        'ENVIADA_AOS_MEMBROS',
+        'CONCLUIDA',
+      ].includes(item.status)
+    );
   }
   async list(
     filters: { status?: string; type?: string; search?: string },
@@ -320,7 +346,80 @@ export class MissionaryAgendaService {
       meetingPoint: item.meetingPoint,
       transport: item.transport,
       notes: item.notes,
+      accompanyingIds: item.accompanyingIds,
+      intercessorIds: item.intercessorIds,
     };
+  }
+
+  private async validateTeamSelection(accompanyingIds: string[], intercessorIds: string[]) {
+    const accompanying = [...new Set(accompanyingIds.filter(Boolean))],
+      intercessors = [...new Set(intercessorIds.filter(Boolean))],
+      overlap = accompanying.filter((id) => intercessors.includes(id));
+    if (overlap.length)
+      throw new BadRequestException(
+        'A mesma pessoa não pode ser acompanhante e intercessora na mesma agenda.',
+      );
+    const members = await this.repository.listMembers(),
+      selectedIds = [...accompanying, ...intercessors],
+      selected = members.filter((member) => selectedIds.includes(member.id));
+    if (selected.length !== selectedIds.length || selected.some((member) => !member.active))
+      throw new BadRequestException('A equipe contém membro inexistente ou inativo.');
+    return { accompanying, intercessors };
+  }
+
+  private async syncTeam(
+    agendaId: string,
+    ministryId: string,
+    accompanyingIds: string[],
+    intercessorIds: string[],
+    user: AuthenticatedUser,
+  ) {
+    const { accompanying, intercessors } = await this.validateTeamSelection(
+        accompanyingIds,
+        intercessorIds,
+      ),
+      rows = await this.repository.read('AgendaMissionariaParticipantes'),
+      current = rows.filter(
+        (row) =>
+          row.agenda_id === agendaId && ['ACOMPANHANTE', 'INTERCESSOR'].includes(row.funcao || ''),
+      ),
+      now = new Date().toISOString(),
+      uid = this.userId(user);
+    for (const role of ['ACOMPANHANTE', 'INTERCESSOR'] as const) {
+      const wanted = role === 'ACOMPANHANTE' ? accompanying : intercessors;
+      for (const row of current.filter(
+        (item) => item.funcao === role && !wanted.includes(item.membro_id),
+      ))
+        await this.repository.updateRecord('AgendaMissionariaParticipantes', 'id', row.id, {
+          ...row,
+          ativo: 'FALSE',
+          atualizado_em: now,
+        });
+      for (const memberId of wanted) {
+        const existing = current.find((row) => row.funcao === role && row.membro_id === memberId);
+        if (existing)
+          await this.repository.updateRecord('AgendaMissionariaParticipantes', 'id', existing.id, {
+            ...existing,
+            ativo: 'TRUE',
+            status: 'INDICADO',
+            atualizado_em: now,
+          });
+        else
+          await this.repository.appendRecord('AgendaMissionariaParticipantes', {
+            id: randomUUID(),
+            agenda_id: agendaId,
+            membro_id: memberId,
+            ministerio_id: ministryId,
+            funcao: role,
+            status: 'INDICADO',
+            enviado_por: uid,
+            enviado_em: now,
+            ativo: 'TRUE',
+            criado_em: now,
+            atualizado_em: now,
+          });
+      }
+    }
   }
   private workflow(item: MissionaryAgenda): SheetRow {
     return {
@@ -396,6 +495,7 @@ export class MissionaryAgendaService {
   async create(dto: CreateMissionaryAgendaDto, user: AuthenticatedUser) {
     this.validatePeriod(dto.startDate, dto.endDate, dto.startTime, dto.endTime);
     await this.validateReferences(dto.responsibleId, dto.ministryId);
+    await this.validateTeamSelection(dto.accompanyingIds || [], dto.intercessorIds || []);
     const now = new Date().toISOString(),
       id = randomUUID();
     await this.repository.appendRecord(
@@ -407,6 +507,13 @@ export class MissionaryAgendaService {
         updatedBy: this.userId(user),
         updatedAt: now,
       }),
+    );
+    await this.syncTeam(
+      id,
+      dto.ministryId,
+      dto.accompanyingIds || [],
+      dto.intercessorIds || [],
+      user,
     );
     const created = await this.findOne(id, user);
     await this.log(created, 'RASCUNHO', 'CRIADA', 'Agenda criada como rascunho.', user);
@@ -425,7 +532,15 @@ export class MissionaryAgendaService {
     };
     this.validatePeriod(merged.startDate, merged.endDate, merged.startTime, merged.endTime);
     await this.validateReferences(merged.responsibleId, merged.ministryId);
+    await this.validateTeamSelection(merged.accompanyingIds || [], merged.intercessorIds || []);
     await this.save({ ...existing, ...merged } as MissionaryAgenda, user, this.workflow(existing));
+    await this.syncTeam(
+      id,
+      merged.ministryId,
+      merged.accompanyingIds || [],
+      merged.intercessorIds || [],
+      user,
+    );
     await this.log(existing, existing.status, 'EDITADA', 'Dados da agenda atualizados.', user);
     return this.findOne(id, user);
   }
@@ -527,6 +642,7 @@ export class MissionaryAgendaService {
         agenda_id: item.id,
         membro_id: memberId,
         ministerio_id: item.ministryId,
+        funcao: 'ENVIADO',
         status: 'ENVIADO',
         enviado_por: this.userId(user),
         enviado_em: now,

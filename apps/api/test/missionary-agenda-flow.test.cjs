@@ -147,6 +147,45 @@ test('executa aprovação: líder da agenda → líder de missão → líder de 
   assert.equal(notifications.length, 3);
 });
 
+test('salva acompanhantes e intercessores em funções separadas', async () => {
+  const { service, tabs } = fixture();
+  const created = await service.create(
+    {
+      ...input('Missão com equipe ampliada'),
+      accompanyingIds: [users.ministry.id],
+      intercessorIds: [users.member.id],
+    },
+    users.agenda,
+  );
+
+  assert.deepEqual(created.accompanyingIds, [users.ministry.id]);
+  assert.deepEqual(created.intercessorIds, [users.member.id]);
+  assert.equal(
+    tabs.AgendaMissionariaParticipantes.find((row) => row.membro_id === users.ministry.id).funcao,
+    'ACOMPANHANTE',
+  );
+  assert.equal(
+    tabs.AgendaMissionariaParticipantes.find((row) => row.membro_id === users.member.id).funcao,
+    'INTERCESSOR',
+  );
+});
+
+test('impede que a mesma pessoa ocupe as duas funções da equipe', async () => {
+  const { service } = fixture();
+  await assert.rejects(
+    () =>
+      service.create(
+        {
+          ...input('Missão com função duplicada'),
+          accompanyingIds: [users.member.id],
+          intercessorIds: [users.member.id],
+        },
+        users.agenda,
+      ),
+    /não pode ser acompanhante e intercessora/i,
+  );
+});
+
 test('executa não aprovação e devolve ao líder da agenda para editar e reenviar', async () => {
   const { service } = fixture();
   const created = await service.create(input('Visita missionária'), users.agenda);

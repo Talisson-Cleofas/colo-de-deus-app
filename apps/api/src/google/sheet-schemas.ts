@@ -367,6 +367,7 @@ export const SHEET_SCHEMAS = {
     'agenda_id',
     'membro_id',
     'ministerio_id',
+    'funcao',
     'status',
     'enviado_por',
     'enviado_em',

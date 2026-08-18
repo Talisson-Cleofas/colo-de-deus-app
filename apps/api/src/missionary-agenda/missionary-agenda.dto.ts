@@ -60,6 +60,8 @@ export class CreateMissionaryAgendaDto {
   @IsOptional() @IsString() @MaxLength(300) meetingPoint = '';
   @IsOptional() @IsString() @MaxLength(300) transport = '';
   @IsOptional() @IsString() @MaxLength(3000) notes = '';
+  @IsOptional() @IsArray() @IsString({ each: true }) accompanyingIds: string[] = [];
+  @IsOptional() @IsArray() @IsString({ each: true }) intercessorIds: string[] = [];
 }
 
 export class UpdateMissionaryAgendaDto {
@@ -101,6 +103,8 @@ export class UpdateMissionaryAgendaDto {
   @IsOptional() @IsString() @MaxLength(300) meetingPoint?: string;
   @IsOptional() @IsString() @MaxLength(300) transport?: string;
   @IsOptional() @IsString() @MaxLength(3000) notes?: string;
+  @IsOptional() @IsArray() @IsString({ each: true }) accompanyingIds?: string[];
+  @IsOptional() @IsArray() @IsString({ each: true }) intercessorIds?: string[];
 }
 
 export class ApproveMissionaryAgendaDto {

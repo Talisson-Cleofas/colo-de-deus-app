@@ -324,6 +324,16 @@ export function AgendaMissionariaPage() {
                   <strong>Membros enviados:</strong> {item.participantNames.join(', ')}
                 </Typography>
               )}
+              {item.accompanyingNames.length > 0 && (
+                <Typography variant="body2">
+                  <strong>Acompanhantes:</strong> {item.accompanyingNames.join(', ')}
+                </Typography>
+              )}
+              {item.intercessorNames.length > 0 && (
+                <Typography variant="body2">
+                  <strong>Intercessores:</strong> {item.intercessorNames.join(', ')}
+                </Typography>
+              )}
               <Box sx={{ flex: 1 }} />
               <Stack direction="row" flexWrap="wrap" gap={1}>
                 {item.canEdit && (

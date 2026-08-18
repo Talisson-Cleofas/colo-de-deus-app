@@ -11,7 +11,7 @@ export class HealthController {
     return {
       status: 'ok',
       service: 'colo-de-deus-api',
-      version: '7.2.1',
+      version: '7.2.2',
       timestamp: new Date().toISOString(),
     };
   }

@@ -148,7 +148,6 @@ export function AgendaMissionariaForm({
       next.state = 'Informe uma UF com 2 letras.';
     if (value.zipCode && !/^\d{5}-?\d{3}$/.test(value.zipCode))
       next.zipCode = 'Use o formato 00000-000.';
-    if (!value.responsibleId) next.responsibleId = 'Selecione o responsável.';
     if (value.participantLimit < 0) next.participantLimit = 'O limite não pode ser negativo.';
     return next;
   }, [value]);
@@ -316,7 +315,7 @@ export function AgendaMissionariaForm({
 
           <Box>
             <Typography variant="h6" mb={1.5}>
-              Responsabilidade e organização
+              Ministério solicitado
             </Typography>
             <Box
               sx={{
@@ -327,13 +326,13 @@ export function AgendaMissionariaForm({
             >
               <TextField
                 select
-                required
-                label="Responsável"
+                label="Missionário solicitado"
                 value={value.responsibleId}
                 onChange={(event) => field('responsibleId', event.target.value)}
                 error={Boolean(error('responsibleId'))}
                 helperText={error('responsibleId')}
               >
+                <MenuItem value="">A definir pelo líder do ministério</MenuItem>
                 {options.members.map((item) => (
                   <MenuItem key={item.id} value={item.id}>
                     {item.name}

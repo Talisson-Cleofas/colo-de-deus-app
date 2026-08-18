@@ -199,7 +199,7 @@ export function AgendaMissionariaPage() {
         <Stack direction={{ xs: 'column', md: 'row' }} gap={2}>
           <TextField
             fullWidth
-            placeholder="Buscar por título, local, cidade ou responsável"
+            placeholder="Buscar por título, local, cidade ou missionário"
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             InputProps={{
@@ -315,7 +315,8 @@ export function AgendaMissionariaPage() {
                 <Stack direction="row" gap={1}>
                   <PersonOutline fontSize="small" />
                   <Typography variant="body2">
-                    {item.responsibleName} • {item.ministryName || 'Ministério não definido'}
+                    {item.responsibleName || 'Missionário a indicar'} •{' '}
+                    {item.ministryName || 'Ministério não definido'}
                   </Typography>
                 </Stack>
               </Stack>
@@ -423,7 +424,7 @@ export function AgendaMissionariaPage() {
         </DialogTitle>
         <DialogContent>
           <Alert severity="warning" sx={{ mb: 2 }}>
-            A agenda retornará ao líder responsável para ajustes e poderá ser reenviada.
+            A agenda retornará ao líder da agenda para ajustes e poderá ser reenviada.
           </Alert>
           <TextField
             autoFocus

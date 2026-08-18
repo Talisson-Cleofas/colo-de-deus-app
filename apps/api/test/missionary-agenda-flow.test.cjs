@@ -147,6 +147,17 @@ test('executa aprovação: líder da agenda → líder de missão → líder de 
   assert.equal(notifications.length, 3);
 });
 
+test('permite criar e enviar a agenda sem missionário previamente indicado', async () => {
+  const { service } = fixture();
+  const created = await service.create({ ...input(), responsibleId: '' }, users.agenda);
+
+  assert.equal(created.responsibleId, '');
+  assert.equal(created.canSubmit, true);
+
+  const submitted = await service.submit(created.id, users.agenda);
+  assert.equal(submitted.status, 'AGUARDANDO_APROVACAO');
+});
+
 test('salva acompanhantes e intercessores em funções separadas', async () => {
   const { service, tabs } = fixture();
   const created = await service.create(

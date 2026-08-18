@@ -114,7 +114,7 @@ export class MissionaryAgendaService {
       accompanyingIds = this.participantIds(row.id || '', ctx, 'ACOMPANHANTE'),
       intercessorIds = this.participantIds(row.id || '', ctx, 'INTERCESSOR'),
       status = (row.status || 'RASCUNHO') as MissionaryAgendaStatus;
-    const agendaLeader = row.responsavel_id === this.userId(user),
+    const agendaLeader = row.criado_por === this.userId(user),
       central = this.central(user),
       ministryLeader = this.ministryLeader(user, row.ministerio_id || '', ctx);
     return {
@@ -180,7 +180,12 @@ export class MissionaryAgendaService {
     user: AuthenticatedUser,
     ctx: Awaited<ReturnType<MissionaryAgendaService['context']>>,
   ) {
-    if (this.central(user) || item.responsibleId === this.userId(user)) return true;
+    if (
+      this.central(user) ||
+      item.createdBy === this.userId(user) ||
+      item.responsibleId === this.userId(user)
+    )
+      return true;
     if (
       this.ministryLeader(user, item.ministryId, ctx) &&
       ['AGUARDANDO_INDICACOES', 'ENVIADA_AOS_MEMBROS', 'CONCLUIDA'].includes(item.status)
@@ -257,10 +262,11 @@ export class MissionaryAgendaService {
   }
   private async validateReferences(responsibleId: string, ministryId: string) {
     const [member, ministries] = await Promise.all([
-      this.repository.findMemberById(responsibleId),
+      responsibleId ? this.repository.findMemberById(responsibleId) : Promise.resolve(undefined),
       ministryId ? this.repository.read('Ministérios') : Promise.resolve([]),
     ]);
-    if (!member?.active) throw new BadRequestException('Selecione um responsável ativo.');
+    if (responsibleId && !member?.active)
+      throw new BadRequestException('Selecione um missionário ativo.');
     if (
       ministryId &&
       !ministries.some(
@@ -523,7 +529,7 @@ export class MissionaryAgendaService {
     const existing = await this.findOne(id, user);
     if (!existing.canEdit)
       throw new ForbiddenException(
-        'A agenda só pode ser editada pelo líder responsável quando estiver em rascunho ou devolvida.',
+        'A agenda só pode ser editada pelo líder da agenda quando estiver em rascunho ou devolvida.',
       );
     const merged: CreateMissionaryAgendaDto = {
       ...this.form(existing),
@@ -608,7 +614,7 @@ export class MissionaryAgendaService {
     await this.notify(
       'Agenda devolvida para ajustes',
       `${item.title}: ${dto.reason.trim()}`,
-      [item.responsibleId],
+      [item.createdBy],
       item.id,
     );
     return this.findOne(id, user);

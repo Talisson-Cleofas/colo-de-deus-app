@@ -54,7 +54,7 @@ export class CreateMissionaryAgendaDto {
   @IsString()
   @Matches(ZIP_PATTERN, { message: 'zipCode deve usar o formato 00000-000.' })
   zipCode = '';
-  @IsString() @MinLength(1) responsibleId!: string;
+  @IsOptional() @IsString() responsibleId = '';
   @IsOptional() @IsString() ministryId = '';
   @IsOptional() @IsInt() @Min(0) @Max(100000) participantLimit = 0;
   @IsOptional() @IsString() @MaxLength(300) meetingPoint = '';

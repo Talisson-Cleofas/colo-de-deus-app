@@ -37,7 +37,6 @@ export class NotificationReadEngine {
     return true;
   }
   private accessible(row: SheetRecord, user: AuthenticatedUser): boolean {
-    if (['ADMIN', 'MISSION_LEADER', 'DEVELOPER'].includes(user.profile)) return true;
     const memberId = this.memberId(user);
     const audience = (row.publico || 'TODOS').trim().toUpperCase();
     const audienceId = (row.publico_id || '').trim();

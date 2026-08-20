@@ -4,11 +4,11 @@ import { useNavigate } from 'react-router-dom';
 import type { MissionEvent } from '../../types';
 import { formatDateSafe } from '../../utils/date';
 
-
 export function EventCard({ event }: { event: MissionEvent }) {
   const navigate = useNavigate();
+  const hasImportedPlaceholderTime = event.startTime === '00:00' && event.endTime === '23:59';
   return (
-    <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+    <Card sx={{ minHeight: 360, display: 'flex', flex: 1, flexDirection: 'column', minWidth: 0 }}>
       <Box
         sx={{
           height: 8,
@@ -19,26 +19,56 @@ export function EventCard({ event }: { event: MissionEvent }) {
       />
       <CardContent sx={{ p: 3, display: 'flex', flexDirection: 'column', flex: 1 }}>
         <Stack direction="row" justifyContent="space-between" gap={1} alignItems="flex-start">
-          <Chip label={event.category || 'Evento'} color={event.featured ? 'primary' : 'default'} size="small" />
+          <Chip
+            label={event.category || 'Evento'}
+            color={event.featured ? 'primary' : 'default'}
+            size="small"
+          />
           {event.featured && <Chip label="Destaque" variant="outlined" size="small" />}
         </Stack>
-        <Typography variant="h6" mt={2}>
+        <Typography variant="h6" mt={2} sx={{ overflowWrap: 'anywhere' }}>
           {event.title}
         </Typography>
-        <Typography color="text.secondary" fontSize={14} mt={1} lineHeight={1.6} flex={1}>
+        <Typography
+          color="text.secondary"
+          fontSize={14}
+          mt={1}
+          lineHeight={1.6}
+          flex={1}
+          sx={{
+            display: '-webkit-box',
+            WebkitBoxOrient: 'vertical',
+            WebkitLineClamp: 3,
+            overflow: 'hidden',
+            overflowWrap: 'anywhere',
+          }}
+        >
           {event.description}
         </Typography>
         <Stack spacing={1} mt={2} color="text.secondary">
           <Typography fontSize={13} display="flex" gap={1} alignItems="center">
             <AccessTimeOutlined fontSize="small" />
-            {formatDateSafe(event.startDate, { day: '2-digit', month: 'short', year: 'numeric' })} • {event.startTime || 'Horário a definir'}{event.endTime ? `–${event.endTime}` : ''}
+            {formatDateSafe(event.startDate, {
+              day: '2-digit',
+              month: 'short',
+              year: 'numeric',
+            })}{' '}
+            •{' '}
+            {hasImportedPlaceholderTime
+              ? 'Horário a definir'
+              : `${event.startTime || 'Horário a definir'}${event.endTime ? `–${event.endTime}` : ''}`}
           </Typography>
           <Typography fontSize={13} display="flex" gap={1} alignItems="center">
             <LocationOnOutlined fontSize="small" />
             {event.location}
           </Typography>
         </Stack>
-        <Button fullWidth variant="outlined" sx={{ mt: 2 }} onClick={() => navigate(`/eventos/${event.id}`)}>
+        <Button
+          fullWidth
+          variant="outlined"
+          sx={{ mt: 2 }}
+          onClick={() => navigate(`/eventos/${event.id}`)}
+        >
           Ver detalhes
         </Button>
       </CardContent>

@@ -39,6 +39,10 @@ const users = {
     profile: 'MEMBER',
     ministry: 'Missões',
   },
+  outsider: {
+    id: 'member-outsider', memberId: 'member-outsider', uid: 'member-outsider',
+    name: 'Membro não enviado', email: 'outsider@test.dev', profile: 'MEMBER', ministry: 'Missões',
+  },
 };
 
 function fixture() {
@@ -64,6 +68,7 @@ function fixture() {
     },
   ];
   const notifications = [];
+  const audits = [];
   const repository = {
     isDemo: () => false,
     parseActive: (value, fallback = false) =>
@@ -86,9 +91,12 @@ function fixture() {
   return {
     tabs,
     notifications,
-    service: new MissionaryAgendaService(repository, {
-      createSystem: async (notification) => notifications.push(notification),
-    }),
+    service: new MissionaryAgendaService(
+      repository,
+      { createSystem: async (notification) => notifications.push(notification) },
+      { record: async (record) => audits.push(record) },
+    ),
+    audits,
   };
 }
 
@@ -236,4 +244,81 @@ test('rejeita término anterior ao início', async () => {
     () => service.create({ ...input(), endDate: '2026-09-04' }, users.agenda),
     /término não pode ser anterior/i,
   );
+});
+
+async function sentMission(service, title = 'Missão pronta para conclusão') {
+  const created = await service.create(input(title), users.agenda);
+  await service.submit(created.id, users.agenda);
+  await service.approve(created.id, {}, users.mission);
+  return service.sendToMembers(created.id, { memberIds: [users.member.id] }, users.ministry);
+}
+
+test('missionário efetivamente enviado conclui e grava efeitos append-only uma única vez', async () => {
+  const { service, tabs, audits, notifications } = fixture();
+  const sent = await sentMission(service);
+  const historyBefore = tabs.AgendaMissionariaHistorico.length;
+  const notificationsBefore = notifications.length;
+
+  const completed = await service.complete(sent.id, users.member, 'request-complete-1');
+  assert.equal(completed.status, 'CONCLUIDA');
+  assert.equal(completed.completedBy, users.member.id);
+  assert.equal(completed.completionRole, 'MISSIONARIO_ENVIADO');
+  assert.match(completed.completedAt, /^\d{4}-\d{2}-\d{2}T/);
+  assert.equal(completed.canComplete, false);
+  assert.equal(tabs.AgendaMissionariaHistorico.length, historyBefore + 1);
+  assert.equal(tabs.AgendaMissionariaHistorico.at(-1).acao, 'CONCLUIDA');
+  assert.equal(audits.length, 1);
+  assert.equal(audits[0].newData.correlationId, 'request-complete-1');
+  assert.equal(audits[0].newData.previousStatus, 'ENVIADA_AOS_MEMBROS');
+  assert.equal(notifications.length, notificationsBefore + 1);
+  assert.equal(notifications.at(-1).audience, 'INDIVIDUAL');
+
+  const again = await service.complete(sent.id, users.member, 'request-complete-2');
+  assert.equal(again.status, 'CONCLUIDA');
+  assert.equal(tabs.AgendaMissionariaHistorico.length, historyBefore + 1);
+  assert.equal(audits.length, 1);
+  assert.equal(notifications.length, notificationsBefore + 1);
+});
+
+test('membro não enviado e tentativa BOLA por ID recebem 403', async () => {
+  const { service } = fixture();
+  const sent = await sentMission(service, 'Missão protegida por objeto');
+  await assert.rejects(
+    () => service.complete(sent.id, users.outsider, 'request-bola'),
+    (error) => error?.status === 403,
+  );
+});
+
+test('missão em estado inválido não pode pular etapas para CONCLUIDA', async () => {
+  const { service } = fixture();
+  const draft = await service.create(input('Rascunho não concluível'), users.agenda);
+  await assert.rejects(
+    () => service.complete(draft.id, users.agenda, 'request-invalid-state'),
+    /Somente uma missão enviada aos membros/i,
+  );
+});
+
+test('lideranças autorizadas da agenda e da missão podem concluir', async () => {
+  for (const leader of [users.agenda, users.mission]) {
+    const { service } = fixture();
+    const sent = await sentMission(service, `Missão concluída por ${leader.profile}`);
+    const completed = await service.complete(sent.id, leader, `request-${leader.id}`);
+    assert.equal(completed.status, 'CONCLUIDA');
+    assert.equal(completed.completedBy, leader.id);
+  }
+});
+
+test('requisições concorrentes revalidam autorização e não duplicam efeitos', async () => {
+  const { service, tabs, audits, notifications } = fixture();
+  const sent = await sentMission(service, 'Missão com conclusão concorrente');
+  const historyBefore = tabs.AgendaMissionariaHistorico.length;
+  const notificationsBefore = notifications.length;
+  const authorized = service.complete(sent.id, users.member, 'request-concurrent-authorized');
+  const attacker = service.complete(sent.id, users.outsider, 'request-concurrent-attacker');
+
+  assert.equal((await authorized).status, 'CONCLUIDA');
+  await assert.rejects(attacker, (error) => error?.status === 403);
+  assert.equal(tabs.AgendaMissionariaHistorico.length, historyBefore + 1);
+  assert.equal(audits.length, 1);
+  assert.equal(notifications.length, notificationsBefore + 1);
 });

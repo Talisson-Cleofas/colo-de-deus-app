@@ -11,6 +11,7 @@ export class AuditInterceptor implements NestInterceptor{
  private async capture(req:any,method:string,path:string,response:any){
   if(path.includes('/audit')||method==='GET'||method==='OPTIONS')return;
   const clean=path.split('?')[0].replace(/^\/api\//,''); const parts=clean.split('/').filter(Boolean); const module=(parts[0]||'SYSTEM').toUpperCase();
+  if(/^missionary-agenda\/[^/]+\/complete$/.test(clean))return; // auditoria de domínio é append-only no serviço
   let action:'LOGIN'|'CREATE'|'UPDATE'|'DELETE'|'RESTORE'|'PERMISSION'|'CHANGE' = method==='POST'?'CREATE':method==='DELETE'?'DELETE':'UPDATE';
   if(clean==='auth/google')action='LOGIN'; else if(clean.includes('/restore'))action='RESTORE'; else if(module==='PERMISSIONS'||module==='RBAC'||clean.includes('permissions'))action='PERMISSION'; else if(!['POST','PATCH','PUT','DELETE'].includes(method))action='CHANGE';
   const responseUser=clean==='auth/google'?response?.user:null; const user=req.user||responseUser;

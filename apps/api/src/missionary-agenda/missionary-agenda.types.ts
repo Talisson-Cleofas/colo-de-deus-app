@@ -55,6 +55,9 @@ export type MissionaryAgenda = {
   rejectionReason: string;
   membersSentBy: string;
   membersSentAt: string;
+  completedBy: string;
+  completedAt: string;
+  completionRole: string;
   participantIds: string[];
   participantNames: string[];
   accompanyingIds: string[];
@@ -65,6 +68,7 @@ export type MissionaryAgenda = {
   canSubmit: boolean;
   canReview: boolean;
   canSelectMembers: boolean;
+  canComplete: boolean;
   active: boolean;
   createdBy: string;
   createdAt: string;

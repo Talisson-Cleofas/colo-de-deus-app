@@ -8,6 +8,7 @@ import {
 import { randomUUID } from 'node:crypto';
 import type { AuthenticatedUser } from '../auth/types/auth-user.type';
 import { NotificationsService } from '../notifications/notifications.service';
+import { AuditService } from '../audit/audit.service';
 import {
   MISSIONARY_AGENDA_REPOSITORY,
   type IMissionaryAgendaRepository,
@@ -30,9 +31,11 @@ type SheetRow = Record<string, string>;
 
 @Injectable()
 export class MissionaryAgendaService {
+  private readonly completionLocks = new Map<string, Promise<MissionaryAgenda>>();
   constructor(
     @Inject(MISSIONARY_AGENDA_REPOSITORY) private readonly repository: IMissionaryAgendaRepository,
     private readonly notifications: NotificationsService,
+    private readonly audit: AuditService,
   ) {}
 
   private userId(user: AuthenticatedUser) {
@@ -152,6 +155,9 @@ export class MissionaryAgendaService {
       rejectionReason: row.motivo_nao_aprovacao || '',
       membersSentBy: row.membros_enviados_por || '',
       membersSentAt: row.membros_enviados_em || '',
+      completedBy: row.concluida_por || '',
+      completedAt: row.concluida_em || '',
+      completionRole: row.conclusao_papel || '',
       participantIds,
       participantNames: participantIds.map((id) => ctx.memberNames.get(id) || id),
       accompanyingIds,
@@ -168,6 +174,9 @@ export class MissionaryAgendaService {
       canSubmit: (agendaLeader || central) && ['RASCUNHO', 'NAO_APROVADA'].includes(status),
       canReview: central && status === 'AGUARDANDO_APROVACAO',
       canSelectMembers: (ministryLeader || central) && status === 'AGUARDANDO_INDICACOES',
+      canComplete:
+        status === 'ENVIADA_AOS_MEMBROS' &&
+        (participantIds.includes(this.userId(user)) || agendaLeader || central),
       active: this.repository.parseActive(row.ativo || '', true),
       createdBy: row.criado_por || '',
       createdAt: row.criado_em || '',
@@ -323,6 +332,9 @@ export class MissionaryAgendaService {
       motivo_nao_aprovacao: workflow.motivo_nao_aprovacao || '',
       membros_enviados_por: workflow.membros_enviados_por || '',
       membros_enviados_em: workflow.membros_enviados_em || '',
+      concluida_por: workflow.concluida_por || '',
+      concluida_em: workflow.concluida_em || '',
+      conclusao_papel: workflow.conclusao_papel || '',
       ativo: 'TRUE',
       criado_por: audit.createdBy,
       criado_em: audit.createdAt,
@@ -440,6 +452,9 @@ export class MissionaryAgendaService {
       motivo_nao_aprovacao: item.rejectionReason,
       membros_enviados_por: item.membersSentBy,
       membros_enviados_em: item.membersSentAt,
+      concluida_por: item.completedBy,
+      concluida_em: item.completedAt,
+      conclusao_papel: item.completionRole,
     };
   }
   private async save(item: MissionaryAgenda, user: AuthenticatedUser, workflow: SheetRow) {
@@ -671,6 +686,76 @@ export class MissionaryAgendaService {
       user,
     );
     await this.notify('Você foi enviado para uma agenda missionária', item.title, ids, item.id);
+    return this.findOne(id, user);
+  }
+  private completionRole(item: MissionaryAgenda, user: AuthenticatedUser) {
+    const uid = this.userId(user);
+    if (item.participantIds.includes(uid)) return 'MISSIONARIO_ENVIADO';
+    if (item.createdBy === uid) return 'LIDER_AGENDA_MISSIONARIA';
+    if (this.central(user)) return user.profile;
+    return '';
+  }
+  async complete(id: string, user: AuthenticatedUser, correlationId?: string) {
+    const previous = this.completionLocks.get(id);
+    const operation = (previous ? previous.catch(() => undefined) : Promise.resolve()).then(() =>
+      this.completeOnce(id, user, correlationId),
+    ).finally(() => {
+      if (this.completionLocks.get(id) === operation) this.completionLocks.delete(id);
+    });
+    this.completionLocks.set(id, operation);
+    return operation;
+  }
+  private async completeOnce(id: string, user: AuthenticatedUser, correlationId?: string) {
+    const initialContext = await this.context();
+    const row = initialContext.rows.find(
+      (entry) => entry.id === id && this.repository.parseActive(entry.ativo || '', true),
+    );
+    if (!row) throw new NotFoundException('Agenda missionária não encontrada.');
+    const item = this.map(row, initialContext, user);
+    const role = this.completionRole(item, user);
+    if (!role)
+      throw new ForbiddenException('Somente um missionário enviado ou liderança autorizada pode concluir esta missão.');
+    if (item.status === 'CONCLUIDA') return item;
+    if (item.status !== 'ENVIADA_AOS_MEMBROS')
+      throw new BadRequestException('Somente uma missão enviada aos membros pode ser concluída.');
+    const now = new Date().toISOString();
+    const requestId = correlationId?.trim().slice(0, 200) || randomUUID();
+    const status: MissionaryAgendaStatus = 'CONCLUIDA';
+    await this.save(item, user, {
+      ...this.workflow(item),
+      status,
+      concluida_por: this.userId(user),
+      concluida_em: now,
+      conclusao_papel: role,
+    });
+    await this.log(item, status, 'CONCLUIDA', `Missão concluída por ${role}.`, user);
+    await this.audit.record({
+      action: 'CHANGE',
+      module: 'MISSIONARY_AGENDA',
+      entity: 'AgendaMissionaria',
+      recordId: item.id,
+      user,
+      description: 'Conclusão confirmada da Agenda Missionária.',
+      previousData: { status: item.status },
+      newData: {
+        missionaryAgendaId: item.id,
+        memberId: this.userId(user),
+        role,
+        previousStatus: item.status,
+        status,
+        completedAt: now,
+        result: 'SUCCESS',
+        correlationId: requestId,
+      },
+    });
+    const ctx = await this.context();
+    const missionLeaders = ctx.members
+      .filter((member) => ['DEVELOPER', 'MISSION_LEADER', 'ADMIN'].includes(member.profile))
+      .map((member) => member.id);
+    const ministry = ctx.ministries.find((entry) => entry.id === item.ministryId);
+    const recipients = [item.createdBy, ministry?.lider_id, ministry?.vice_lider_id, ...missionLeaders]
+      .filter((memberId): memberId is string => Boolean(memberId && memberId !== this.userId(user)));
+    await this.notify('Missão concluída', item.title, [...new Set(recipients)], item.id);
     return this.findOne(id, user);
   }
   async history(id: string, user: AuthenticatedUser): Promise<MissionaryAgendaHistory[]> {

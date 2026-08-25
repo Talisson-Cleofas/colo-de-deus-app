@@ -15,6 +15,10 @@ export type NotificationState = {
   total: number;
   updatedAt: string;
 };
+type NotificationAccessContext = {
+  cenacles: SheetRecord[];
+  participants: SheetRecord[];
+};
 @Injectable()
 export class NotificationReadEngine {
   constructor(
@@ -36,7 +40,31 @@ export class NotificationReadEngine {
     if (type === 'MEMBRO') return preferences.memberships;
     return true;
   }
-  private accessible(row: SheetRecord, user: AuthenticatedUser): boolean {
+  private belongsToCenacle(
+    cenacleId: string,
+    user: AuthenticatedUser,
+    context: NotificationAccessContext,
+  ): boolean {
+    if (!cenacleId) return false;
+    const memberId = this.memberId(user);
+    const cenacle = context.cenacles.find(
+      (row) => row.id === cenacleId && (!row.ativo || truthy(row.ativo)),
+    );
+    if (!cenacle) return false;
+    if ([cenacle.responsavel_id, cenacle.vice_responsavel_id].includes(memberId)) return true;
+    return context.participants.some(
+      (row) =>
+        row.membro_id === memberId &&
+        (row.tipo || '').trim().toUpperCase() === 'CENACULO' &&
+        row.referencia_id === cenacleId &&
+        (!row.ativo || truthy(row.ativo)),
+    );
+  }
+  private accessible(
+    row: SheetRecord,
+    user: AuthenticatedUser,
+    context: NotificationAccessContext,
+  ): boolean {
     const memberId = this.memberId(user);
     const audience = (row.publico || 'TODOS').trim().toUpperCase();
     const audienceId = (row.publico_id || '').trim();
@@ -51,7 +79,7 @@ export class NotificationReadEngine {
     }
     if (audience === 'MINISTERIO') return audienceId === user.ministry;
     if (audience === 'CELULA') return audienceId === user.cell;
-    if (audience === 'CENACULO') return true;
+    if (audience === 'CENACULO') return this.belongsToCenacle(audienceId, user, context);
     return false;
   }
   private latestRead(reads: SheetRecord[], notificationId: string, memberId: string): SheetRecord | undefined {
@@ -89,13 +117,16 @@ export class NotificationReadEngine {
     };
   }
   async state(user: AuthenticatedUser, preferences: NotificationPreferences): Promise<NotificationState> {
-    const [catalog, reads] = await Promise.all([
+    const [catalog, reads, cenacles, participants] = await Promise.all([
       this.rows('Notificações').then((rows) => this.validator.normalizeMany(rows)),
       this.rows('NotificacoesLeituras'),
+      this.rows('Cenáculos'),
+      this.rows('Participantes'),
     ]);
+    const accessContext = { cenacles, participants };
     const notifications = catalog
       .filter((row) => (!row.ativo || truthy(row.ativo)))
-      .filter((row) => this.accessible(row, user))
+      .filter((row) => this.accessible(row, user, accessContext))
       .filter((row) => this.categoryEnabled(row.tipo || '', preferences))
       .map((row) => this.map(row, reads, user))
       .sort(

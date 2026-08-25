@@ -4,10 +4,12 @@ import {
   CalendarMonthOutlined,
   EditOutlined,
   ForwardToInboxOutlined,
+  HistoryOutlined,
   LocationOnOutlined,
   PersonOutline,
   SearchOutlined,
   SendOutlined,
+  TaskAltOutlined,
   ThumbDownOutlined,
   ThumbUpOutlined,
 } from '@mui/icons-material';
@@ -39,6 +41,7 @@ import { usePermission } from '../rbac/usePermission';
 import { api, apiErrorMessage } from '../services/api';
 import type {
   MissionaryAgenda,
+  MissionaryAgendaHistory,
   MissionaryAgendaOptions,
   MissionaryAgendaStatus,
   MissionaryAgendaType,
@@ -93,6 +96,7 @@ export function AgendaMissionariaPage() {
     [loading, setLoading] = useState(true),
     [saving, setSaving] = useState(false),
     [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   const [formOpen, setFormOpen] = useState(false),
     [editing, setEditing] = useState<MissionaryAgenda | null>(null),
     [formError, setFormError] = useState('');
@@ -100,6 +104,10 @@ export function AgendaMissionariaPage() {
     [reason, setReason] = useState('');
   const [sending, setSending] = useState<MissionaryAgenda | null>(null),
     [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [completing, setCompleting] = useState<MissionaryAgenda | null>(null);
+  const [historyItem, setHistoryItem] = useState<MissionaryAgenda | null>(null),
+    [historyEntries, setHistoryEntries] = useState<MissionaryAgendaHistory[]>([]),
+    [historyLoading, setHistoryLoading] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -123,16 +131,19 @@ export function AgendaMissionariaPage() {
     const timer = window.setTimeout(() => void load(), 250);
     return () => window.clearTimeout(timer);
   }, [status, type, search]);
-  const action = async (path: string, body: unknown = {}) => {
+  const action = async (path: string, body: unknown = {}, successMessage = '') => {
     setSaving(true);
     setError('');
+    setSuccess('');
     try {
       await api.post(path, body);
       setRejecting(null);
       setSending(null);
+      setCompleting(null);
       setReason('');
       setSelectedIds([]);
       await load();
+      setSuccess(successMessage);
     } catch (cause) {
       setError(apiErrorMessage(cause));
     } finally {
@@ -151,6 +162,22 @@ export function AgendaMissionariaPage() {
       setFormError(apiErrorMessage(cause));
     } finally {
       setSaving(false);
+    }
+  };
+  const openHistory = async (item: MissionaryAgenda) => {
+    setHistoryItem(item);
+    setHistoryEntries([]);
+    setHistoryLoading(true);
+    try {
+      const response = await api.get<MissionaryAgendaHistory[]>(
+        `/missionary-agenda/${item.id}/history`,
+      );
+      setHistoryEntries(response.data);
+    } catch (cause) {
+      setError(apiErrorMessage(cause));
+      setHistoryItem(null);
+    } finally {
+      setHistoryLoading(false);
     }
   };
   const candidates = useMemo(
@@ -245,6 +272,9 @@ export function AgendaMissionariaPage() {
           {error}
         </Alert>
       )}
+      <Box role="status" sx={{ mb: success ? 2 : 0 }}>
+        {success && <Alert severity="success">{success}</Alert>}
+      </Box>
       {loading ? (
         <Box textAlign="center" py={10}>
           <CircularProgress />
@@ -337,6 +367,9 @@ export function AgendaMissionariaPage() {
               )}
               <Box sx={{ flex: 1 }} />
               <Stack direction="row" flexWrap="wrap" gap={1}>
+                <Button startIcon={<HistoryOutlined />} onClick={() => void openHistory(item)}>
+                  Histórico
+                </Button>
                 {item.canEdit && (
                   <Button
                     startIcon={<EditOutlined />}
@@ -394,6 +427,17 @@ export function AgendaMissionariaPage() {
                     }}
                   >
                     Selecionar membros
+                  </Button>
+                )}
+                {item.canComplete && (
+                  <Button
+                    color="success"
+                    variant="contained"
+                    startIcon={<TaskAltOutlined />}
+                    disabled={saving}
+                    onClick={() => setCompleting(item)}
+                  >
+                    Concluir missão
                   </Button>
                 )}
               </Stack>
@@ -477,6 +521,77 @@ export function AgendaMissionariaPage() {
           >
             Enviar para membros
           </Button>
+        </DialogActions>
+      </Dialog>
+      <Dialog
+        open={Boolean(completing)}
+        onClose={() => !saving && setCompleting(null)}
+        fullWidth
+        maxWidth="sm"
+        aria-labelledby="complete-mission-title"
+        aria-describedby="complete-mission-description"
+      >
+        <DialogTitle id="complete-mission-title">Concluir missão</DialogTitle>
+        <DialogContent>
+          <Typography id="complete-mission-description">
+            Confirma a conclusão de “{completing?.title}”? Esta ação registrará seu usuário,
+            horário, histórico e auditoria.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button autoFocus disabled={saving} onClick={() => setCompleting(null)}>
+            Cancelar
+          </Button>
+          <Button
+            color="success"
+            variant="contained"
+            startIcon={saving ? <CircularProgress size={16} color="inherit" /> : <TaskAltOutlined />}
+            disabled={saving}
+            onClick={() =>
+              completing &&
+              void action(
+                `/missionary-agenda/${completing.id}/complete`,
+                {},
+                'Missão concluída com sucesso.',
+              )
+            }
+          >
+            {saving ? 'Concluindo…' : 'Confirmar conclusão'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+      <Dialog
+        open={Boolean(historyItem)}
+        onClose={() => setHistoryItem(null)}
+        fullWidth
+        maxWidth="sm"
+        aria-labelledby="mission-history-title"
+      >
+        <DialogTitle id="mission-history-title">Histórico de {historyItem?.title}</DialogTitle>
+        <DialogContent dividers>
+          {historyLoading ? (
+            <Stack direction="row" alignItems="center" gap={1} role="status">
+              <CircularProgress size={20} />
+              <Typography>Carregando histórico…</Typography>
+            </Stack>
+          ) : historyEntries.length === 0 ? (
+            <Alert severity="info">Nenhum evento registrado.</Alert>
+          ) : (
+            <Stack component="ol" spacing={2} sx={{ pl: 2, m: 0 }}>
+              {historyEntries.map((entry) => (
+                <Box component="li" key={entry.id}>
+                  <Typography fontWeight={700}>{entry.action}</Typography>
+                  <Typography variant="body2">{entry.note}</Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    {entry.userName} · {new Date(entry.createdAt).toLocaleString('pt-BR')}
+                  </Typography>
+                </Box>
+              ))}
+            </Stack>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setHistoryItem(null)}>Fechar histórico</Button>
         </DialogActions>
       </Dialog>
     </Box>

@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, Headers, Param, Patch, Post, Query } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { AuthenticatedUser } from '../auth/types/auth-user.type';
@@ -91,6 +91,16 @@ export class MissionaryAgendaController {
     @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.service.sendToMembers(id, dto, user);
+  }
+
+  @Post(':id/complete')
+  @RequirePermissions(Permission.MISSIONARY_AGENDA_READ)
+  complete(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthenticatedUser,
+    @Headers('x-request-id') requestId?: string,
+  ) {
+    return this.service.complete(id, user, requestId);
   }
 
   @Get(':id/history')

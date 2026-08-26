@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "511020361157",
+    "project_id": "colo-de-deus-staging",
+    "storage_bucket": "colo-de-deus-staging.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:511020361157:android:ba481e1d0d138d0f6017ac",
+        "android_client_info": {
+          "package_name": "org.colodedeus.missaobrasilia"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "511020361157-kf738c34hmvpj9uro2ttqh4qtcego8ah.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "org.colodedeus.missaobrasilia",
+            "certificate_hash": "10cd2e12849ebbafe8eeb342cb2a431f6ca0beb8"
+          }
+        },
+        {
+          "client_id": "511020361157-ga16ds2473oto86pq6u9cdrok6bh3qcm.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDASQfCeU3JNB5z-N_laSp_iXmK36USWyA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "511020361157-ga16ds2473oto86pq6u9cdrok6bh3qcm.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

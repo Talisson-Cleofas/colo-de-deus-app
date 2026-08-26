@@ -1,0 +1,5 @@
+# Copie para key.properties e mantenha o arquivo real fora do Git.
+storePassword=SUBSTITUA_LOCALMENTE
+keyPassword=SUBSTITUA_LOCALMENTE
+keyAlias=upload
+storeFile=CAMINHO_LOCAL_DO_KEYSTORE

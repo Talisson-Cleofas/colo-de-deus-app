@@ -277,7 +277,7 @@ export function AgendaMissionariaPage() {
       </Box>
       {loading ? (
         <Box textAlign="center" py={10}>
-          <CircularProgress />
+          <CircularProgress aria-label="Carregando Agenda Missionária" />
         </Box>
       ) : items.length === 0 ? (
         <Alert severity="info">Nenhuma agenda disponível para o seu perfil nesta etapa.</Alert>
@@ -545,7 +545,7 @@ export function AgendaMissionariaPage() {
           <Button
             color="success"
             variant="contained"
-            startIcon={saving ? <CircularProgress size={16} color="inherit" /> : <TaskAltOutlined />}
+            startIcon={saving ? <CircularProgress aria-hidden="true" size={16} color="inherit" /> : <TaskAltOutlined />}
             disabled={saving}
             onClick={() =>
               completing &&
@@ -571,7 +571,7 @@ export function AgendaMissionariaPage() {
         <DialogContent dividers>
           {historyLoading ? (
             <Stack direction="row" alignItems="center" gap={1} role="status">
-              <CircularProgress size={20} />
+              <CircularProgress aria-label="Carregando histórico" size={20} />
               <Typography>Carregando histórico…</Typography>
             </Stack>
           ) : historyEntries.length === 0 ? (

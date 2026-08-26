@@ -90,6 +90,9 @@ function fixture() {
   };
   return {
     tabs,
+    repository,
+    members,
+    ministries,
     notifications,
     service: new MissionaryAgendaService(
       repository,
@@ -321,4 +324,33 @@ test('requisições concorrentes revalidam autorização e não duplicam efeitos
   assert.equal(tabs.AgendaMissionariaHistorico.length, historyBefore + 1);
   assert.equal(audits.length, 1);
   assert.equal(notifications.length, notificationsBefore + 1);
+});
+
+test('duas instâncias compartilham reivindicação persistida e só a vencedora produz efeitos', async () => {
+  const state = fixture();
+  const created = await state.service.create(input('Missão distribuída'), users.agenda);
+  await state.service.submit(created.id, users.agenda);
+  await state.service.approve(created.id, {}, users.mission);
+  await state.service.sendToMembers(created.id, { memberIds: [users.member.id] }, users.ministry);
+
+  const notificationsB = [];
+  const auditsB = [];
+  const instanceB = new MissionaryAgendaService(
+    state.repository,
+    { createSystem: async (notification) => notificationsB.push(notification) },
+    { record: async (record) => auditsB.push(record) },
+  );
+  const historyBefore = state.tabs.AgendaMissionariaHistorico.length;
+  const notificationsBefore = state.notifications.length;
+
+  const [first, second] = await Promise.all([
+    state.service.complete(created.id, users.member, 'request-a', 'operation-a'),
+    instanceB.complete(created.id, users.member, 'request-b', 'operation-b'),
+  ]);
+
+  assert.equal(first.status, 'CONCLUIDA');
+  assert.equal(second.status, 'CONCLUIDA');
+  assert.equal(state.tabs.AgendaMissionariaHistorico.length - historyBefore, 1);
+  assert.equal(state.audits.length + auditsB.length, 1);
+  assert.equal(state.notifications.length - notificationsBefore + notificationsB.length, 1);
 });

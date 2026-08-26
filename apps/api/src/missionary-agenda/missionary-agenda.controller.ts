@@ -99,8 +99,9 @@ export class MissionaryAgendaController {
     @Param('id') id: string,
     @CurrentUser() user: AuthenticatedUser,
     @Headers('x-request-id') requestId?: string,
+    @Headers('idempotency-key') idempotencyKey?: string,
   ) {
-    return this.service.complete(id, user, requestId);
+    return this.service.complete(id, user, requestId, idempotencyKey);
   }
 
   @Get(':id/history')

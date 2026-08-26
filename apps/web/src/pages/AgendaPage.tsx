@@ -67,9 +67,9 @@ export function AgendaPage() {
       <Card>
         <CardContent sx={{ p: { xs: 2, md: 3 } }}>
           <Stack direction="row" alignItems="center" justifyContent="space-between" mb={2}>
-            <IconButton onClick={() => moveMonth(-1)}><ChevronLeft /></IconButton>
+            <IconButton aria-label="Mês anterior" onClick={() => moveMonth(-1)}><ChevronLeft /></IconButton>
             <Typography variant="h5" textTransform="capitalize">{monthLabel(month)}</Typography>
-            <IconButton onClick={() => moveMonth(1)}><ChevronRight /></IconButton>
+            <IconButton aria-label="Próximo mês" onClick={() => moveMonth(1)}><ChevronRight /></IconButton>
           </Stack>
           <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0,1fr))', gap: 0.7 }}>
             {['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'].map((day) => <Typography key={day} textAlign="center" color="text.secondary" fontSize={12} py={1}>{day}</Typography>)}

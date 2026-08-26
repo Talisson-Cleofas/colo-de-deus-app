@@ -6,7 +6,7 @@ export function AppLoadingScreen() {
     <Box sx={{ minHeight: '100vh', display: 'grid', placeItems: 'center', p: 2 }}>
       <Box sx={{ display: 'grid', justifyItems: 'center', gap: 3 }}>
         <Brand />
-        <CircularProgress />
+        <CircularProgress aria-label="Validando sessão" />
         <Typography color="text.secondary">Validando sua sessão...</Typography>
       </Box>
     </Box>

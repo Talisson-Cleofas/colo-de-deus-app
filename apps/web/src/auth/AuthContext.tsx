@@ -10,6 +10,7 @@ import {
 import { api, apiErrorMessage } from '../services/api';
 import { googleSignIn, googleSignOut, observeAuthState } from '../services/firebase';
 import type { AccessProfile, AuthUser } from '../types';
+import { discardOfflineActionsForOwner } from '../offline/offlineQueue';
 
 type AuthContextValue = {
   user: AuthUser | null;
@@ -43,6 +44,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(next);
     if (next) localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
     else localStorage.removeItem(STORAGE_KEY);
+    window.dispatchEvent(new CustomEvent('colo:session-changed'));
   }, []);
 
   const refreshSession = useCallback(async () => {
@@ -52,7 +54,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setError('');
       return true;
     } catch (requestError) {
-      saveUser(null);
+      const status = (requestError as { response?: { status?: number } })?.response?.status;
+      if (status === 401 || status === 403 || !readSnapshot()) saveUser(null);
       setError(apiErrorMessage(requestError));
       return false;
     }
@@ -115,10 +118,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try { await api.post('/audit/logout'); } catch { /* logout local continua mesmo se auditoria falhar */ }
       await googleSignOut();
     } finally {
+      const ownerId = user && (user.memberId || user.id || user.uid);
+      if (ownerId) discardOfflineActionsForOwner(ownerId);
       saveUser(null);
       setLoading(false);
     }
-  }, [saveUser]);
+  }, [saveUser, user]);
 
   const hasRole = useCallback(
     (...roles: AccessProfile[]) => Boolean(user && roles.includes(user.profile)),

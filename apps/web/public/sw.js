@@ -1,10 +1,18 @@
-const VERSION = 'colo-v7-2-2';
+const VERSION = 'colo-v7-2-5';
 const STATIC_CACHE = `${VERSION}-static`;
 const RUNTIME_CACHE = `${VERSION}-runtime`;
 const CORE = ['/', '/offline.html', '/manifest.webmanifest', '/brand/logo-oficial-branca.png', '/icons/icon-192.png', '/icons/icon-512.png', '/favicon.svg', '/icons/apple-touch-icon.png'];
 
 self.addEventListener('install', (event) => {
-  event.waitUntil(caches.open(STATIC_CACHE).then((cache) => cache.addAll(CORE)).then(() => self.skipWaiting()));
+  event.waitUntil((async () => {
+    const cache = await caches.open(STATIC_CACHE);
+    await cache.addAll(CORE);
+    const html = await (await fetch('/', { cache: 'no-store' })).text();
+    const shellAssets = [...html.matchAll(/(?:src|href)="(\/assets\/[^"]+)"/g)].map((match) => match[1]);
+    const manifest = await (await fetch('/asset-manifest.json', { cache: 'no-store' })).json();
+    const buildAssets = Object.values(manifest).flatMap((entry) => [entry.file, ...(entry.css || []), ...(entry.assets || [])]).filter(Boolean).map((asset) => `/${asset}`);
+    await cache.addAll([...new Set([...shellAssets, ...buildAssets])]);
+  })());
 });
 
 self.addEventListener('activate', (event) => {
@@ -22,15 +30,14 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(request.url);
 
   if (url.pathname.startsWith('/api/') || request.headers.has('authorization')) {
-    event.respondWith(fetch(request));
     return;
   }
 
   if (url.origin === location.origin && request.mode === 'navigate') {
     event.respondWith(
       fetchWithTimeout(request)
-        .then((response) => {
-          if (response.ok) caches.open(RUNTIME_CACHE).then((cache) => cache.put(request, response.clone()));
+        .then(async (response) => {
+          if (response.ok) await (await caches.open(RUNTIME_CACHE)).put(request, response.clone());
           return response;
         })
         .catch(async () => (await caches.match(request)) || (await caches.match('/')) || (await caches.match('/offline.html'))),
@@ -39,16 +46,16 @@ self.addEventListener('fetch', (event) => {
   }
 
   if (/\.(?:png|jpg|jpeg|webp|svg|woff2?)$/i.test(url.pathname)) {
-    event.respondWith(caches.match(request).then((cached) => cached || fetch(request).then((response) => {
-      if (response.ok) caches.open(RUNTIME_CACHE).then((cache) => cache.put(request, response.clone()));
+    event.respondWith(caches.match(request).then((cached) => cached || fetch(request).then(async (response) => {
+      if (response.ok) await (await caches.open(RUNTIME_CACHE)).put(request, response.clone());
       return response;
     })));
     return;
   }
 
   if (url.origin === location.origin) {
-    event.respondWith(fetchWithTimeout(request).then((response) => {
-      if (response.ok) caches.open(RUNTIME_CACHE).then((cache) => cache.put(request, response.clone()));
+    event.respondWith(fetchWithTimeout(request).then(async (response) => {
+      if (response.ok) await (await caches.open(RUNTIME_CACHE)).put(request, response.clone());
       return response;
     }).catch(() => caches.match(request)));
   }

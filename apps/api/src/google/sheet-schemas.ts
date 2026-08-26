@@ -359,6 +359,7 @@ export const SHEET_SCHEMAS = {
     'concluida_por',
     'concluida_em',
     'conclusao_papel',
+    'conclusao_operacao_id',
     'ativo',
     'criado_por',
     'criado_em',

@@ -14,7 +14,7 @@ export function PermissionLoadingScreen({ error, onRetry }: { error?: string; on
           </>
         ) : (
           <>
-            <CircularProgress />
+            <CircularProgress aria-label="Validando permissões" />
             <Typography variant="h6">Validando permissões...</Typography>
             <Typography color="text.secondary" textAlign="center">Aguarde enquanto carregamos seu perfil com segurança.</Typography>
           </>

@@ -335,6 +335,7 @@ export class MissionaryAgendaService {
       concluida_por: workflow.concluida_por || '',
       concluida_em: workflow.concluida_em || '',
       conclusao_papel: workflow.conclusao_papel || '',
+      conclusao_operacao_id: workflow.conclusao_operacao_id || '',
       ativo: 'TRUE',
       criado_por: audit.createdBy,
       criado_em: audit.createdAt,
@@ -695,17 +696,22 @@ export class MissionaryAgendaService {
     if (this.central(user)) return user.profile;
     return '';
   }
-  async complete(id: string, user: AuthenticatedUser, correlationId?: string) {
+  async complete(id: string, user: AuthenticatedUser, correlationId?: string, idempotencyKey?: string) {
     const previous = this.completionLocks.get(id);
     const operation = (previous ? previous.catch(() => undefined) : Promise.resolve()).then(() =>
-      this.completeOnce(id, user, correlationId),
+      this.completeOnce(id, user, correlationId, idempotencyKey),
     ).finally(() => {
       if (this.completionLocks.get(id) === operation) this.completionLocks.delete(id);
     });
     this.completionLocks.set(id, operation);
     return operation;
   }
-  private async completeOnce(id: string, user: AuthenticatedUser, correlationId?: string) {
+  private async completeOnce(
+    id: string,
+    user: AuthenticatedUser,
+    correlationId?: string,
+    idempotencyKey?: string,
+  ) {
     const initialContext = await this.context();
     const row = initialContext.rows.find(
       (entry) => entry.id === id && this.repository.parseActive(entry.ativo || '', true),
@@ -720,6 +726,7 @@ export class MissionaryAgendaService {
       throw new BadRequestException('Somente uma missão enviada aos membros pode ser concluída.');
     const now = new Date().toISOString();
     const requestId = correlationId?.trim().slice(0, 200) || randomUUID();
+    const operationId = idempotencyKey?.trim().slice(0, 200) || requestId;
     const status: MissionaryAgendaStatus = 'CONCLUIDA';
     await this.save(item, user, {
       ...this.workflow(item),
@@ -727,7 +734,18 @@ export class MissionaryAgendaService {
       concluida_por: this.userId(user),
       concluida_em: now,
       conclusao_papel: role,
+      conclusao_operacao_id: operationId,
     });
+    // Google Sheets não oferece compare-and-swap. A releitura confirma que esta instância ainda
+    // possui a reivindicação persistida antes de produzir efeitos append-only.
+    const claimedRows = await this.repository.read('AgendaMissionaria');
+    const claimed = claimedRows.find((entry) => entry.id === id);
+    if (claimed?.conclusao_operacao_id !== operationId) {
+      const currentContext = await this.context();
+      const current = currentContext.rows.find((entry) => entry.id === id);
+      if (!current) throw new NotFoundException('Agenda missionária não encontrada.');
+      return this.map(current, currentContext, user);
+    }
     await this.log(item, status, 'CONCLUIDA', `Missão concluída por ${role}.`, user);
     await this.audit.record({
       action: 'CHANGE',

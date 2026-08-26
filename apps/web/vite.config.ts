@@ -7,6 +7,7 @@ export default defineConfig(({ mode }) => {
     server: { port: Number(env.WEB_PORT || 5173), strictPort: true, host: '0.0.0.0' },
     preview: { port: Number(env.WEB_PORT || 5173), host: '0.0.0.0' },
     build: {
+      manifest: 'asset-manifest.json',
       rollupOptions: {
         output: {
           manualChunks(id) {

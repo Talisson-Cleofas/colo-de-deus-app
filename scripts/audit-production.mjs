@@ -17,7 +17,12 @@ const reviewedAdvisories = new Map([
 
 let output;
 try {
-  output = execFileSync('npm', ['audit', '--omit=dev', '--json'], {
+  const npmCommand = process.env.npm_execpath;
+  const executable = npmCommand ? process.execPath : 'npm';
+  const args = npmCommand
+    ? [npmCommand, 'audit', '--omit=dev', '--json']
+    : ['audit', '--omit=dev', '--json'];
+  output = execFileSync(executable, args, {
     encoding: 'utf8',
     stdio: ['ignore', 'pipe', 'pipe'],
   });

@@ -80,7 +80,8 @@ let browser;
 
 (async () => {
   browser = await chromium.launch({ headless: true });
-  const authorizedPage = await browser.newPage();
+  const context = await browser.newContext({ serviceWorkers: 'block' });
+  const authorizedPage = await context.newPage();
   authorizedPage.setDefaultTimeout(10_000);
   const authorized = await configure(authorizedPage, baseUser, true);
   await authorizedPage.goto('http://127.0.0.1:4173/agenda-missionaria');
@@ -95,7 +96,7 @@ let browser;
   await authorizedPage.getByRole('button', { name: 'Histórico' }).click();
   await authorizedPage.getByText('CONCLUIDA', { exact: true }).waitFor();
 
-  const deniedPage = await browser.newPage();
+  const deniedPage = await context.newPage();
   deniedPage.setDefaultTimeout(10_000);
   await configure(deniedPage, { ...baseUser, uid: 'outsider', id: 'outsider', memberId: 'outsider', name: 'Não enviado' }, false);
   await deniedPage.goto('http://127.0.0.1:4173/agenda-missionaria');

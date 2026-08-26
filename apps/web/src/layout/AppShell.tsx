@@ -27,8 +27,10 @@ import {
 } from '@mui/icons-material';
 import {
   AppBar,
+  Alert,
   Avatar,
   Badge,
+  Button,
   Box,
   Collapse,
   Divider,
@@ -38,12 +40,13 @@ import {
   ListItemButton,
   ListItemIcon,
   ListItemText,
+  Snackbar,
   Toolbar,
   Tooltip,
   useMediaQuery,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { useState, type ReactElement, type ReactNode } from 'react';
+import { useEffect, useState, type ReactElement, type ReactNode } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { Brand } from '../components/Brand';
@@ -223,9 +226,26 @@ export function AppShell({ children }: { children: ReactNode }) {
   const mobile = useMediaQuery(theme.breakpoints.down('md'));
   const [open, setOpen] = useState(false);
   const [organizationOpen, setOrganizationOpen] = useState(true);
+  const [pwaUpdate, setPwaUpdate] = useState<null | (() => void)>(null);
   const navigate = useNavigate();
   const location = useLocation();
   const safeUnreadCount = Number.isFinite(unreadCount) ? Math.max(0, unreadCount) : 0;
+
+  useEffect(() => {
+    const current = [...items, ...organizationItems, ...adminItems].find((item) =>
+      item.path === '/' ? location.pathname === '/' : location.pathname.startsWith(item.path),
+    );
+    document.title = `${current?.label ?? 'Colo de Deus'} — Colo de Deus`;
+  }, [location.pathname]);
+
+  useEffect(() => {
+    const handler = (event: Event) => {
+      const detail = (event as CustomEvent<{ apply: () => void }>).detail;
+      if (detail?.apply) setPwaUpdate(() => detail.apply);
+    };
+    window.addEventListener('colo:pwa-update', handler);
+    return () => window.removeEventListener('colo:pwa-update', handler);
+  }, []);
 
   const go = (path: string) => {
     navigate(path);
@@ -241,7 +261,8 @@ export function AppShell({ children }: { children: ReactNode }) {
 
     return (
       <Can key={path} permission={permission} anyOf={anyOf}>
-        <ListItemButton
+        <Box component="li" sx={{ listStyle: 'none' }}>
+          <ListItemButton
           selected={selected}
           onClick={() => go(path)}
           sx={{
@@ -267,7 +288,8 @@ export function AppShell({ children }: { children: ReactNode }) {
             )}
           </ListItemIcon>
           <ListItemText primary={label} primaryTypographyProps={{ fontSize: nested ? 14 : 15 }} />
-        </ListItemButton>
+          </ListItemButton>
+        </Box>
       </Can>
     );
   };
@@ -294,8 +316,11 @@ export function AppShell({ children }: { children: ReactNode }) {
             Permission.LOGS_READ,
           ]}
         >
+          <Box component="li" sx={{ listStyle: 'none' }}>
           <ListItemButton
             onClick={() => setOrganizationOpen((value) => !value)}
+            aria-expanded={organizationOpen}
+            aria-controls="organization-navigation"
             selected={location.pathname.startsWith('/organizacao')}
             sx={{ minHeight: 46, mb: 0.25, px: 1.75, borderRadius: 2 }}
           >
@@ -308,11 +333,12 @@ export function AppShell({ children }: { children: ReactNode }) {
             />
             {organizationOpen ? <ExpandLess /> : <ExpandMore />}
           </ListItemButton>
-          <Collapse in={organizationOpen} timeout="auto" unmountOnExit>
+          <Collapse id="organization-navigation" in={organizationOpen} timeout="auto" unmountOnExit>
             <List disablePadding>
               {organizationItems.map((item) => renderMenuItem(item, true))}
             </List>
           </Collapse>
+          </Box>
         </Can>
         {adminItems.map((item) => renderMenuItem(item))}
       </List>
@@ -336,17 +362,29 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <Box sx={{ display: 'flex', minHeight: '100vh' }}>
+      <Box
+        component="a"
+        href="#main-content"
+        sx={{
+          position: 'fixed', left: 16, top: 8, zIndex: (value) => value.zIndex.tooltip + 1,
+          transform: 'translateY(-160%)', '&:focus': { transform: 'translateY(0)' },
+          bgcolor: 'background.paper', color: 'text.primary', px: 2, py: 1, borderRadius: 1,
+        }}
+      >
+        Ir para o conteúdo principal
+      </Box>
       {mobile ? (
         <Drawer
           open={open}
           onClose={() => setOpen(false)}
-          PaperProps={{ sx: { width: 'min(302px,88vw)', background: '#050505' } }}
+          PaperProps={{ component: 'nav', 'aria-label': 'Navegação principal', sx: { width: 'min(302px,88vw)', background: '#050505' } }}
         >
           {drawerContent}
         </Drawer>
       ) : (
         <Drawer
           variant="permanent"
+          PaperProps={{ component: 'nav', 'aria-label': 'Navegação principal' }}
           sx={{
             width: drawerWidth,
             flexShrink: 0,
@@ -413,6 +451,8 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       <Box
         component="main"
+        id="main-content"
+        tabIndex={-1}
         sx={{
           flex: 1,
           minWidth: 0,
@@ -423,6 +463,19 @@ export function AppShell({ children }: { children: ReactNode }) {
       >
         {children}
       </Box>
+      <Snackbar open={Boolean(pwaUpdate)} anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}>
+        <Alert
+          severity="info"
+          variant="filled"
+          action={
+            <Button color="inherit" size="small" onClick={() => { pwaUpdate?.(); setPwaUpdate(null); }}>
+              Atualizar agora
+            </Button>
+          }
+        >
+          Uma nova versão está disponível.
+        </Alert>
+      </Snackbar>
     </Box>
   );
 }

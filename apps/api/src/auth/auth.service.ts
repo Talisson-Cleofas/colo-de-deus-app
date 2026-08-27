@@ -32,6 +32,7 @@ export class AuthService {
     const normalized = value.trim().toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
     if (['DEVELOPER', 'DESENVOLVEDOR'].includes(normalized)) return 'DEVELOPER';
     if (normalized === 'ADMIN') return 'ADMIN';
+    if (['LIDER_MISSAO', 'LIDER DE MISSAO', 'MISSION_LEADER'].includes(normalized)) return 'MISSION_LEADER';
     if (['LIDER_MINISTERIO', 'LIDER DE MINISTERIO', 'MINISTRY_LEADER'].includes(normalized)) return 'MINISTRY_LEADER';
     if (['LIDER', 'LEADER', 'LIDER_CELULA', 'LIDER DE CELULA', 'CELL_LEADER'].includes(normalized)) return 'CELL_LEADER';
     return 'MEMBER';

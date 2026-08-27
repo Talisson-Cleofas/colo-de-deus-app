@@ -80,7 +80,12 @@ class ApiClient {
         throw const ApiUnauthorizedException();
       }
     }
-    if (response.statusCode == 403) throw const ApiForbiddenException();
+    if (response.statusCode == 403) {
+      final detail = response.body.trim();
+      throw ApiForbiddenException(
+        '403 em $baseUrl$path${detail.isEmpty ? '' : '\n$detail'}',
+      );
+    }
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw ApiRequestException(
         'A API retornou ${response.statusCode}.',

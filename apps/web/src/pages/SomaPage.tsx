@@ -34,9 +34,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { api, apiErrorMessage } from '../services/api';
-import { DrivePage } from './DrivePage';
 import { FinancialEnterprisePanel } from './FinancialEnterprisePanel';
-import { ReportsPage } from './ReportsPage';
 
 type Settings = {
   campaignName: string;
@@ -776,9 +774,7 @@ export function SomaPage() {
   const canViewReports = hasRole('ADMIN', 'DEVELOPER', 'MINISTRY_LEADER');
   const canAdmin = hasRole('ADMIN', 'DEVELOPER', 'MISSION_LEADER');
   const [params, setParams] = useSearchParams();
-  const values = canViewReports
-    ? ['contribuicoes', 'financeiro', 'relatorios', 'drive']
-    : ['contribuicoes', 'financeiro', 'drive'];
+  const values = ['contribuicoes', 'financeiro'];
   const requested = params.get('tab') || 'contribuicoes';
   const current = Math.max(0, values.indexOf(requested));
   const setTab = (index: number) => setParams(index === 0 ? {} : { tab: values[index] });
@@ -792,18 +788,12 @@ export function SomaPage() {
         <Tabs value={current} onChange={(_, value) => setTab(value)} variant="scrollable">
           <Tab label="Contribuições e PIX" />
           <Tab label={canViewReports ? 'Centro Financeiro' : 'Minhas Contribuições'} />
-          {canViewReports && <Tab label="Relatórios" />}
-          <Tab label="Google Drive" />
         </Tabs>
       </Paper>
       {values[current] === 'contribuicoes' ? (
         <SomaContributionPanel showRecent={!isCommonMember} canAdmin={canAdmin} />
-      ) : values[current] === 'financeiro' ? (
-        <FinancialEnterprisePanel admin={canViewReports} />
-      ) : values[current] === 'relatorios' ? (
-        <ReportsPage embedded />
       ) : (
-        <DrivePage embedded />
+        <FinancialEnterprisePanel admin={canViewReports} />
       )}
     </Box>
   );

@@ -28,6 +28,8 @@ import {
   Typography,
 } from '@mui/material';
 import { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { DrivePage } from './DrivePage';
 import { useAuth } from '../auth/AuthContext';
 import { EventCard } from '../components/events/EventCard';
 import { api, apiErrorMessage } from '../services/api';
@@ -79,9 +81,19 @@ export function EventsPage() {
   const { user } = useAuth();
   const { hasPermission, hasMinistryModule } = usePermission();
   const isMember = user?.profile === 'MEMBER';
+  const canViewDrive = ['MINISTRY_LEADER', 'MISSION_LEADER', 'DEVELOPER', 'ADMIN'].includes(user?.profile || '');
+  const [params, setParams] = useSearchParams();
+  const requestedTab = params.get('tab');
+  const tab = requestedTab === 'drive' && canViewDrive ? 2
+    : requestedTab === 'presencas' && !isMember ? 1 : 0;
+  const setTab = (value: number) => {
+    const next = new URLSearchParams(params);
+    if (value === 0) next.delete('tab');
+    else next.set('tab', value === 2 ? 'drive' : 'presencas');
+    setParams(next);
+  };
   const canCreateByRbac = hasPermission(Permission.EVENTS_CREATE) && hasMinistryModule('EVENTOS');
-  const [tab, setTab] = useState(0),
-    [events, setEvents] = useState<MissionEvent[]>([]),
+  const [events, setEvents] = useState<MissionEvent[]>([]),
     [responses, setResponses] = useState<EventResponse[]>([]),
     [options, setOptions] = useState<EventManagementOptions>({
       canCreate: false,
@@ -260,13 +272,16 @@ export function EventsPage() {
       </Stack>
       {!isMember && (
         <Paper sx={{ mt: 2, mb: 3 }}>
-          <Tabs value={tab} onChange={(_, v) => setTab(v)}>
+          <Tabs value={tab} onChange={(_, v) => setTab(v)} variant="scrollable" scrollButtons="auto" aria-label="Áreas de eventos">
             <Tab label="Eventos" />
             <Tab label={`Presenças e justificativas (${responses.length})`} />
+            {canViewDrive && <Tab label="Google Drive" />}
           </Tabs>
         </Paper>
       )}
-      {tab === 1 ? (
+      {tab === 2 && canViewDrive ? (
+        <DrivePage embedded />
+      ) : tab === 1 ? (
         <Box>
           {responses.length === 0 ? (
             <Alert severity="info">

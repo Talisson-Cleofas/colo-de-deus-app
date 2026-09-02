@@ -1,11 +1,12 @@
 import { Body, Controller, Delete, Get, Param, Post } from '@nestjs/common';import { ApiTags } from '@nestjs/swagger';import { UploadDriveFileDto } from './dto/upload-drive-file.dto';import { GoogleDriveService } from './google-drive.service';
+import { Roles } from '../auth/decorators/roles.decorator';
 @ApiTags('Google Drive') @Controller('drive') export class GoogleDriveController{
  constructor(private readonly service:GoogleDriveService){}
  @Get('status') status(){return this.service.status();}
  @Get('status/test') test(){return this.service.test();}
  @Post('upload') upload(@Body() dto:UploadDriveFileDto){return this.service.upload(dto);}
- @Get('files') list(){return this.service.list();}
- @Get('files/:id') get(@Param('id') id:string){return this.service.get(id);}
+ @Get('files') @Roles('MINISTRY_LEADER','MISSION_LEADER','DEVELOPER','ADMIN') list(){return this.service.list();}
+ @Get('files/:id') @Roles('MINISTRY_LEADER','MISSION_LEADER','DEVELOPER','ADMIN') get(@Param('id') id:string){return this.service.get(id);}
  @Delete('files/:id') delete(@Param('id') id:string){return this.service.delete(id);}
  @Post('members/:memberId/photo') memberPhoto(@Param('memberId') id:string,@Body() dto:UploadDriveFileDto){return this.service.upload({...dto,referenceId:id,category:'MEMBER_PHOTO'});}
  @Post('cells/:cellId/files') cell(@Param('cellId') id:string,@Body() dto:UploadDriveFileDto){return this.service.upload({...dto,referenceId:id,category:'CELL_FILE'});}

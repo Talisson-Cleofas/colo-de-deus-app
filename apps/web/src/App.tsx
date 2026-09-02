@@ -120,7 +120,7 @@ function AuthenticatedRoutes() {
             <Route path="/soma" element={protect(<SomaPage />, Permission.SOMA_READ)} />
             <Route
               path="/drive"
-              element={protect(<Navigate to="/soma?tab=drive" replace />, Permission.SOMA_READ)}
+              element={protect(<Navigate to="/eventos?tab=drive" replace />, Permission.EVENTS_READ)}
             />
             <Route path="/relatorios" element={protect(<ReportsPage />, Permission.REPORTS_READ)} />
             <Route path="/membros" element={protect(<MembersPage />, Permission.MEMBERS_READ)} />

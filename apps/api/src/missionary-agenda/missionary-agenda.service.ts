@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Inject,
   Injectable,
@@ -75,6 +76,30 @@ export class MissionaryAgendaService {
       ministryNames: new Map(ministries.map((item) => [item.id, item.nome || ''])),
       memberNames: new Map(members.map((item) => [item.id, item.name || ''])),
     };
+  }
+  private async assertNoEventConflict(startDate: string, endDate: string) {
+    const effectiveEnd = endDate || startDate;
+    const dateOnly = (value: string) => String(value || '').trim().split(/[T ]/)[0];
+    const formatDate = (value: string) => value.split('-').reverse().join('/');
+    // Read the event calendar again for every write; never trust a stale form snapshot.
+    const events = await this.repository.read('Eventos');
+    const conflicts = events.filter((event) => {
+      if (event.deleted_at || !this.repository.parseActive(event.ativo || '', true) ||
+          !this.repository.parseActive(event.publicado || '', false)) return false;
+      const start = dateOnly(event.inicio || event.data || '');
+      const end = dateOnly(event.fim || event.data_fim || '') || start;
+      return this.validDate(start) && this.validDate(end) &&
+        start <= effectiveEnd && end >= startDate;
+    }).map((event) => {
+      const start = dateOnly(event.inicio || event.data || '');
+      const end = dateOnly(event.fim || event.data_fim || '') || start;
+      return `${event.titulo || event.nome || 'Evento sem título'} (${formatDate(start)}${end !== start ? ` a ${formatDate(end)}` : ''})`;
+    });
+    if (conflicts.length) {
+      throw new ConflictException(
+        `Já existe uma agenda nessa data: ${conflicts.join('; ')}. Escolha outra data para a missão.`,
+      );
+    }
   }
   private ministryLeader(
     user: AuthenticatedUser,
@@ -500,6 +525,7 @@ export class MissionaryAgendaService {
   }
   async create(dto: CreateMissionaryAgendaDto, user: AuthenticatedUser) {
     this.validatePeriod(dto.startDate, dto.endDate, dto.startTime, dto.endTime);
+    await this.assertNoEventConflict(dto.startDate, dto.endDate);
     await this.validateReferences(dto.responsibleId, dto.ministryId);
     await this.validateTeamSelection(dto.accompanyingIds || [], dto.intercessorIds || []);
     const now = new Date().toISOString(),
@@ -537,6 +563,7 @@ export class MissionaryAgendaService {
       status: existing.status,
     };
     this.validatePeriod(merged.startDate, merged.endDate, merged.startTime, merged.endTime);
+    await this.assertNoEventConflict(merged.startDate, merged.endDate);
     await this.validateReferences(merged.responsibleId, merged.ministryId);
     await this.validateTeamSelection(merged.accompanyingIds || [], merged.intercessorIds || []);
     await this.save({ ...existing, ...merged } as MissionaryAgenda, user, this.workflow(existing));
@@ -554,6 +581,7 @@ export class MissionaryAgendaService {
     const item = await this.findOne(id, user);
     if (!item.canSubmit)
       throw new ForbiddenException('Somente o líder da agenda pode enviá-la para aprovação.');
+    await this.assertNoEventConflict(item.startDate, item.endDate);
     if (!item.ministryId)
       throw new BadRequestException(
         'Defina o ministério responsável antes de enviar para aprovação.',
@@ -581,6 +609,7 @@ export class MissionaryAgendaService {
     const item = await this.findOne(id, user);
     if (!item.canReview)
       throw new ForbiddenException('Somente o líder de missão pode aprovar esta agenda.');
+    await this.assertNoEventConflict(item.startDate, item.endDate);
     const now = new Date().toISOString(),
       status: MissionaryAgendaStatus = 'AGUARDANDO_INDICACOES';
     await this.save(item, user, {

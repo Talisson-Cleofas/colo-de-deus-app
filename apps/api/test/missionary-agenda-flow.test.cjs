@@ -115,6 +115,72 @@ const input = (title = 'Evangelização na praça') => ({
   notes: '',
 });
 
+const calendarEvent = (extra = {}) => ({
+  id: 'event-test', titulo: 'Retiro da Missão', inicio: '2026-09-05T08:00:00',
+  fim: '2026-09-05T10:00:00', ativo: 'TRUE', publicado: 'TRUE', ...extra,
+});
+
+test('permite várias missões na mesma data quando não há evento', async () => {
+  const { service, tabs } = fixture();
+  const first = await service.create(input('Missão A'), users.agenda);
+  const second = await service.create(input('Missão B'), users.agenda);
+  assert.notEqual(first.id, second.id);
+  assert.equal(first.startDate, second.startDate);
+  assert.equal(tabs.AgendaMissionaria.length, 2);
+});
+
+test('bloqueia cadastro na data de um evento, informa o título e não grava nem notifica', async () => {
+  const { service, tabs, notifications } = fixture();
+  tabs.Eventos = [calendarEvent()];
+  await assert.rejects(service.create(input(), users.agenda), (error) => {
+    assert.equal(error.getStatus(), 409);
+    assert.match(error.message, /Retiro da Missão \(05\/09\/2026\)/);
+    return true;
+  });
+  assert.equal(tabs.AgendaMissionaria.length, 0);
+  assert.equal(tabs.AgendaMissionariaHistorico.length, 0);
+  assert.equal(notifications.length, 0);
+});
+
+test('detecta sobreposição de períodos e limites inclusivos, ignorando horários', async () => {
+  for (const [start, end] of [
+    ['2026-09-04', '2026-09-06'], ['2026-09-05', '2026-09-07'],
+    ['2026-09-01', '2026-09-05'],
+  ]) {
+    const { service, tabs } = fixture();
+    tabs.Eventos = [calendarEvent({ inicio: start, fim: end })];
+    await assert.rejects(service.create(input(), users.agenda), /Retiro da Missão/);
+  }
+  const { service, tabs } = fixture();
+  tabs.Eventos = [calendarEvent({ inicio: '2026-09-06', fim: '2026-09-06' })];
+  await assert.rejects(service.create({ ...input(), endDate: '2026-09-07' }, users.agenda), /Retiro da Missão/);
+});
+
+test('permite dias livres e ignora eventos excluídos, inativos ou rascunhos', async () => {
+  const { service, tabs } = fixture();
+  tabs.Eventos = [calendarEvent({ deleted_at: '2026-09-01' }), calendarEvent({ ativo: 'FALSE' }),
+    calendarEvent({ publicado: 'FALSE' }), calendarEvent({ inicio: '2026-09-06', fim: '' })];
+  assert.equal((await service.create(input(), users.agenda)).status, 'RASCUNHO');
+});
+
+test('revalida edição e envio quando um evento é cadastrado depois do rascunho', async () => {
+  const { service, tabs } = fixture();
+  const created = await service.create(input(), users.agenda);
+  tabs.Eventos = [calendarEvent()];
+  await assert.rejects(service.update(created.id, { title: 'Alterado' }, users.agenda), /Retiro da Missão/);
+  await assert.rejects(service.submit(created.id, users.agenda), /Retiro da Missão/);
+  assert.equal((await service.findOne(created.id, users.agenda)).title, input().title);
+});
+
+test('revalida aprovação e não libera conflito para liderança central', async () => {
+  const { service, tabs } = fixture();
+  const created = await service.create(input(), users.agenda);
+  await service.submit(created.id, users.agenda);
+  tabs.Eventos = [calendarEvent()];
+  await assert.rejects(service.approve(created.id, {}, users.mission), /Retiro da Missão/);
+  assert.equal((await service.findOne(created.id, users.mission)).status, 'AGUARDANDO_APROVACAO');
+});
+
 test('executa aprovação: líder da agenda → líder de missão → líder de ministério → membro', async () => {
   const { service, tabs, notifications } = fixture();
   const created = await service.create(input(), users.agenda);

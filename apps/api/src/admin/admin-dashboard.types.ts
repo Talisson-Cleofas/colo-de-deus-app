@@ -15,7 +15,9 @@ export type AdminDashboardChange = AdminDashboardLog & {
 
 export type AdminDashboardData = {
   generatedAt: string;
+  month: string;
   metrics: {
+    somaThisMonth: number;
     members: number;
     leaders: number;
     cells: number;

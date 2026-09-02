@@ -1,5 +1,6 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { GoogleSheetsService } from '../google/google-sheets.service';
+import { SomaService } from '../soma/soma.service';
 import type {
   AdminDashboardChange,
   AdminDashboardData,
@@ -8,17 +9,19 @@ import type {
 
 @Injectable()
 export class AdminDashboardService {
-  constructor(private readonly sheets: GoogleSheetsService) {}
+  constructor(private readonly sheets: GoogleSheetsService, private readonly soma: SomaService) {}
 
   private active(value: string | undefined, fallback = true): boolean {
     return this.sheets.parseActive(value || '', fallback);
   }
 
-  private demo(): AdminDashboardData {
+  private demo(month: string): AdminDashboardData {
     const now = new Date().toISOString();
     return {
       generatedAt: now,
+      month,
       metrics: {
+        somaThisMonth: 0,
         members: 128,
         leaders: 21,
         cells: 18,
@@ -89,15 +92,19 @@ export class AdminDashboardService {
       .length;
   }
 
-  async getDashboard(): Promise<AdminDashboardData> {
-    if (this.sheets.isDemo()) return this.demo();
-    const [members, ministries, cells, cenacles, events, audit] = await Promise.all([
+  async getDashboard(month = new Date().toISOString().slice(0, 7)): Promise<AdminDashboardData> {
+    if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) {
+      throw new BadRequestException('Mês inválido. Use o formato AAAA-MM.');
+    }
+    if (this.sheets.isDemo()) return this.demo(month);
+    const [members, ministries, cells, cenacles, events, audit, soma] = await Promise.all([
       this.sheets.listMembers().catch(() => []),
       this.sheets.read('Ministérios').catch(() => []),
       this.sheets.read('Células').catch(() => []),
       this.sheets.read('Cenáculos').catch(() => []),
       this.sheets.read('Eventos').catch(() => []),
       this.sheets.read('Auditoria').catch(() => []),
+      this.soma.summary(month),
     ]);
 
     const orderedAudit = [...audit].sort((a, b) =>
@@ -115,7 +122,9 @@ export class AdminDashboardService {
 
     return {
       generatedAt: new Date().toISOString(),
+      month,
       metrics: {
+        somaThisMonth: soma.total,
         members: members.filter((member) => member.active).length,
         leaders: members.filter(
           (member) =>

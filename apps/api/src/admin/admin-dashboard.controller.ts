@@ -1,4 +1,4 @@
-import { Controller, Get, Post } from '@nestjs/common';
+import { Controller, Get, Post, Query } from '@nestjs/common';
 import { GoogleSheetsService } from '../google/google-sheets.service';
 import { RequirePermissions } from '../rbac/decorators/permissions.decorator';
 import { Permission } from '../rbac/enums/permission.enum';
@@ -10,7 +10,7 @@ export class AdminDashboardController {
 
   @Get('dashboard')
   @RequirePermissions(Permission.SETTINGS_READ)
-  getDashboard() { return this.dashboard.getDashboard(); }
+  getDashboard(@Query('month') month?: string) { return this.dashboard.getDashboard(month); }
 
   @Get('sheets/schema')
   @RequirePermissions(Permission.SETTINGS_READ)

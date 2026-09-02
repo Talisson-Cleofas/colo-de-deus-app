@@ -51,6 +51,7 @@ export const SHEET_SCHEMAS = {
     'geocode_provider',
     'foto_drive_file_id',
     'foto_url',
+    'profissao',
   ],
   Usuarios: [
     'id',

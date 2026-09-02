@@ -51,7 +51,7 @@ export class MembersController {
       await this.accessProfiles.assertAssignable(user.profile, dto.profile);
     }
     const safeDto = ['ADMIN', 'MISSION_LEADER', 'DEVELOPER'].includes(user.profile) ? dto : {
-      name: dto.name, photo: dto.photo, phone: dto.phone, bio: dto.bio, instagram: dto.instagram,
+      name: dto.name, photo: dto.photo, phone: dto.phone, bio: dto.bio, instagram: dto.instagram, profession: dto.profession,
       birthDate: dto.birthDate, city: dto.city, state: dto.state, address: dto.address, neighborhood: dto.neighborhood, zipCode: dto.zipCode, latitude: dto.latitude, longitude: dto.longitude, googlePlaceId: dto.googlePlaceId, gifts: dto.gifts, formator: dto.formator,
     };
     const member = await this.sheets.updateMember(id, safeDto);
@@ -150,6 +150,7 @@ export class MembersController {
       longitude: dto.longitude,
       googlePlaceId: dto.googlePlaceId,
       gifts: dto.gifts,
+      profession: dto.profession,
       formator: dto.formator,
     });
     return { member, message: 'Perfil atualizado com sucesso.' };

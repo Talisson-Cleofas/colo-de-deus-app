@@ -34,6 +34,7 @@ export type Member = {
   longitude: number | null;
   googlePlaceId: string;
   gifts: string[];
+  profession?: string;
   formator: string;
 };
 export type AuthUser = Member & { uid?: string; memberId?: string };

@@ -138,5 +138,11 @@ export class CreateMemberDto {
   @IsOptional()
   @IsString()
   @MaxLength(120)
+  profession?: string;
+
+  @Transform(trim)
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
   formator = '';
 }

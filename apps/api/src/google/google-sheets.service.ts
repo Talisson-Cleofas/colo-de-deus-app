@@ -34,6 +34,7 @@ export type MemberRow = {
   latitude: number | null;
   longitude: number | null;
   googlePlaceId: string;
+  profession?: string;
   gifts: string[];
   formator: string;
   updatedAt: string;
@@ -762,6 +763,7 @@ export class GoogleSheetsService {
             ? Number(row.longitude)
             : null,
         googlePlaceId: row.google_place_id ?? '',
+        profession: row.profissao ?? '',
         gifts: (row.dons ?? '')
           .split(',')
           .map((value) => value.trim())
@@ -816,6 +818,7 @@ export class GoogleSheetsService {
       latitude: input.latitude ?? null,
       longitude: input.longitude ?? null,
       googlePlaceId: input.googlePlaceId?.trim() ?? '',
+      profession: input.profession?.trim() ?? '',
       gifts: (input.gifts ?? []).map((gift) => gift.trim()).filter(Boolean),
       formator: input.formator?.trim() ?? '',
       updatedAt: now,
@@ -853,6 +856,7 @@ export class GoogleSheetsService {
         google_place_id: member.googlePlaceId,
         localizacao_atualizada_em:
           member.latitude != null && member.longitude != null ? member.updatedAt : '',
+        profissao: member.profession ?? '',
         dons: member.gifts.join(', '),
         formador: member.formator,
         atualizado_em: member.updatedAt,
@@ -902,6 +906,7 @@ export class GoogleSheetsService {
       latitude: input.latitude !== undefined ? input.latitude : current.latitude,
       longitude: input.longitude !== undefined ? input.longitude : current.longitude,
       googlePlaceId: input.googlePlaceId?.trim() ?? current.googlePlaceId,
+      profession: input.profession?.trim() ?? current.profession ?? '',
       gifts: input.gifts ? input.gifts.map((gift) => gift.trim()).filter(Boolean) : current.gifts,
       formator: input.formator?.trim() ?? current.formator,
       updatedAt: new Date().toISOString(),
@@ -935,6 +940,7 @@ export class GoogleSheetsService {
         google_place_id: member.googlePlaceId,
         localizacao_atualizada_em:
           member.latitude != null && member.longitude != null ? member.updatedAt : '',
+        profissao: member.profession ?? '',
         dons: member.gifts.join(', '),
         formador: member.formator,
         atualizado_em: member.updatedAt,

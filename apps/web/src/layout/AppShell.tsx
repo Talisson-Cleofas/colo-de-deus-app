@@ -136,6 +136,12 @@ const items: MenuItem[] = [
     permission: Permission.REPORTS_READ,
   },
   {
+    icon: <AssessmentOutlined />,
+    label: 'Responder avaliações',
+    path: '/avaliacoes',
+    permission: Permission.DASHBOARD_READ,
+  },
+  {
     icon: <AccountCircleOutlined />,
     label: 'Perfil',
     path: '/perfil',

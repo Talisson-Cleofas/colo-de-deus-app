@@ -140,7 +140,6 @@ const items: MenuItem[] = [
     label: 'Responder avaliações',
     path: '/avaliacoes',
     permission: Permission.DASHBOARD_READ,
-    hiddenFor: ['CELL_LEADER'],
   },
   {
     icon: <AccountCircleOutlined />,

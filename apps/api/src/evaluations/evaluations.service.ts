@@ -69,7 +69,7 @@ export class EvaluationsService {
   }
   async mine(user: AuthenticatedUser) {
     const [{ targets }, cycles, answers] = await Promise.all([this.context(user), this.rows('AvaliacoesCiclos'), this.rows('AvaliacoesRespostas')]);
-    return { questions: EVALUATION_QUESTIONS, cycles: cycles.filter(c => c.status === 'OPEN').map(c => ({
+    return { questions: EVALUATION_QUESTIONS, cycles: targets.length === 0 ? [] : cycles.filter(c => c.status === 'OPEN').map(c => ({
       ...this.publicCycle(c), targets: targets.map(t => ({ ...t, submitted: answers.some(a => a.ciclo_id === c.id && a.membro_id === this.uid(user) && a.alvo_id === t.id) })),
     })) };
   }

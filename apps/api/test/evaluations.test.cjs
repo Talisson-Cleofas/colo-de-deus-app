@@ -24,7 +24,7 @@ test('evaluation participation follows roles and ministry membership', async () 
   assert.deepEqual(await targets(0), ['MISSION:2', 'MINISTRY:m1:1']);
   assert.deepEqual(await targets(1), ['MISSION:2']);
   assert.deepEqual(await targets(2), ['SELF:2', 'MINISTRY:m1:1']);
-  assert.deepEqual(await targets(4), []);
+  assert.deepEqual((await f.service.mine(f.members[4])).cycles, []);
   await f.service.open(cycle.id, f.members[3]);
   assert.equal(f.notifications(), 1);
 });
@@ -32,7 +32,7 @@ test('evaluation participation follows roles and ministry membership', async () 
 test('cell leader only receives evaluation targets when also linked to an eligible ministry role', async () => {
   const f = fixture(); const cycle = await f.service.create({ title: 'Ano 2026', year: 2026 }, f.members[3]);
   await f.service.open(cycle.id, f.members[3]);
-  assert.deepEqual((await f.service.mine(f.members[4])).cycles[0].targets, []);
+  assert.deepEqual((await f.service.mine(f.members[4])).cycles, []);
   f.tabs.Participantes.push({ tipo: 'MINISTERIO', referencia_id: 'm1', membro_id: '4', ativo: 'TRUE' });
   assert.deepEqual((await f.service.mine(f.members[4])).cycles[0].targets.map(t => t.id), ['MISSION:2', 'MINISTRY:m1:1']);
 });

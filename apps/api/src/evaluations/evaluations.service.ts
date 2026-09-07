@@ -47,8 +47,6 @@ export class EvaluationsService {
     const activeMinistries = ministries.filter(m => !m.deleted_at && this.sheets.parseActive(m.ativo, true));
     const isMinistryLeader = respondent.profile === 'MINISTRY_LEADER' || activeMinistries.some(m => m.lider_id === respondent.id || m.vice_lider_id === respondent.id);
     const joined = new Set(participants.filter(p => p.tipo === 'MINISTERIO' && p.membro_id === respondent.id && this.sheets.parseActive(p.ativo, true)).map(p => p.referencia_id));
-    const isCellLeaderOnly = respondent.profile === 'CELL_LEADER' && !isMinistryLeader && joined.size === 0 && !respondent.ministry;
-    if (isCellLeaderOnly) return { respondent, targets: [] as Target[] };
     const targets: Target[] = [];
     if (mission(respondent.profile)) {
       targets.push({ id: `SELF:${respondent.id}`, name: 'Reflexão sobre meu ano de liderança', kind: 'SELF' });
@@ -69,7 +67,7 @@ export class EvaluationsService {
   }
   async mine(user: AuthenticatedUser) {
     const [{ targets }, cycles, answers] = await Promise.all([this.context(user), this.rows('AvaliacoesCiclos'), this.rows('AvaliacoesRespostas')]);
-    return { questions: EVALUATION_QUESTIONS, cycles: targets.length === 0 ? [] : cycles.filter(c => c.status === 'OPEN').map(c => ({
+    return { questions: EVALUATION_QUESTIONS, cycles: cycles.filter(c => c.status === 'OPEN').map(c => ({
       ...this.publicCycle(c), targets: targets.map(t => ({ ...t, submitted: answers.some(a => a.ciclo_id === c.id && a.membro_id === this.uid(user) && a.alvo_id === t.id) })),
     })) };
   }

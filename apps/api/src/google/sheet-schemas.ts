@@ -1,4 +1,6 @@
 export const SHEET_SCHEMAS = {
+  AvaliacoesCiclos: ['id', 'titulo', 'ano', 'status', 'criado_por', 'criado_em', 'liberado_por', 'liberado_em', 'notificado_em', 'encerrado_por', 'encerrado_em'],
+  AvaliacoesRespostas: ['id', 'ciclo_id', 'membro_id', 'membro_nome', 'perfil', 'alvo_id', 'alvo_nome', 'tipo', 'notas', 'pontos_fortes', 'melhorias', 'reflexao', 'enviado_em'],
   Missao: [
     'id',
     'nome',

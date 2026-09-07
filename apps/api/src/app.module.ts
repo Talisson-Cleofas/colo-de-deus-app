@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { EvaluationsModule } from './evaluations/evaluations.module';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { RbacModule } from './rbac/rbac.module';
@@ -71,6 +72,7 @@ import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
     GoogleDriveModule,
     GoogleMapsModule,
     ReportsModule,
+    EvaluationsModule,
     NotificationsModule,
     SettingsModule,
     TechnicalAdminModule,

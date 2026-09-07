@@ -46,6 +46,9 @@ export class EvaluationsService {
     if (!respondent) throw new ForbiddenException('Somente membros ativos podem responder.');
     const activeMinistries = ministries.filter(m => !m.deleted_at && this.sheets.parseActive(m.ativo, true));
     const isMinistryLeader = respondent.profile === 'MINISTRY_LEADER' || activeMinistries.some(m => m.lider_id === respondent.id || m.vice_lider_id === respondent.id);
+    const joined = new Set(participants.filter(p => p.tipo === 'MINISTERIO' && p.membro_id === respondent.id && this.sheets.parseActive(p.ativo, true)).map(p => p.referencia_id));
+    const isCellLeaderOnly = respondent.profile === 'CELL_LEADER' && !isMinistryLeader && joined.size === 0 && !respondent.ministry;
+    if (isCellLeaderOnly) return { respondent, targets: [] as Target[] };
     const targets: Target[] = [];
     if (mission(respondent.profile)) {
       targets.push({ id: `SELF:${respondent.id}`, name: 'Reflexão sobre meu ano de liderança', kind: 'SELF' });
@@ -53,7 +56,6 @@ export class EvaluationsService {
       activeMembers.filter(m => mission(m.profile) && m.id !== respondent.id).forEach(m => targets.push({ id: `MISSION:${m.id}`, name: m.name, kind: 'MISSION' }));
     }
     if (mission(respondent.profile) || !isMinistryLeader) {
-      const joined = new Set(participants.filter(p => p.tipo === 'MINISTERIO' && p.membro_id === respondent.id && this.sheets.parseActive(p.ativo, true)).map(p => p.referencia_id));
       for (const ministry of activeMinistries) {
         if (!mission(respondent.profile) && !joined.has(ministry.id) && respondent.ministry !== ministry.nome && respondent.ministry !== ministry.id) continue;
         for (const leaderId of [ministry.lider_id, ministry.vice_lider_id]) {

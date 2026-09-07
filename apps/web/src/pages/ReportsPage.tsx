@@ -2,6 +2,9 @@ import { AssessmentOutlined, DownloadOutlined, PrintOutlined, WarningAmberOutlin
 import { Alert, Avatar, Box, Button, Card, CardContent, Chip, CircularProgress, FormControl, InputLabel, MenuItem, Pagination, Select, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TextField, Typography } from '@mui/material';
 import { useEffect, useMemo, useState } from 'react';
 import { api, apiErrorMessage } from '../services/api';
+import { Tab, Tabs } from '@mui/material';
+import { useAuth } from '../auth/AuthContext';
+import { EvaluationAdminPanel } from './EvaluationsPage';
 
 type Option={id:string;name:string}; type Options={members:Option[];ministries:Option[];cells:Option[];cenacles:Option[]};
 type Member={id:string;name:string;email:string;photo:string;birthDate:string;profile:string;ministryNames:string[];cellNames:string[];cenacleNames:string[];presences:number;absences:number;justifiedAbsences:number;attendanceRate:number;eventConfirmed:number;eventAbsent:number;participationScore:number};
@@ -12,6 +15,13 @@ const now=new Date(); const iso=(d:Date)=>d.toISOString().slice(0,10); const sta
 function MiniChart({data}:{data:Report['monthly']}){const max=Math.max(1,...data.map(x=>x.presences+x.absences));return <Box display="flex" alignItems="end" gap={1} height={180}>{data.map(x=><Box key={x.month} flex={1} textAlign="center"><Box display="flex" alignItems="end" justifyContent="center" gap={0.5} height={130}><Box title={`Presenças: ${x.presences}`} sx={{width:18,height:`${x.presences/max*120}px`,bgcolor:'success.main',borderRadius:'4px 4px 0 0'}}/><Box title={`Faltas: ${x.absences}`} sx={{width:18,height:`${x.absences/max*120}px`,bgcolor:'error.main',borderRadius:'4px 4px 0 0'}}/></Box><Typography variant="caption">{x.month}</Typography><Typography variant="caption" display="block" fontWeight={700}>{x.rate}%</Typography></Box>)}</Box>}
 
 export function ReportsPage({embedded=false}:{embedded?:boolean}){
+ const {user}=useAuth();
+ const [tab,setTab]=useState(0);
+ const canManage=['DEVELOPER','MISSION_LEADER','ADMIN'].includes(user?.profile||'');
+ return <Box>{canManage&&<Tabs value={tab} onChange={(_,value:number)=>setTab(value)} aria-label="Seções de relatórios" sx={{mb:2}}><Tab label="Relatórios"/><Tab label="Avaliações"/></Tabs>}{canManage&&tab===1?<EvaluationAdminPanel/>:<ReportsContent embedded={embedded}/>}</Box>;
+}
+
+function ReportsContent({embedded=false}:{embedded?:boolean}){
  const [options,setOptions]=useState<Options>({members:[],ministries:[],cells:[],cenacles:[]}); const [report,setReport]=useState<Report|null>(null); const [history,setHistory]=useState<History[]>([]); const [loading,setLoading]=useState(true); const [error,setError]=useState('');
  const [filters,setFilters]=useState({startDate:start,endDate:end,compareStartDate:prevStart,compareEndDate:prevEnd,memberId:'',structureType:'ALL',structureId:'',search:'',page:1,pageSize:10,lowFrequencyThreshold:75});
  useEffect(()=>{api.get('/reports/options').then(r=>setOptions(r.data));api.get('/reports/history').then(r=>setHistory(r.data)).catch(()=>undefined)},[]);

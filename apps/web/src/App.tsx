@@ -73,7 +73,9 @@ const ProfilesPage = lazy(() =>
 const ReportsPage = lazy(() =>
   import('./pages/ReportsPage').then((m) => ({ default: m.ReportsPage })),
 );
-const EvaluationsPage = lazy(() => import('./pages/EvaluationsPage').then(m => ({ default: m.EvaluationsPage })));
+const EvaluationsPage = lazy(() =>
+  import('./pages/EvaluationsPage').then((m) => ({ default: m.EvaluationsPage })),
+);
 const RbacPage = lazy(() => import('./pages/RbacPage').then((m) => ({ default: m.RbacPage })));
 const SettingsPage = lazy(() =>
   import('./pages/SettingsPage').then((m) => ({ default: m.SettingsPage })),
@@ -121,9 +123,19 @@ function AuthenticatedRoutes() {
             <Route path="/soma" element={protect(<SomaPage />, Permission.SOMA_READ)} />
             <Route
               path="/drive"
-              element={protect(<Navigate to="/eventos?tab=drive" replace />, Permission.EVENTS_READ)}
+              element={protect(
+                <Navigate to="/eventos?tab=drive" replace />,
+                Permission.EVENTS_READ,
+              )}
             />
-            <Route path="/relatorios" element={protect(<ReportsPage />, Permission.REPORTS_READ)} />
+            <Route
+              path="/relatorios"
+              element={
+                <PermissionRoute permission={Permission.REPORTS_READ} deniedProfiles={['MEMBER']}>
+                  <ReportsPage />
+                </PermissionRoute>
+              }
+            />
             <Route path="/avaliacoes" element={<EvaluationsPage />} />
             <Route path="/membros" element={protect(<MembersPage />, Permission.MEMBERS_READ)} />
             <Route

@@ -134,6 +134,7 @@ const items: MenuItem[] = [
     label: 'Relatórios',
     path: '/relatorios',
     permission: Permission.REPORTS_READ,
+    hiddenFor: ['MEMBER'],
   },
   {
     icon: <AssessmentOutlined />,

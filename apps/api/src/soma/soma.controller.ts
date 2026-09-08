@@ -87,7 +87,6 @@ export class SomaController {
   }
   @Get('financial/report')
   @RequirePermissions(Permission.FINANCIAL_REPORT_READ)
-  @RequireMinistryModule('FINANCAS')
   financialReport(
     @CurrentUser() user: AuthenticatedUser,
     @Query('from') from?: string,
@@ -109,7 +108,6 @@ export class SomaController {
   }
   @Get('financial/export/:format')
   @RequirePermissions(Permission.FINANCIAL_REPORT_READ)
-  @RequireMinistryModule('FINANCAS')
   async export(
     @Param('format') format: 'csv' | 'xls',
     @CurrentUser() user: AuthenticatedUser,

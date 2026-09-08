@@ -38,6 +38,7 @@ import { PerformanceModule } from './performance/performance.module';
 import { PerformanceInterceptor } from './performance/performance.interceptor';
 import { PersistenceModule } from './persistence/persistence.module';
 import { MissionaryAgendaModule } from './missionary-agenda/missionary-agenda.module';
+import { CenacleMissionsModule } from './cenacle-missions/cenacle-missions.module';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 
 @Module({
@@ -67,6 +68,7 @@ import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
     LectioModule,
     EventsModule,
     MissionaryAgendaModule,
+    CenacleMissionsModule,
     SomaModule,
     FilesModule,
     GoogleDriveModule,

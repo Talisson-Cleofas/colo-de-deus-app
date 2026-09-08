@@ -4,8 +4,14 @@ import { useAuth } from '../auth/AuthContext';
 import { api, apiErrorMessage } from '../services/api';
 import type { PermissionCode, PermissionScope } from './permissions';
 
-export type MinistryModuleCode = 'CELULAS' | 'EVENTOS' | 'CENACULO' | 'FINANCAS' | 'COMUNICACAO';
-type PermissionState = { profile: string; permissions: PermissionCode[]; scopes: Partial<Record<PermissionCode, PermissionScope>>; ministryModules?: MinistryModuleCode[] };
+export type MinistryModuleCode =
+  'CELULAS' | 'EVENTOS' | 'CENACULO' | 'FINANCAS' | 'COMUNICACAO' | 'MISSOES';
+type PermissionState = {
+  profile: string;
+  permissions: PermissionCode[];
+  scopes: Partial<Record<PermissionCode, PermissionScope>>;
+  ministryModules?: MinistryModuleCode[];
+};
 type PermissionContextValue = PermissionState & {
   loading: boolean;
   error: string;
@@ -16,7 +22,12 @@ type PermissionContextValue = PermissionState & {
   refreshPermissions: () => Promise<void>;
 };
 
-const empty: PermissionState = { profile: 'MEMBER', permissions: [], scopes: {}, ministryModules: [] };
+const empty: PermissionState = {
+  profile: 'MEMBER',
+  permissions: [],
+  scopes: {},
+  ministryModules: [],
+};
 const Context = createContext<PermissionContextValue | null>(null);
 
 export function PermissionProvider({ children }: { children: ReactNode }) {
@@ -38,29 +49,54 @@ export function PermissionProvider({ children }: { children: ReactNode }) {
   });
 
   const state = user ? (query.data ?? empty) : empty;
-  const hasPermission = useCallback((...items: PermissionCode[]) => items.every((item) => state.permissions.includes(item)), [state.permissions]);
-  const hasAnyPermission = useCallback((...items: PermissionCode[]) => items.some((item) => state.permissions.includes(item)), [state.permissions]);
-  const hasMinistryModule = useCallback((module: MinistryModuleCode) => {
-    if (['DEVELOPER', 'ADMIN', 'MISSION_LEADER'].includes(state.profile)) return true;
-    if (state.profile !== 'MINISTRY_LEADER') return true;
-    return Boolean(state.ministryModules?.includes(module));
-  }, [state.profile, state.ministryModules]);
-  const scopeFor = useCallback((permission: PermissionCode) => state.scopes[permission], [state.scopes]);
+  const hasPermission = useCallback(
+    (...items: PermissionCode[]) => items.every((item) => state.permissions.includes(item)),
+    [state.permissions],
+  );
+  const hasAnyPermission = useCallback(
+    (...items: PermissionCode[]) => items.some((item) => state.permissions.includes(item)),
+    [state.permissions],
+  );
+  const hasMinistryModule = useCallback(
+    (module: MinistryModuleCode) => {
+      if (['DEVELOPER', 'ADMIN', 'MISSION_LEADER'].includes(state.profile)) return true;
+      if (state.profile !== 'MINISTRY_LEADER') return true;
+      return Boolean(state.ministryModules?.includes(module));
+    },
+    [state.profile, state.ministryModules],
+  );
+  const scopeFor = useCallback(
+    (permission: PermissionCode) => state.scopes[permission],
+    [state.scopes],
+  );
   const refreshPermissions = useCallback(async () => {
     await queryClient.invalidateQueries({ queryKey: ['rbac', 'me', identity] });
   }, [identity, queryClient]);
 
-  const value = useMemo(() => ({
-    ...state,
-    ministryModules: state.ministryModules ?? [],
-    loading: Boolean(user) && query.isPending,
-    error: query.error ? apiErrorMessage(query.error) : '',
-    hasPermission,
-    hasAnyPermission,
-    hasMinistryModule,
-    scopeFor,
-    refreshPermissions,
-  }), [state, user, query.isPending, query.error, hasPermission, hasAnyPermission, hasMinistryModule, scopeFor, refreshPermissions]);
+  const value = useMemo(
+    () => ({
+      ...state,
+      ministryModules: state.ministryModules ?? [],
+      loading: Boolean(user) && query.isPending,
+      error: query.error ? apiErrorMessage(query.error) : '',
+      hasPermission,
+      hasAnyPermission,
+      hasMinistryModule,
+      scopeFor,
+      refreshPermissions,
+    }),
+    [
+      state,
+      user,
+      query.isPending,
+      query.error,
+      hasPermission,
+      hasAnyPermission,
+      hasMinistryModule,
+      scopeFor,
+      refreshPermissions,
+    ],
+  );
 
   return <Context.Provider value={value}>{children}</Context.Provider>;
 }

@@ -58,7 +58,6 @@ const manageFunctional = all.filter(
 const leader = [
   Permission.DASHBOARD_READ,
   Permission.MEMBERS_READ,
-  Permission.MEMBERS_UPDATE,
   Permission.MINISTRIES_READ,
   Permission.CELLS_READ,
   Permission.CELLS_CREATE,
@@ -89,11 +88,11 @@ const leader = [
 const member = [
   Permission.DASHBOARD_READ,
   Permission.MEMBERS_READ,
-  Permission.MEMBERS_UPDATE,
   Permission.MINISTRIES_READ,
   Permission.CELLS_READ,
   Permission.CENACLES_READ,
   Permission.EVENTS_READ,
+  Permission.MISSIONARY_AGENDA_READ,
   Permission.LECTIO_READ,
   Permission.SOMA_READ,
 ];

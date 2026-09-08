@@ -180,11 +180,7 @@ export class EventsService {
     const ctx = await this.context();
     const search = filters.search?.trim().toLowerCase();
     ctx.events = ctx.events.filter((r) => !r.deleted_at);
-    const owned = user.profile === 'MINISTRY_LEADER' ? this.ownedMinistryIds(user, ctx) : null;
-    const rows = owned
-      ? ctx.events.filter((r) => owned.has(this.rowMinistryId(r, ctx)))
-      : ctx.events;
-    return rows
+    return ctx.events
       .map((r) => ({ row: r, event: this.mapEvent(r, ctx, user) }))
       .filter(({ event }) => event.published || event.canManage)
       .map((x) => x.event)

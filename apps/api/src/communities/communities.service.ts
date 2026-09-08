@@ -214,14 +214,8 @@ export class CommunitiesService {
     }
     const { rows, links, memberMap, ministryMap, cellMap } = await this.context(type);
     let scopedRows = rows.filter((r) => !r.deleted_at);
-    if (user?.profile === 'MINISTRY_LEADER' && !this.managesAllCellsCache)
-      scopedRows = scopedRows.filter((row) =>
-        Boolean(row.ministerio_id && this.ownedMinistryIdsCache.has(row.ministerio_id)),
-      );
-    if (user?.profile === 'CELL_LEADER')
-      scopedRows = scopedRows.filter((row) =>
-        this.cellScopeIdsCache.has(type === 'CELL' ? row.id : row.celula_id),
-      );
+    // Todos os perfis com permissão de leitura consultam o diretório completo.
+    // O escopo continua sendo aplicado exclusivamente às ações de alteração.
     const lt = this.linkType(type);
     const participantsBy = new Map<string, Participant[]>();
     links

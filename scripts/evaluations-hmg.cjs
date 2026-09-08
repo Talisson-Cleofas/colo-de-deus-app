@@ -1,6 +1,11 @@
-// Isolated QA entrypoint. Never imported by the production application.
+// Permanent homologation entrypoint. Never imported by the production application.
 // No Google/Firebase clients, external messages, payments, or durable data.
-if (process.env.EVALUATIONS_QA !== 'true') throw new Error('QA entrypoint disabled');
+if (process.env.HOMOLOGATION_MODE !== 'true' || process.env.EVALUATIONS_QA !== 'true') {
+  throw new Error('Homologation entrypoint disabled');
+}
+if (process.env.EXTERNAL_INTEGRATIONS_ENABLED !== 'false') {
+  throw new Error('External integrations must remain disabled in homologation');
+}
 require('reflect-metadata');
 const { NestFactory, Reflector } = require('@nestjs/core');
 const { Module, ValidationPipe } = require('@nestjs/common');
@@ -21,7 +26,7 @@ Module({controllers:[EvaluationsController],providers:[{provide:EvaluationsServi
  const app=await NestFactory.create(QaModule);app.setGlobalPrefix('api');app.useGlobalPipes(new ValidationPipe({whitelist:true,transform:true}));app.useGlobalGuards(new RolesGuard(new Reflector()));
  const server=app.getHttpAdapter().getInstance();
  server.use((req,res,next)=>{res.setHeader('Cache-Control','no-store');req.user=members.find(m=>req.headers.cookie?.includes(`qa_profile=${m.id}`))||members[0];next();});
- server.get('/test',(_req,res)=>res.send('<h1>Homologação isolada — somente dados fictícios</h1><p>Os dados são temporários e compartilhados neste teste. Nenhuma mensagem sai deste ambiente.</p>'+members.map(m=>`<p><a href="/test/profile/${m.id}">${m.profile}</a></p>`).join('')));
+ server.get('/test',(_req,res)=>res.send('<h1>Ambiente permanente de homologação — somente dados fictícios</h1><p>Os dados são temporários e compartilhados neste ambiente. Nenhuma mensagem, cobrança ou alteração de produção sai daqui.</p>'+members.map(m=>`<p><a href="/test/profile/${m.id}">${m.profile}</a></p>`).join('')));
  server.get('/test/profile/:id',(req,res)=>{const user=members.find(m=>m.id===req.params.id);if(!user)return res.sendStatus(404);res.cookie('qa_profile',user.id,{httpOnly:true,sameSite:'lax'});res.send(`<script>localStorage.setItem('colo:user',${JSON.stringify(JSON.stringify(user))});location.replace('/avaliacoes');</script>`);});
  server.get('/api/auth/me',(req,res)=>res.json({user:req.user}));
  server.post('/api/auth/google',(req,res)=>res.json({user:req.user}));
@@ -32,7 +37,7 @@ Module({controllers:[EvaluationsController],providers:[{provide:EvaluationsServi
  server.get('/api/reports/options',(_req,res)=>res.json({members:[],ministries:[],cells:[],cenacles:[]}));
  server.get('/api/reports/history',(_req,res)=>res.json([]));
  server.get('/api/reports/advanced',(_req,res)=>res.json({indicators:{},comparison:{rateDifference:0},monthly:[],birthdays:[],ranking:[],lowFrequency:[],members:[],pagination:{page:1,totalPages:1}}));
- server.get('/api/health',(_req,res)=>res.json({status:'ok',environment:'isolated-evaluations-qa',storage:'memory',externalNotifications:false}));
+ server.get('/api/health',(_req,res)=>res.json({status:'ok',environment:'homologation',storage:'memory',externalIntegrations:false,externalNotifications:false,payments:false,durableData:false}));
  server.use(express.static(path.join(__dirname,'../apps/web/dist'),{index:false}));
  server.use((req,res,next)=>req.method==='GET'&&!req.path.startsWith('/api/')?res.sendFile(path.join(__dirname,'../apps/web/dist/index.html')):next());
  await app.init();

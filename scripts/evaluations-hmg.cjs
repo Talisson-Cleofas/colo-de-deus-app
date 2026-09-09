@@ -66,6 +66,15 @@ const qaMinistry = {
   active: true,
   membersCount: 5,
 };
+const qaMissionsMinistry = {
+  ...qaMinistry,
+  id: 'qa-ministry-missions',
+  name: 'Ministério de Missões',
+  description: 'Ministério fictício para criação e avaliação de missões em homologação.',
+  type: 'MISSOES',
+  membersCount: 4,
+};
+const cenacleMissions = [];
 const qaMinistryMembers = [members[2], members[3], members[5], members[6], members[7]].map(
   (member) => ({
     memberId: member.id,
@@ -163,11 +172,45 @@ Module({
   server.get('/api/missions', (_req, res) =>
     res.json([{ id: 'missao-brasilia', name: 'Missão Brasília', active: true }]),
   );
-  server.get('/api/ministries', (_req, res) => res.json([qaMinistry]));
+  server.get('/api/ministries', (_req, res) => res.json([qaMinistry, qaMissionsMinistry]));
   server.get('/api/ministries/:id', (req, res) =>
-    req.params.id === qaMinistry.id
-      ? res.json({ ministry: qaMinistry, members: qaMinistryMembers, attendances: [] })
+    [qaMinistry.id, qaMissionsMinistry.id].includes(req.params.id)
+      ? res.json({ ministry: req.params.id === qaMinistry.id ? qaMinistry : qaMissionsMinistry, members: qaMinistryMembers, attendances: [] })
       : res.sendStatus(404),
+  );
+  const mapCenacleMission = (row, req) => ({
+    ...row,
+    participantNames: row.participantIds.map((id) => members.find((member) => member.id === id)?.name || id),
+    canManage: ['DEVELOPER', 'MISSION_LEADER'].includes(req.user.profile),
+    canGiveFeedback: row.participantIds.includes(req.user.id) && row.date <= new Date().toISOString().slice(0, 10),
+    feedbackSubmitted: false,
+    feedbackCount: 0,
+  });
+  server.get('/api/cenacle-missions/options', (req, res) => res.json({
+    members: members.map((member) => ({ id: member.id, name: member.name })),
+    ministries: [{ id: qaMissionsMinistry.id, name: qaMissionsMinistry.name }],
+    canCreate: ['DEVELOPER', 'MISSION_LEADER'].includes(req.user.profile),
+  }));
+  server.get('/api/cenacle-missions', (req, res) =>
+    res.json(cenacleMissions.map((row) => mapCenacleMission(row, req))),
+  );
+  server.post('/api/cenacle-missions', (req, res) => {
+    const body = req.body || {};
+    if (!body.title || !body.date || !body.time || !body.location || !Array.isArray(body.participantIds) || !body.participantIds.length)
+      return res.status(400).json({ message: 'Preencha título, data, horário, local e participantes.' });
+    const row = { id: `qa-mission-${Date.now()}`, title: body.title, description: body.description || '', date: body.date, time: body.time, location: body.location, ministryId: qaMissionsMinistry.id, participantIds: body.participantIds, status: body.status || 'AGENDADA' };
+    cenacleMissions.push(row);
+    res.status(201).json(mapCenacleMission(row, req));
+  });
+  server.patch('/api/cenacle-missions/:id', (req, res) => {
+    const index = cenacleMissions.findIndex((row) => row.id === req.params.id);
+    if (index < 0) return res.sendStatus(404);
+    cenacleMissions[index] = { ...cenacleMissions[index], ...req.body, id: req.params.id, ministryId: qaMissionsMinistry.id };
+    res.json(mapCenacleMission(cenacleMissions[index], req));
+  });
+  server.get('/api/cenacle-missions/:id/feedback', (_req, res) => res.json([]));
+  server.post('/api/cenacle-missions/:id/feedback', (_req, res) =>
+    res.json({ success: true, message: 'Feedback fictício registrado.' }),
   );
   server.get('/api/notifications/state', (_req, res) =>
     res.json({

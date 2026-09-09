@@ -14,7 +14,7 @@ const bool=(v:boolean|undefined,d=true)=>v===undefined?d:v;
 export class NotificationsService implements OnModuleInit,OnModuleDestroy {
  private timer?:NodeJS.Timeout;
  constructor(@Inject(NOTIFICATION_REPOSITORY) private readonly sheets: INotificationRepository, private readonly settings:SettingsService, private readonly dates:NotificationDateNormalizer, private readonly readEngine:NotificationReadEngine){}
- onModuleInit(){if(!this.sheets.isDemo())this.timer=setInterval(()=>void this.processAutomations(),60*60*1000);}
+ onModuleInit(){if(!this.sheets.isDemo()){void this.processAutomations().catch(()=>undefined);this.timer=setInterval(()=>void this.processAutomations().catch(()=>undefined),60*60*1000);}}
  onModuleDestroy(){if(this.timer)clearInterval(this.timer);}
  private uid(user:AuthenticatedUser){return user.memberId||user.id||user.uid;}
  private canCreate(user:AuthenticatedUser){return ['DEVELOPER','ADMIN','MINISTRY_LEADER'].includes(user.profile);}
@@ -61,8 +61,7 @@ export class NotificationsService implements OnModuleInit,OnModuleDestroy {
  async processAutomations(){
   if(this.sheets.isDemo())return {processed:0,executedAt:new Date().toISOString()};
   const settings=await this.settings.get();
-  if(!settings.birthdaysEnabled||!settings.birthdayNotificationsEnabled)return {processed:0,disabled:true,executedAt:new Date().toISOString()};
-  const [members,existing]=await Promise.all([this.sheets.read('Membros'),this.sheets.read('Notificações')]);
+  const [members,existing,events]=await Promise.all([this.sheets.read('Membros'),this.sheets.read('Notificações'),this.sheets.read('Eventos')]);
   const today=new Date();
   const reminderDays=Math.max(0,Math.min(30,settings.birthdayReminderDays));
   const target=new Date(today.getFullYear(),today.getMonth(),today.getDate()+reminderDays);
@@ -71,7 +70,7 @@ export class NotificationsService implements OnModuleInit,OnModuleDestroy {
   const same=(birth:{month:number;day:number}|null,date:Date)=>!!birth&&birth.month===date.getMonth()+1&&birth.day===date.getDate();
   const format=(template:string,member:SheetRecord,days:number)=>template.replaceAll('{nome}',member.nome||'Membro').replaceAll('{dias}',String(days));
   let processed=0;
-  for(const member of members.filter(x=>!x.ativo||truthy(x.ativo))){
+  if(settings.birthdaysEnabled&&settings.birthdayNotificationsEnabled)for(const member of members.filter(x=>!x.ativo||truthy(x.ativo))){
    const birth=parse(member.data_nascimento||'');
    if(!birth)continue;
    if(same(birth,today)){
@@ -87,6 +86,28 @@ export class NotificationsService implements OnModuleInit,OnModuleDestroy {
      await this.createSystem({title:`Aniversário em ${reminderDays} dia(s)`,message:format(settings.birthdayLeaderReminderMessage,member,reminderDays),type:'ANIVERSARIO',audience:'INDIVIDUAL',recipientIds:leaders,origin:'Aniversários',referenceType:'MEMBRO',referenceId:key,link:`/membros/${member.id}`});processed++;
     }
    }
+  }
+  const todayKey=`${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+  const todayUtc=Date.UTC(today.getFullYear(),today.getMonth(),today.getDate());
+  const advanceDays=Math.max(0,Math.min(30,settings.eventReminderDays));
+  for(const event of events.filter(row=>(!row.ativo||truthy(row.ativo))&&truthy(row.publicado||'FALSE')&&!row.deleted_at)){
+   const start=(event.inicio||event.data||'').trim();
+   const match=start.match(/^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2}))?/);
+   if(!match)continue;
+   const eventKey=`${match[1]}-${match[2]}-${match[3]}`;
+   const eventUtc=Date.UTC(Number(match[1]),Number(match[2])-1,Number(match[3]));
+   const days=Math.round((eventUtc-todayUtc)/86400000);
+   if(days!==0&&days!==advanceDays)continue;
+   const phase=days===0?'day':'advance';
+   const key=`event-reminder-${phase}-${eventKey}-${event.id}`;
+   if(existing.some(notification=>notification.referencia_id===key))continue;
+   const dateLabel=eventKey.split('-').reverse().join('/');
+   const timeLabel=match[4]&&match[5]?` às ${match[4]}:${match[5]}`:'';
+   await this.createSystem({
+    title:days===0?`É hoje: ${event.titulo||'evento'}`:`Lembrete: ${event.titulo||'evento'} em ${days} dia(s)`,
+    message:`${event.titulo||'Evento'} está marcado para ${dateLabel}${timeLabel}${event.local?` em ${event.local}`:''}.`,
+    type:'EVENTO',audience:'TODOS',origin:'Eventos',referenceType:'EVENTO',referenceId:key,link:'/eventos'
+   });processed++;
   }
   return {processed,executedAt:new Date().toISOString()};
  }

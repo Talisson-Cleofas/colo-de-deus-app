@@ -22,6 +22,7 @@ import type {
 } from './create-community.dto';
 import type { AttendanceRecord, Cell, Participant } from './communities.types';
 import { CellScopeService } from '../rbac/cell-scope.service';
+import { NotificationsService } from '../notifications/notifications.service';
 type CommunityType = 'CELL' | 'CENACLE';
 type CenacleStatus = 'UPCOMING' | 'FINISHED' | 'CANCELLED' | 'ALL';
 @Injectable()
@@ -32,6 +33,7 @@ export class CommunitiesService {
     private readonly geocoding: GeocodingService,
     private readonly drive: GoogleDriveService,
     private readonly cellScope: CellScopeService,
+    private readonly notifications: NotificationsService,
   ) {}
   private demoData(): Cell[] {
     return [];
@@ -472,6 +474,18 @@ export class CommunitiesService {
         dto.type === 'CELL' ? 'VICE_LIDER' : 'VICE_RESPONSAVEL',
       );
     await this.sync.reconcileStructure(dto.type === 'CELL' ? 'CELULA' : 'CENACULO', id);
+    if (dto.type === 'CENACLE') {
+      await this.notifications.createSystem({
+        title: `Novo cenáculo: ${dto.name.trim()}`,
+        message: `${dto.name.trim()} foi marcado para ${(dto.startDate || '').split('-').reverse().join('/')} às ${dto.time || ''}${dto.address?.trim() ? `, em ${dto.address.trim()}` : ''}.`,
+        type: 'EVENTO',
+        audience: 'TODOS',
+        origin: 'Cenáculos',
+        referenceType: 'CENACULO',
+        referenceId: id,
+        link: '/cenaculos',
+      });
+    }
     return this.detail(id, user);
   }
   async update(id: string, dto: UpdateCommunityDto, user: AuthenticatedUser) {

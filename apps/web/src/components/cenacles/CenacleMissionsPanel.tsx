@@ -1,6 +1,9 @@
 import {
   AddOutlined,
+  CancelOutlined,
+  CheckCircleOutlined,
   EditOutlined,
+  LockOpenOutlined,
   RateReviewOutlined,
   VisibilityOutlined,
 } from '@mui/icons-material';
@@ -38,6 +41,11 @@ type Mission = {
   status: string;
   participantIds: string[];
   participantNames: string[];
+  participants: { id: string; name: string; presenceStatus: string }[];
+  presenceStatus: string;
+  canConfirmPresence: boolean;
+  confirmedCount: number;
+  feedbackOpen: boolean;
   canManage: boolean;
   canGiveFeedback: boolean;
   feedbackSubmitted: boolean;
@@ -167,6 +175,24 @@ export function CenacleMissionsPanel() {
       setError(apiErrorMessage(e));
     }
   };
+  const confirmPresence = async (item: Mission, confirmed: boolean) => {
+    try {
+      await api.post(`/cenacle-missions/${item.id}/presence`, { confirmed });
+      setSuccess(confirmed ? 'Presença confirmada.' : 'Participação recusada.');
+      await load();
+    } catch (e) {
+      setError(apiErrorMessage(e));
+    }
+  };
+  const openMissionFeedback = async (item: Mission) => {
+    try {
+      const response = await api.post<{ notified: number }>(`/cenacle-missions/${item.id}/feedback/open`);
+      setSuccess(`Feedback liberado para ${response.data.notified} participante(s) confirmado(s).`);
+      await load();
+    } catch (e) {
+      setError(apiErrorMessage(e));
+    }
+  };
   return (
     <Box>
       <Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" gap={2} mb={2}>
@@ -219,11 +245,37 @@ export function CenacleMissionsPanel() {
                   <Typography color="text.secondary" mt={1}>
                     Enviados: {item.participantNames.join(', ') || 'Nenhum'}
                   </Typography>
+                  <Stack direction="row" gap={1} flexWrap="wrap" mt={1}>
+                    {item.participants.map((participant) => (
+                      <Chip
+                        key={participant.id}
+                        size="small"
+                        label={`${participant.name}: ${participant.presenceStatus.toLowerCase()}`}
+                        color={participant.presenceStatus === 'CONFIRMADA' ? 'success' : participant.presenceStatus === 'RECUSADA' ? 'error' : 'default'}
+                      />
+                    ))}
+                  </Stack>
                 </Box>
                 <Stack direction={{ xs: 'row', md: 'column' }} alignItems="stretch">
                   {item.canManage && (
                     <Button startIcon={<EditOutlined />} onClick={() => openEdit(item)}>
                       Editar
+                    </Button>
+                  )}
+                  {item.canManage && !item.feedbackOpen && (
+                    <Button startIcon={<LockOpenOutlined />} onClick={() => void openMissionFeedback(item)}>
+                      Liberar feedback ({item.confirmedCount})
+                    </Button>
+                  )}
+                  {item.feedbackOpen && <Chip color="info" label="Feedback liberado" />}
+                  {item.canConfirmPresence && item.presenceStatus !== 'CONFIRMADA' && (
+                    <Button variant="contained" color="success" startIcon={<CheckCircleOutlined />} onClick={() => void confirmPresence(item, true)}>
+                      Confirmar presença
+                    </Button>
+                  )}
+                  {item.canConfirmPresence && item.presenceStatus !== 'RECUSADA' && (
+                    <Button color="error" startIcon={<CancelOutlined />} onClick={() => void confirmPresence(item, false)}>
+                      Não participarei
                     </Button>
                   )}
                   {item.canManage && (

@@ -23,6 +23,19 @@ export class CenacleMissionsController {
   ) {
     return this.service.update(id, dto, user);
   }
+  @Post(':id/presence') presence(
+    @Param('id') id: string,
+    @Body() body: { confirmed: boolean },
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.service.confirmPresence(id, body.confirmed, user);
+  }
+  @Post(':id/feedback/open') openFeedback(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.service.openFeedback(id, user);
+  }
   @Post(':id/feedback') feedback(
     @Param('id') id: string,
     @Body() dto: SaveCenacleMissionFeedbackDto,

@@ -75,6 +75,7 @@ const qaMissionsMinistry = {
   membersCount: 4,
 };
 const cenacleMissions = [];
+const qaCommunities = [];
 const qaMinistryMembers = [members[2], members[3], members[5], members[6], members[7]].map(
   (member) => ({
     memberId: member.id,
@@ -167,7 +168,72 @@ Module({
       cellIds: req.user.profile === 'CELL_LEADER' ? ['qa-cell-leader'] : [],
     });
   });
-  server.get('/api/communities', (_req, res) => res.json([]));
+  server.get('/api/communities', (req, res) =>
+    res.json(qaCommunities.filter((item) => !req.query.type || item.type === req.query.type)),
+  );
+  server.post('/api/communities', (req, res) => {
+    const body = req.body || {};
+    if (!body.name || !body.type) return res.status(400).json({ message: 'Informe nome e tipo.' });
+    const item = {
+      id: `qa-community-${Date.now()}`,
+      name: body.name,
+      type: body.type,
+      description: body.description || '',
+      leader: members.find((member) => member.id === body.leaderId) || members[0],
+      coLeaders: [],
+      participants: [],
+      ministryId: body.ministryId || '',
+      ministryName: body.ministryId === qaMissionsMinistry.id ? qaMissionsMinistry.name : '',
+      cellId: body.cellId || '',
+      cellName: '',
+      weekday: body.weekday || '',
+      startDate: body.startDate || '',
+      endDate: body.endDate || body.startDate || '',
+      time: body.time || '',
+      endTime: body.endTime || '',
+      recurrence: 'NAO',
+      modality: body.modality || '',
+      status: 'UPCOMING',
+      address: body.address || '',
+      neighborhood: body.neighborhood || '',
+      city: body.city || '',
+      state: body.state || '',
+      latitude: 0,
+      longitude: 0,
+      active: true,
+      canEdit: true,
+      canManageParticipants: true,
+      canAddExternalParticipants: true,
+    };
+    qaCommunities.push(item);
+    if (body.type === 'CENACLE') {
+      const now = new Date().toISOString();
+      tabs['Notificações'].push({
+        id: `qa-notice-${Date.now()}`,
+        titulo: `Novo cenáculo: ${body.name}`,
+        mensagem: `${body.name} foi marcado para ${String(body.startDate || '').split('-').reverse().join('/')} às ${body.time || ''}.`,
+        title: `Novo cenáculo: ${body.name}`,
+        message: `${body.name} foi marcado para ${String(body.startDate || '').split('-').reverse().join('/')} às ${body.time || ''}.`,
+        tipo: 'EVENTO',
+        type: 'EVENTO',
+        publico: 'TODOS',
+        audience: 'TODOS',
+        origem: 'Cenáculos',
+        referencia_tipo: 'CENACULO',
+        referencia_id: item.id,
+        link: '/cenaculos',
+        data_envio: now,
+        sentAt: now,
+        enviado_por: 'SYSTEM',
+        enviado_por_nome: 'Sistema QA',
+        senderName: 'Sistema QA',
+        ativo: 'TRUE',
+        active: true,
+        read: false,
+      });
+    }
+    res.status(201).json(item);
+  });
   server.get('/api/members', (_req, res) => res.json({ members }));
   server.get('/api/missions', (_req, res) =>
     res.json([{ id: 'missao-brasilia', name: 'Missão Brasília', active: true }]),

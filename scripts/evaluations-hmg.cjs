@@ -134,6 +134,7 @@ Module({
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
   app.useGlobalGuards(new RolesGuard(new Reflector()));
   const server = app.getHttpAdapter().getInstance();
+  server.use(express.json());
   server.use((req, res, next) => {
     res.setHeader('Cache-Control', 'no-store');
     req.user =

@@ -259,7 +259,7 @@ Module({
       canConfirmPresence: row.participantIds.includes(req.user.id),
       confirmedCount: Object.values(row.presences || {}).filter((status) => status === 'CONFIRMADA').length,
       feedbackOpen: Boolean(row.feedbackOpen),
-      canManage: ['DEVELOPER', 'MISSION_LEADER'].includes(req.user.profile),
+      canManage: ['DEVELOPER', 'MISSION_LEADER', 'MINISTRY_LEADER'].includes(req.user.profile),
       canGiveFeedback: row.participantIds.includes(req.user.id) && presenceStatus === 'CONFIRMADA' && Boolean(row.feedbackOpen) && row.date <= new Date().toISOString().slice(0, 10),
       feedbackSubmitted: false,
       feedbackCount: 0,
@@ -268,7 +268,7 @@ Module({
   server.get('/api/cenacle-missions/options', (req, res) => res.json({
     members: members.map((member) => ({ id: member.id, name: member.name })),
     ministries: [{ id: qaMissionsMinistry.id, name: qaMissionsMinistry.name }],
-    canCreate: ['DEVELOPER', 'MISSION_LEADER'].includes(req.user.profile),
+    canCreate: ['DEVELOPER', 'MISSION_LEADER', 'MINISTRY_LEADER'].includes(req.user.profile),
   }));
   server.get('/api/cenacle-missions', (req, res) =>
     res.json(cenacleMissions.map((row) => mapCenacleMission(row, req))),
@@ -299,7 +299,7 @@ Module({
   server.post('/api/cenacle-missions/:id/feedback/open', (req, res) => {
     const row = cenacleMissions.find((item) => item.id === req.params.id);
     if (!row) return res.sendStatus(404);
-    if (!['DEVELOPER', 'MISSION_LEADER'].includes(req.user.profile))
+    if (!['DEVELOPER', 'MISSION_LEADER', 'MINISTRY_LEADER'].includes(req.user.profile))
       return res.status(403).json({ message: 'Acesso restrito à liderança.' });
     if (row.date > new Date().toISOString().slice(0, 10))
       return res.status(400).json({ message: 'O feedback só pode ser liberado ao final da missão.' });

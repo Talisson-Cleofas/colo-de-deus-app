@@ -12,13 +12,15 @@ import { GoogleSheetsService, type SheetRecord } from '../google/google-sheets.s
 import { SHEET_SCHEMAS } from '../google/sheet-schemas';
 import { normalizeMinistryModule } from '../rbac/ministry-permission.map';
 import type { SaveCenacleMissionDto, SaveCenacleMissionFeedbackDto } from './cenacle-missions.dto';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class CenacleMissionsService implements OnModuleInit {
-  constructor(private readonly sheets: GoogleSheetsService) {}
+  constructor(private readonly sheets: GoogleSheetsService, private readonly notifications: NotificationsService) {}
   async onModuleInit() {
     await this.sheets.ensureTab('MissoesCenaculo', SHEET_SCHEMAS.MissoesCenaculo);
     await this.sheets.ensureTab('MissoesCenaculoFeedback', SHEET_SCHEMAS.MissoesCenaculoFeedback);
+    await this.sheets.ensureTab('MissoesCenaculoPresencas', SHEET_SCHEMAS.MissoesCenaculoPresencas);
   }
   private uid(user: AuthenticatedUser) {
     return user.memberId || user.id || user.uid;
@@ -68,15 +70,19 @@ export class CenacleMissionsService implements OnModuleInit {
     return row;
   }
   private async map(row: SheetRecord, user: AuthenticatedUser) {
-    const [members, feedback] = await Promise.all([
+    const [members, feedback, presences] = await Promise.all([
       this.sheets.listMembers(),
       this.sheets.read('MissoesCenaculoFeedback'),
+      this.sheets.read('MissoesCenaculoPresencas'),
     ]);
     const memberNames = new Map(members.map((member) => [member.id, member.name]));
     const participantIds = this.ids(row);
     const ownFeedback = feedback.find(
       (item) => item.missao_id === row.id && item.membro_id === this.uid(user),
     );
+    const missionPresences = presences.filter((item) => item.missao_id === row.id);
+    const ownPresence = missionPresences.find((item) => item.membro_id === this.uid(user));
+    const feedbackOpen = this.sheets.parseActive(row.feedback_liberado || '', false);
     return {
       id: row.id,
       title: row.titulo,
@@ -88,9 +94,20 @@ export class CenacleMissionsService implements OnModuleInit {
       status: row.status || 'AGENDADA',
       participantIds,
       participantNames: participantIds.map((id) => memberNames.get(id) || id),
+      participants: participantIds.map((id) => ({
+        id,
+        name: memberNames.get(id) || id,
+        presenceStatus: missionPresences.find((item) => item.membro_id === id)?.status || 'PENDENTE',
+      })),
+      presenceStatus: ownPresence?.status || 'PENDENTE',
+      canConfirmPresence: participantIds.includes(this.uid(user)),
+      confirmedCount: missionPresences.filter((item) => item.status === 'CONFIRMADA').length,
+      feedbackOpen,
       canManage: await this.canManage(user, row.ministerio_id || ''),
       canGiveFeedback:
         participantIds.includes(this.uid(user)) &&
+        ownPresence?.status === 'CONFIRMADA' &&
+        feedbackOpen &&
         row.data <= new Date().toISOString().slice(0, 10) &&
         !ownFeedback,
       feedbackSubmitted: Boolean(ownFeedback),
@@ -172,6 +189,9 @@ export class CenacleMissionsService implements OnModuleInit {
       ministerio_id: dto.ministryId || '',
       participantes_ids: [...new Set(dto.participantIds)].join(','),
       status: dto.status || 'AGENDADA',
+      feedback_liberado: 'FALSE',
+      feedback_liberado_por: '',
+      feedback_liberado_em: '',
       ativo: 'TRUE',
       criado_por: this.uid(user),
       criado_em: now,
@@ -207,6 +227,13 @@ export class CenacleMissionsService implements OnModuleInit {
       uid = this.uid(user);
     if (!this.ids(row).includes(uid))
       throw new ForbiddenException('Somente participantes enviados podem responder ao feedback.');
+    if (!this.sheets.parseActive(row.feedback_liberado || '', false))
+      throw new ForbiddenException('O formulário de feedback ainda não foi liberado pela liderança.');
+    const presence = (await this.sheets.read('MissoesCenaculoPresencas')).find(
+      (item) => item.missao_id === id && item.membro_id === uid && item.status === 'CONFIRMADA',
+    );
+    if (!presence)
+      throw new ForbiddenException('Somente participantes que confirmaram presença podem responder.');
     if (row.data > new Date().toISOString().slice(0, 10))
       throw new BadRequestException('O feedback ficará disponível após a data da missão.');
     const feedback = await this.sheets.read('MissoesCenaculoFeedback');
@@ -224,6 +251,61 @@ export class CenacleMissionsService implements OnModuleInit {
       atualizado_em: now,
     });
     return { success: true, message: 'Feedback enviado com sucesso.' };
+  }
+  async confirmPresence(id: string, confirmed: boolean, user: AuthenticatedUser) {
+    const row = await this.mission(id), uid = this.uid(user);
+    if (!this.ids(row).includes(uid))
+      throw new ForbiddenException('Somente missionários enviados podem confirmar presença.');
+    const rows = await this.sheets.read('MissoesCenaculoPresencas');
+    const current = rows.find((item) => item.missao_id === id && item.membro_id === uid);
+    const now = new Date().toISOString();
+    const record = {
+      id: current?.id || randomUUID(),
+      missao_id: id,
+      membro_id: uid,
+      status: confirmed ? 'CONFIRMADA' : 'RECUSADA',
+      confirmado_em: now,
+      atualizado_em: now,
+    };
+    if (current) await this.sheets.updateRecord('MissoesCenaculoPresencas', 'id', current.id, record);
+    else await this.sheets.appendRecord('MissoesCenaculoPresencas', record);
+    return { success: true, status: record.status, message: confirmed ? 'Presença confirmada.' : 'Participação recusada.' };
+  }
+  async openFeedback(id: string, user: AuthenticatedUser) {
+    const row = await this.mission(id);
+    if (!(await this.canManage(user, row.ministerio_id || '')))
+      throw new ForbiddenException('Você não pode liberar o feedback desta missão.');
+    if (row.data > new Date().toISOString().slice(0, 10))
+      throw new BadRequestException('O feedback só pode ser liberado ao final da missão.');
+    if (this.sheets.parseActive(row.feedback_liberado || '', false))
+      throw new ConflictException('O feedback desta missão já foi liberado.');
+    const confirmedIds = (await this.sheets.read('MissoesCenaculoPresencas'))
+      .filter((item) => item.missao_id === id && item.status === 'CONFIRMADA')
+      .map((item) => item.membro_id)
+      .filter(Boolean);
+    if (!confirmedIds.length)
+      throw new BadRequestException('Nenhum participante confirmou presença nesta missão.');
+    const now = new Date().toISOString();
+    await this.sheets.updateRecord('MissoesCenaculo', 'id', id, {
+      ...row,
+      feedback_liberado: 'TRUE',
+      feedback_liberado_por: this.uid(user),
+      feedback_liberado_em: now,
+      atualizado_por: this.uid(user),
+      atualizado_em: now,
+    });
+    await this.notifications.createSystem({
+      title: `Feedback disponível: ${row.titulo}`,
+      message: `Você confirmou presença em ${row.titulo}. Conte como foi sua experiência na missão.`,
+      type: 'SISTEMA',
+      audience: 'INDIVIDUAL',
+      recipientIds: [...new Set(confirmedIds)],
+      origin: 'Missões',
+      referenceType: 'MISSAO_CENACULO',
+      referenceId: id,
+      link: '/cenaculos',
+    });
+    return { success: true, notified: new Set(confirmedIds).size, message: 'Feedback liberado para os participantes presentes.' };
   }
   async results(id: string, user: AuthenticatedUser) {
     const row = await this.mission(id);

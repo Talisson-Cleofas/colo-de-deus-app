@@ -26,6 +26,57 @@ const members = ['DEVELOPER', 'MISSION_LEADER', 'MINISTRY_LEADER', 'MEMBER', 'CE
     role: profile,
   }),
 );
+members.push(
+  {
+    id: 'qa-5', memberId: 'qa-5', uid: 'qa-5',
+    name: 'Brendo de Almeida dos Santos',
+    email: 'brendo.almeida.teste@example.test',
+    profile: 'MEMBER', active: true, gifts: [], ministry: 'Comunicação',
+    cell: '', photo: '', role: 'MEMBER',
+  },
+  {
+    id: 'qa-6', memberId: 'qa-6', uid: 'qa-6',
+    name: 'Isabella Silva Valverde',
+    email: 'isabella.valverde.teste@example.test',
+    profile: 'MEMBER', active: true, gifts: [], ministry: 'Comunicação',
+    cell: '', photo: '', role: 'MEMBER',
+  },
+  {
+    id: 'qa-7', memberId: 'qa-7', uid: 'qa-7',
+    name: 'Mariana Rodrigues com Nome Extenso para Teste Responsivo',
+    email: 'mariana.rodrigues.email-extenso-homologacao@example.test',
+    profile: 'MEMBER', active: true, gifts: [], ministry: 'Comunicação',
+    cell: '', photo: '', role: 'MEMBER',
+  },
+);
+const qaMinistry = {
+  id: 'qa-ministry-communication',
+  missionId: 'missao-brasilia',
+  name: 'Comunicação',
+  description: 'Ministério fictício para validação de layout e permissões em homologação.',
+  leaderId: 'qa-2',
+  leaderEmail: 'qa-2@example.test',
+  leaderName: 'Teste MINISTRY_LEADER',
+  viceLeaderEmail: '',
+  viceLeaderName: '',
+  color: '#d99a4e',
+  icon: '',
+  type: 'COMUNICACAO',
+  notes: 'Registro temporário e sem dados reais.',
+  active: true,
+  membersCount: 5,
+};
+const qaMinistryMembers = [members[2], members[3], members[5], members[6], members[7]].map(
+  (member) => ({
+    memberId: member.id,
+    name: member.name,
+    email: member.email,
+    profile: member.profile,
+    function: member.id === 'qa-2' ? 'LIDER' : 'MEMBRO',
+    photo: member.photo,
+    active: true,
+  }),
+);
 const tabs = {
   AvaliacoesCiclos: [],
   AvaliacoesRespostas: [],
@@ -109,7 +160,15 @@ Module({
   });
   server.get('/api/communities', (_req, res) => res.json([]));
   server.get('/api/members', (_req, res) => res.json({ members }));
-  server.get('/api/ministries', (_req, res) => res.json([]));
+  server.get('/api/missions', (_req, res) =>
+    res.json([{ id: 'missao-brasilia', name: 'Missão Brasília', active: true }]),
+  );
+  server.get('/api/ministries', (_req, res) => res.json([qaMinistry]));
+  server.get('/api/ministries/:id', (req, res) =>
+    req.params.id === qaMinistry.id
+      ? res.json({ ministry: qaMinistry, members: qaMinistryMembers, attendances: [] })
+      : res.sendStatus(404),
+  );
   server.get('/api/notifications/state', (_req, res) =>
     res.json({
       notifications: tabs['Notificações'],

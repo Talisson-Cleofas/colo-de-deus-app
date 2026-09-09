@@ -100,6 +100,7 @@ type MemberForm = {
   ministry: string;
   cell: string;
   profile: AccessProfile;
+  profiles: AccessProfile[];
   active: boolean;
   birthDate: string;
   city: string;
@@ -121,6 +122,7 @@ const emptyForm: MemberForm = {
   ministry: '',
   cell: '',
   profile: 'MEMBER',
+  profiles: ['MEMBER'],
   active: true,
   birthDate: '',
   city: '',
@@ -142,6 +144,7 @@ const memberToForm = (member: Member): MemberForm => ({
   ministry: member.ministry,
   cell: member.cell,
   profile: member.profile,
+  profiles: member.profiles?.length ? member.profiles : [member.profile],
   active: member.active,
   birthDate: member.birthDate,
   city: member.city,
@@ -683,25 +686,37 @@ export function MembersPage() {
             />
             <TextField
               select
-              label="Perfil de acesso"
-              value={form.profile}
-              onChange={(e) => setField('profile', e.target.value as AccessProfile)}
+              label="Perfis de acesso"
+              value={form.profiles}
+              onChange={(e) => {
+                const value = e.target.value;
+                const selected = (
+                  typeof value === 'string' ? value.split(',') : value
+                ) as AccessProfile[];
+                setField('profiles', selected.length ? selected : ['MEMBER']);
+              }}
               disabled={!isAdmin || profilesLoading}
+              SelectProps={{
+                multiple: true,
+                renderValue: (selected) =>
+                  (selected as string[]).map((code) => profileLabel(code)).join(', '),
+              }}
               helperText={
                 profilesLoading
                   ? 'Carregando perfis configurados...'
                   : profilesError
                     ? 'Usando perfis padrão por indisponibilidade temporária.'
-                    : 'Perfis ativos definidos no RBAC.'
+                    : 'O perfil de maior importância será aplicado automaticamente.'
               }
             >
               {editing &&
-                form.profile &&
-                !accessProfiles.some((item) => item.code === form.profile) && (
-                  <MenuItem value={form.profile} disabled>
-                    {profileLabel(form.profile)} — não atribuível
-                  </MenuItem>
-                )}
+                form.profiles
+                  .filter((code) => !accessProfiles.some((item) => item.code === code))
+                  .map((code) => (
+                    <MenuItem key={code} value={code} disabled>
+                      {profileLabel(code)} — não atribuível
+                    </MenuItem>
+                  ))}
               {accessProfiles.map((item) => (
                 <MenuItem key={item.code} value={item.code}>
                   {item.name}

@@ -17,7 +17,7 @@ export class NotificationsService implements OnModuleInit,OnModuleDestroy {
  onModuleInit(){if(!this.sheets.isDemo())this.timer=setInterval(()=>void this.processAutomations(),60*60*1000);}
  onModuleDestroy(){if(this.timer)clearInterval(this.timer);}
  private uid(user:AuthenticatedUser){return user.memberId||user.id||user.uid;}
- private canCreate(user:AuthenticatedUser){return ['DEVELOPER','ADMIN','MINISTRY_LEADER','CELL_LEADER'].includes(user.profile);}
+ private canCreate(user:AuthenticatedUser){return ['DEVELOPER','ADMIN','MINISTRY_LEADER'].includes(user.profile);}
  private async rows(tab:string){if(this.sheets.isDemo())return [];return this.sheets.read(tab);}
  private async context(){const [members,ministries,cells,cenacles]=await Promise.all([this.rows('Membros'),this.rows('Ministérios'),this.rows('Células'),this.rows('Cenáculos')]);return {members,ministries,cells,cenacles};}
  async state(user:AuthenticatedUser){return this.readEngine.state(user,await this.preferences(user));}

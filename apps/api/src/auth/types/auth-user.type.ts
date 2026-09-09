@@ -1,4 +1,5 @@
-export type AccessProfile = 'DEVELOPER' | 'MISSION_LEADER' | 'ADMIN' | 'MINISTRY_LEADER' | 'CELL_LEADER' | 'MEMBER';
+export type AccessProfile =
+  'DEVELOPER' | 'MISSION_LEADER' | 'ADMIN' | 'MINISTRY_LEADER' | 'CELL_LEADER' | 'MEMBER';
 
 export type AuthenticatedUser = {
   uid: string;
@@ -12,6 +13,7 @@ export type AuthenticatedUser = {
   cell: string;
   phone: string;
   profile: AccessProfile;
+  profiles?: AccessProfile[];
   active: true;
   bio: string;
   instagram: string;

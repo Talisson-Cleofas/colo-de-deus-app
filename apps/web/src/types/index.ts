@@ -20,6 +20,7 @@ export type Member = {
   cell: string;
   phone: string;
   profile: AccessProfile;
+  profiles?: AccessProfile[];
   active: boolean;
   bio: string;
   instagram: string;

@@ -96,6 +96,18 @@ const member = [
   Permission.LECTIO_READ,
   Permission.SOMA_READ,
 ];
+const cellLeader = [
+  ...member,
+  Permission.CELLS_UPDATE,
+  Permission.CELLS_MANAGE,
+  Permission.ATTENDANCE_READ,
+  Permission.ATTENDANCE_CREATE,
+];
+
+export const PROFILE_PERMISSION_CEILINGS: Partial<Record<ProfileCode, Permission[]>> = {
+  [ProfileCode.CELL_LEADER]: cellLeader,
+  [ProfileCode.MEMBER]: member,
+};
 
 export const DEFAULT_PROFILE_PERMISSIONS: ProfilePermission[] = [
   ...all.map((permissionCode) => ({
@@ -124,7 +136,7 @@ export const DEFAULT_PROFILE_PERMISSIONS: ProfilePermission[] = [
     allowed: true,
     scope: PermissionScope.MINISTRY,
   })),
-  ...leader.map((permissionCode) => ({
+  ...cellLeader.map((permissionCode) => ({
     profileCode: ProfileCode.CELL_LEADER,
     permissionCode,
     allowed: true,

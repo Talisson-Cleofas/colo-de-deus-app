@@ -52,6 +52,8 @@ export class MembersController {
   @ApiOperation({ summary: 'Cadastrar um membro no Google Sheets' })
   async create(@Body() dto: CreateMemberDto, @CurrentUser() user: AuthenticatedUser) {
     await this.accessProfiles.assertAssignable(user.profile, dto.profile);
+    for (const profile of dto.profiles || [])
+      await this.accessProfiles.assertAssignable(user.profile, profile);
     const member = await this.sheets.createMember(dto);
     await this.mapsSync.syncMember(member.id, true);
     return { member, message: 'Membro cadastrado com sucesso.' };
@@ -70,6 +72,10 @@ export class MembersController {
     }
     if (dto.profile && ['ADMIN', 'MISSION_LEADER', 'DEVELOPER'].includes(user.profile)) {
       await this.accessProfiles.assertAssignable(user.profile, dto.profile);
+    }
+    if (dto.profiles?.length && ['ADMIN', 'MISSION_LEADER', 'DEVELOPER'].includes(user.profile)) {
+      for (const profile of dto.profiles)
+        await this.accessProfiles.assertAssignable(user.profile, profile);
     }
     const safeDto = ['ADMIN', 'MISSION_LEADER', 'DEVELOPER'].includes(user.profile)
       ? dto

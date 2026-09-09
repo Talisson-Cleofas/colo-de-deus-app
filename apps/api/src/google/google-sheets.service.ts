@@ -10,6 +10,7 @@ import { randomUUID } from 'node:crypto';
 import { google } from 'googleapis';
 import { SHEET_SCHEMAS, type SheetName } from './sheet-schemas';
 import { MemoryCacheService } from '../performance/memory-cache.service';
+import { effectiveAccessProfile, resolveAccessProfiles } from '../auth/profile-priority';
 
 export type MemberRow = {
   id: string;
@@ -21,6 +22,7 @@ export type MemberRow = {
   cell: string;
   phone: string;
   profile: string;
+  profiles?: string[];
   active: boolean;
   bio: string;
   instagram: string;
@@ -582,23 +584,6 @@ export class GoogleSheetsService {
     );
   }
 
-  private parseProfile(value: string): string {
-    const normalized = value
-      .trim()
-      .toUpperCase()
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '');
-    if (['DEVELOPER', 'DESENVOLVEDOR'].includes(normalized)) return 'DEVELOPER';
-    if (['MISSION_LEADER', 'LIDER_MISSAO', 'LIDER MISSAO', 'ADMIN'].includes(normalized))
-      return 'MISSION_LEADER';
-    if (['LIDER_MINISTERIO', 'LIDER DE MINISTERIO', 'MINISTRY_LEADER'].includes(normalized))
-      return 'MINISTRY_LEADER';
-    if (['LIDER', 'LEADER', 'LIDER_CELULA', 'LIDER DE CELULA', 'CELL_LEADER'].includes(normalized))
-      return 'CELL_LEADER';
-    if (['MEMBER', 'MEMBRO'].includes(normalized)) return 'MEMBER';
-    return normalized.replace(/[^A-Z0-9]+/g, '_').replace(/^_|_$/g, '') || 'MEMBER';
-  }
-
   parseActive(value: string, defaultValue = false): boolean {
     if (!value.trim()) return defaultValue;
     return ['sim', 'true', '1', 'ativo', 'yes'].includes(value.trim().toLowerCase());
@@ -743,7 +728,8 @@ export class GoogleSheetsService {
         ministry: row.ministerio ?? '',
         cell: row.celula ?? '',
         phone: row.telefone ?? '',
-        profile: this.parseProfile(row.perfil ?? 'MEMBER'),
+        profile: effectiveAccessProfile(row.perfis || row.perfil || 'MEMBER'),
+        profiles: resolveAccessProfiles(row.perfis || row.perfil || 'MEMBER'),
         active: this.parseActive(row.ativo ?? ''),
         bio: row.bio ?? '',
         instagram: row.instagram ?? '',
@@ -804,7 +790,8 @@ export class GoogleSheetsService {
       ministry: input.ministry?.trim() ?? '',
       cell: input.cell?.trim() ?? '',
       phone: input.phone?.trim() ?? '',
-      profile: input.profile ?? 'MEMBER',
+      profile: effectiveAccessProfile(input.profiles?.length ? input.profiles : input.profile),
+      profiles: resolveAccessProfiles(input.profiles?.length ? input.profiles : input.profile),
       active: input.active ?? true,
       bio: input.bio?.trim() ?? '',
       instagram: input.instagram?.trim() ?? '',
@@ -839,6 +826,7 @@ export class GoogleSheetsService {
         celula: member.cell,
         telefone: member.phone,
         perfil: member.profile,
+        perfis: member.profiles?.join(',') || member.profile,
         ativo: member.active ? 'TRUE' : 'FALSE',
         bio: member.bio,
         instagram: member.instagram,
@@ -892,7 +880,16 @@ export class GoogleSheetsService {
       ministry: input.ministry?.trim() ?? current.ministry,
       cell: input.cell?.trim() ?? current.cell,
       phone: input.phone?.trim() ?? current.phone,
-      profile: input.profile ?? current.profile,
+      profile: effectiveAccessProfile(
+        input.profiles?.length
+          ? input.profiles
+          : (input.profile ?? current.profiles ?? current.profile),
+      ),
+      profiles: resolveAccessProfiles(
+        input.profiles?.length
+          ? input.profiles
+          : (input.profile ?? current.profiles ?? current.profile),
+      ),
       active: input.active ?? current.active,
       bio: input.bio?.trim() ?? current.bio,
       instagram: input.instagram?.trim() ?? current.instagram,
@@ -923,6 +920,7 @@ export class GoogleSheetsService {
         celula: member.cell,
         telefone: member.phone,
         perfil: member.profile,
+        perfis: member.profiles?.join(',') || member.profile,
         ativo: member.active ? 'TRUE' : 'FALSE',
         bio: member.bio,
         instagram: member.instagram,

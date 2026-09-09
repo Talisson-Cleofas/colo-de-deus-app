@@ -119,6 +119,9 @@ export class CommunitiesService {
   private canEdit(user: AuthenticatedUser, type: CommunityType, row: Record<string, string>) {
     const uid = this.userId(user);
     if (['DEVELOPER', 'MISSION_LEADER', 'ADMIN'].includes(user.profile)) return true;
+    if (user.profile === 'CELL_LEADER') {
+      return type === 'CELL' && Boolean(row.id && this.cellScopeIdsCache.has(row.id));
+    }
     if (
       this.managesAllCellsCache &&
       (type === 'CELL' || (type === 'CENACLE' && Boolean(row.celula_id)))
@@ -129,10 +132,6 @@ export class CommunitiesService {
       (type === 'CENACLE' && row.vice_responsavel_id === uid)
     )
       return true;
-    if (user.profile === 'CELL_LEADER') {
-      const cellId = type === 'CELL' ? row.id : row.celula_id;
-      return Boolean(cellId && this.cellScopeIdsCache.has(cellId));
-    }
     if (
       user.profile === 'MINISTRY_LEADER' &&
       row.ministerio_id &&

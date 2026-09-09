@@ -50,6 +50,7 @@ export const SHEET_SCHEMAS = {
     'celula',
     'telefone',
     'perfil',
+    'perfis',
     'ativo',
     'deleted_at',
     'deleted_by',

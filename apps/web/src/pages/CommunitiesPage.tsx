@@ -69,10 +69,11 @@ export function CommunitiesPage({ type }: { type: 'CELL' | 'CENACLE' }) {
   const { hasRole } = useAuth();
   const { hasPermission, hasMinistryModule } = usePermission();
   const canCreate =
-    hasRole('ADMIN', 'DEVELOPER', 'MISSION_LEADER') ||
-    (type === 'CELL'
-      ? hasPermission(Permission.CELLS_CREATE) && hasMinistryModule('CELULAS')
-      : hasPermission(Permission.CENACLES_CREATE) && hasMinistryModule('CENACULO'));
+    !hasRole('CELL_LEADER', 'MEMBER') &&
+    (hasRole('ADMIN', 'DEVELOPER', 'MISSION_LEADER') ||
+      (type === 'CELL'
+        ? hasPermission(Permission.CELLS_CREATE) && hasMinistryModule('CELULAS')
+        : hasPermission(Permission.CENACLES_CREATE) && hasMinistryModule('CENACULO')));
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState(makeEmpty());

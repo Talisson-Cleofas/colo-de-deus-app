@@ -143,7 +143,7 @@ function AuthenticatedRoutes() {
             />
             <Route
               path="/relatorios"
-              element={protect(<ReportsPage />, Permission.REPORTS_READ, ['MEMBER'])}
+              element={protect(<ReportsPage />, Permission.REPORTS_READ, ['CELL_LEADER', 'MEMBER'])}
             />
             <Route
               path="/avaliacoes"
@@ -158,6 +158,7 @@ function AuthenticatedRoutes() {
               path="/missoes"
               element={protect(<MissionsPage />, Permission.MINISTRIES_READ, [
                 'MINISTRY_LEADER',
+                'CELL_LEADER',
                 'MEMBER',
               ])}
             />
@@ -212,6 +213,7 @@ function AuthenticatedRoutes() {
               path="/organizacao"
               element={protect(<OrganizationDashboardPage />, Permission.SETTINGS_READ, [
                 'MINISTRY_LEADER',
+                'CELL_LEADER',
                 'MEMBER',
               ])}
             />
@@ -219,6 +221,7 @@ function AuthenticatedRoutes() {
               path="/configuracoes"
               element={protect(<SettingsPage />, Permission.SETTINGS_READ, [
                 'MINISTRY_LEADER',
+                'CELL_LEADER',
                 'MEMBER',
               ])}
             />
@@ -226,6 +229,7 @@ function AuthenticatedRoutes() {
               path="/configuracoes/integracoes"
               element={protect(<IntegrationsPage />, Permission.INTEGRATIONS_READ, [
                 'MINISTRY_LEADER',
+                'CELL_LEADER',
                 'MEMBER',
               ])}
             />
@@ -233,6 +237,7 @@ function AuthenticatedRoutes() {
               path="/configuracoes/performance"
               element={protect(<PerformancePage />, Permission.SETTINGS_READ, [
                 'MINISTRY_LEADER',
+                'CELL_LEADER',
                 'MEMBER',
               ])}
             />
@@ -240,6 +245,7 @@ function AuthenticatedRoutes() {
               path="/configuracoes/tecnico"
               element={protect(<TechnicalAdminPage />, Permission.TECHNICAL_ADMIN_READ, [
                 'MINISTRY_LEADER',
+                'CELL_LEADER',
                 'MEMBER',
               ])}
             />
@@ -247,6 +253,7 @@ function AuthenticatedRoutes() {
               path="/configuracoes/perfis"
               element={protect(<ProfilesPage />, Permission.SETTINGS_MANAGE, [
                 'MINISTRY_LEADER',
+                'CELL_LEADER',
                 'MEMBER',
               ])}
             />
@@ -255,7 +262,7 @@ function AuthenticatedRoutes() {
               element={protectAny(
                 <AuditPage />,
                 [Permission.LOGS_READ, Permission.SETTINGS_READ],
-                ['MINISTRY_LEADER', 'MEMBER'],
+                ['MINISTRY_LEADER', 'CELL_LEADER', 'MEMBER'],
               )}
             />
             <Route
@@ -263,13 +270,14 @@ function AuthenticatedRoutes() {
               element={protectAny(
                 <TrashPage />,
                 [Permission.SETTINGS_MANAGE, Permission.MEMBERS_DELETE],
-                ['MINISTRY_LEADER', 'MEMBER'],
+                ['MINISTRY_LEADER', 'CELL_LEADER', 'MEMBER'],
               )}
             />
             <Route
               path="/configuracoes/rbac"
               element={protect(<RbacPage />, Permission.SETTINGS_MANAGE, [
                 'MINISTRY_LEADER',
+                'CELL_LEADER',
                 'MEMBER',
               ])}
             />

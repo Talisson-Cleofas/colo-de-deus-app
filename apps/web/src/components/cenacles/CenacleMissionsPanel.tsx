@@ -198,7 +198,7 @@ export function CenacleMissionsPanel() {
             Missões do Ministério de Missões
           </Typography>
           <Typography color="text.secondary">
-            Agenda das missões e feedback identificado dos participantes enviados.
+            Agenda das missões e feedback identificado dos participantes confirmados.
           </Typography>
         </Box>
         {canCreate && (

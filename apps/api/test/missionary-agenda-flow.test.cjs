@@ -39,6 +39,26 @@ const users = {
     profile: 'MEMBER',
     ministry: 'Missões',
   },
+  yearOne: {
+    id: 'year-one',
+    memberId: 'year-one',
+    uid: 'year-one',
+    name: 'Membro Ano 1',
+    email: 'year.one@test.dev',
+    profile: 'MEMBER',
+    ministry: 'Missões',
+    vocationalYear: 'ANO_1',
+  },
+  yearTwo: {
+    id: 'year-two',
+    memberId: 'year-two',
+    uid: 'year-two',
+    name: 'Membro Ano 2',
+    email: 'year.two@test.dev',
+    profile: 'MEMBER',
+    ministry: 'Missões',
+    vocationalYear: 'ANO_2',
+  },
 };
 
 function fixture() {
@@ -52,6 +72,7 @@ function fixture() {
     name: user.name,
     profile: user.profile,
     ministry: user.ministry,
+    vocationalYear: user.vocationalYear || '',
     active: true,
   }));
   const ministries = [
@@ -361,6 +382,68 @@ test('bloqueia transições por perfil e seleção fora do ministério', async (
   await assert.rejects(
     () => service.sendToMembers(created.id, { memberIds: [outsider.id] }, users.ministry),
     /inexistente|ministério/i,
+  );
+});
+
+test('bloqueia Ano 1 e exige autorização por missão para enviar Ano 2', async () => {
+  const { service, tabs, notifications } = fixture();
+  const created = await service.create(input('Missão com regra vocacional'), users.agenda);
+  await service.submit(created.id, users.agenda);
+  await service.approve(created.id, {}, users.mission);
+
+  const optionsBefore = await service.options(users.ministry);
+  assert.equal(
+    optionsBefore.members.some((member) => member.id === users.yearOne.id),
+    false,
+  );
+  assert.equal(
+    optionsBefore.members.some((member) => member.id === users.yearTwo.id),
+    false,
+  );
+  assert.equal(
+    optionsBefore.yearTwoMembers.some((member) => member.id === users.yearTwo.id),
+    true,
+  );
+
+  await assert.rejects(
+    () => service.sendToMembers(created.id, { memberIds: [users.yearOne.id] }, users.ministry),
+    /Ano 1/i,
+  );
+  await assert.rejects(
+    () => service.sendToMembers(created.id, { memberIds: [users.yearTwo.id] }, users.ministry),
+    /Ano 2.*autorização/i,
+  );
+
+  const authorization = await service.authorizeYearTwo(
+    created.id,
+    users.yearTwo.id,
+    users.ministry,
+  );
+  assert.match(authorization.message, /autorizado/i);
+  const authorized = await service.findOne(created.id, users.ministry);
+  assert.deepEqual(authorized.authorizedYearTwoIds, [users.yearTwo.id]);
+  assert.equal(
+    tabs.AgendaMissionariaHistorico.some((row) => row.acao === 'ANO_2_AUTORIZADO'),
+    true,
+  );
+  assert.deepEqual(notifications.at(-1).recipientIds, [users.yearTwo.id]);
+
+  const sent = await service.sendToMembers(
+    created.id,
+    { memberIds: [users.yearTwo.id] },
+    users.ministry,
+  );
+  assert.deepEqual(sent.participantIds, [users.yearTwo.id]);
+});
+
+test('impede perfil sem gestão de autorizar Ano 2 na Agenda Missionária', async () => {
+  const { service } = fixture();
+  const created = await service.create(input('Missão sem autorização indevida'), users.agenda);
+  await service.submit(created.id, users.agenda);
+  await service.approve(created.id, {}, users.mission);
+  await assert.rejects(
+    () => service.authorizeYearTwo(created.id, users.yearTwo.id, users.member),
+    /não encontrada|Somente a liderança/i,
   );
 });
 

@@ -6,6 +6,7 @@ import { RequirePermissions } from '../rbac/decorators/permissions.decorator';
 import { Permission } from '../rbac/enums/permission.enum';
 import {
   ApproveMissionaryAgendaDto,
+  AuthorizeMissionaryAgendaYearTwoDto,
   CreateMissionaryAgendaDto,
   RejectMissionaryAgendaDto,
   SendMissionaryAgendaDto,
@@ -91,6 +92,16 @@ export class MissionaryAgendaController {
     @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.service.sendToMembers(id, dto, user);
+  }
+
+  @Post(':id/authorize-year-two')
+  @RequirePermissions(Permission.MISSIONARY_AGENDA_UPDATE)
+  authorizeYearTwo(
+    @Param('id') id: string,
+    @Body() dto: AuthorizeMissionaryAgendaYearTwoDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.service.authorizeYearTwo(id, dto.memberId, user);
   }
 
   @Get(':id/history')

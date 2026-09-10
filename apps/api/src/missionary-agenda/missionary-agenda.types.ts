@@ -57,6 +57,8 @@ export type MissionaryAgenda = {
   membersSentAt: string;
   participantIds: string[];
   participantNames: string[];
+  authorizedYearTwoIds: string[];
+  authorizedYearTwoNames: string[];
   accompanyingIds: string[];
   accompanyingNames: string[];
   intercessorIds: string[];

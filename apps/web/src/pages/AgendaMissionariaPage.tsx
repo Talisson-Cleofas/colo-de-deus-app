@@ -5,6 +5,7 @@ import {
   EditOutlined,
   ForwardToInboxOutlined,
   LocationOnOutlined,
+  LockOpenOutlined,
   PersonOutline,
   SearchOutlined,
   SendOutlined,
@@ -85,6 +86,7 @@ export function AgendaMissionariaPage() {
     [options, setOptions] = useState<MissionaryAgendaOptions>({
       currentMemberId: '',
       members: [],
+      yearTwoMembers: [],
       ministries: [],
     });
   const [status, setStatus] = useState(''),
@@ -100,6 +102,8 @@ export function AgendaMissionariaPage() {
     [reason, setReason] = useState('');
   const [sending, setSending] = useState<MissionaryAgenda | null>(null),
     [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [authorizing, setAuthorizing] = useState<MissionaryAgenda | null>(null),
+    [authorizationMemberId, setAuthorizationMemberId] = useState('');
 
   const load = async () => {
     setLoading(true);
@@ -130,8 +134,10 @@ export function AgendaMissionariaPage() {
       await api.post(path, body);
       setRejecting(null);
       setSending(null);
+      setAuthorizing(null);
       setReason('');
       setSelectedIds([]);
+      setAuthorizationMemberId('');
       await load();
     } catch (cause) {
       setError(apiErrorMessage(cause));
@@ -156,14 +162,33 @@ export function AgendaMissionariaPage() {
   const candidates = useMemo(
     () =>
       sending
-        ? options.members.filter((member) =>
+        ? [
+            ...options.members,
+            ...options.yearTwoMembers.filter((member) =>
+              sending.authorizedYearTwoIds.includes(member.id),
+            ),
+          ].filter((member) =>
             member.ministry
               .split(',')
               .map((value) => value.trim().toLocaleLowerCase('pt-BR'))
               .includes(sending.ministryName.toLocaleLowerCase('pt-BR')),
           )
         : [],
-    [sending, options.members],
+    [sending, options.members, options.yearTwoMembers],
+  );
+  const yearTwoCandidates = useMemo(
+    () =>
+      authorizing
+        ? options.yearTwoMembers.filter(
+            (member) =>
+              !authorizing.authorizedYearTwoIds.includes(member.id) &&
+              member.ministry
+                .split(',')
+                .map((value) => value.trim().toLocaleLowerCase('pt-BR'))
+                .includes(authorizing.ministryName.toLocaleLowerCase('pt-BR')),
+          )
+        : [],
+    [authorizing, options.yearTwoMembers],
   );
 
   return (
@@ -325,6 +350,11 @@ export function AgendaMissionariaPage() {
                   <strong>Membros enviados:</strong> {item.participantNames.join(', ')}
                 </Typography>
               )}
+              {item.authorizedYearTwoNames.length > 0 && (
+                <Typography variant="body2" color="warning.main">
+                  <strong>Ano 2 autorizado:</strong> {item.authorizedYearTwoNames.join(', ')}
+                </Typography>
+              )}
               {item.accompanyingNames.length > 0 && (
                 <Typography variant="body2">
                   <strong>Acompanhantes:</strong> {item.accompanyingNames.join(', ')}
@@ -394,16 +424,31 @@ export function AgendaMissionariaPage() {
                   </>
                 )}
                 {item.canSelectMembers && (
-                  <Button
-                    variant="contained"
-                    startIcon={<ForwardToInboxOutlined />}
-                    onClick={() => {
-                      setSending(item);
-                      setSelectedIds([]);
-                    }}
-                  >
-                    Selecionar membros
-                  </Button>
+                  <>
+                    {options.yearTwoMembers.some(
+                      (member) => !item.authorizedYearTwoIds.includes(member.id),
+                    ) && (
+                      <Button
+                        startIcon={<LockOpenOutlined />}
+                        onClick={() => {
+                          setAuthorizing(item);
+                          setAuthorizationMemberId('');
+                        }}
+                      >
+                        Autorizar Ano 2
+                      </Button>
+                    )}
+                    <Button
+                      variant="contained"
+                      startIcon={<ForwardToInboxOutlined />}
+                      onClick={() => {
+                        setSending(item);
+                        setSelectedIds([]);
+                      }}
+                    >
+                      Selecionar membros
+                    </Button>
+                  </>
                 )}
               </Stack>
             </Paper>
@@ -455,6 +500,51 @@ export function AgendaMissionariaPage() {
             onClick={() => void action(`/missionary-agenda/${rejecting?.id}/reject`, { reason })}
           >
             Devolver ao líder
+          </Button>
+        </DialogActions>
+      </Dialog>
+      <Dialog
+        open={Boolean(authorizing)}
+        onClose={() => setAuthorizing(null)}
+        fullWidth
+        maxWidth="sm"
+      >
+        <DialogTitle>Autorizar membro do Ano 2 — {authorizing?.title}</DialogTitle>
+        <DialogContent>
+          <Alert severity="warning" sx={{ mb: 2 }}>
+            A autorização vale somente para esta missão e será registrada no histórico.
+          </Alert>
+          <TextField
+            select
+            fullWidth
+            label="Membro do Ano 2"
+            value={authorizationMemberId}
+            onChange={(event) => setAuthorizationMemberId(event.target.value)}
+          >
+            {yearTwoCandidates.map((member) => (
+              <MenuItem key={member.id} value={member.id}>
+                {member.name}
+              </MenuItem>
+            ))}
+          </TextField>
+          {yearTwoCandidates.length === 0 && (
+            <Alert severity="info" sx={{ mt: 2 }}>
+              Não há membros do Ano 2 deste ministério aguardando autorização.
+            </Alert>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setAuthorizing(null)}>Cancelar</Button>
+          <Button
+            variant="contained"
+            disabled={saving || !authorizationMemberId}
+            onClick={() =>
+              void action(`/missionary-agenda/${authorizing?.id}/authorize-year-two`, {
+                memberId: authorizationMemberId,
+              })
+            }
+          >
+            Autorizar e notificar
           </Button>
         </DialogActions>
       </Dialog>

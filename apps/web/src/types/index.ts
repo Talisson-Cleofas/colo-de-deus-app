@@ -298,6 +298,8 @@ export type MissionaryAgenda = {
   membersSentAt: string;
   participantIds: string[];
   participantNames: string[];
+  authorizedYearTwoIds: string[];
+  authorizedYearTwoNames: string[];
   accompanyingIds: string[];
   accompanyingNames: string[];
   intercessorIds: string[];
@@ -319,6 +321,7 @@ export type MissionaryAgenda = {
 export type MissionaryAgendaOptions = {
   currentMemberId: string;
   members: { id: string; name: string; ministry: string }[];
+  yearTwoMembers: { id: string; name: string; ministry: string }[];
   ministries: { id: string; name: string; managed: boolean }[];
 };
 export type MissionaryAgendaHistory = {

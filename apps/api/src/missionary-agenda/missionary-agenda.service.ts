@@ -9,6 +9,7 @@ import {
 import { randomUUID } from 'node:crypto';
 import type { AuthenticatedUser } from '../auth/types/auth-user.type';
 import { NotificationsService } from '../notifications/notifications.service';
+import { canParticipateInMinistries, isVocationalYear } from '../members/vocational-year';
 import {
   MISSIONARY_AGENDA_REPOSITORY,
   type IMissionaryAgendaRepository,
@@ -140,12 +141,19 @@ export class MissionaryAgendaService {
       .map((item) => item.membro_id)
       .filter(Boolean);
   }
+  private authorizedYearTwoIds(row: SheetRow) {
+    return String(row.ano_2_autorizados_ids || '')
+      .split(',')
+      .map((id) => id.trim())
+      .filter(Boolean);
+  }
   private map(
     row: SheetRow,
     ctx: Awaited<ReturnType<MissionaryAgendaService['context']>>,
     user: AuthenticatedUser,
   ): MissionaryAgenda {
     const participantIds = this.participantIds(row.id || '', ctx),
+      authorizedYearTwoIds = this.authorizedYearTwoIds(row),
       accompanyingIds = this.participantIds(row.id || '', ctx, 'ACOMPANHANTE'),
       intercessorIds = this.participantIds(row.id || '', ctx, 'INTERCESSOR'),
       status = (row.status || 'RASCUNHO') as MissionaryAgendaStatus;
@@ -189,6 +197,8 @@ export class MissionaryAgendaService {
       membersSentAt: row.membros_enviados_em || '',
       participantIds,
       participantNames: participantIds.map((id) => ctx.memberNames.get(id) || id),
+      authorizedYearTwoIds,
+      authorizedYearTwoNames: authorizedYearTwoIds.map((id) => ctx.memberNames.get(id) || id),
       accompanyingIds,
       accompanyingNames: accompanyingIds.map((id) => ctx.memberNames.get(id) || id),
       intercessorIds,
@@ -295,7 +305,11 @@ export class MissionaryAgendaService {
     return {
       currentMemberId: uid,
       members: ctx.members
-        .filter((item) => item.active)
+        .filter((item) => item.active && canParticipateInMinistries(item.vocationalYear))
+        .map((item) => ({ id: item.id, name: item.name, ministry: item.ministry }))
+        .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR')),
+      yearTwoMembers: ctx.members
+        .filter((item) => item.active && isVocationalYear(item.vocationalYear, 'ANO_2'))
         .map((item) => ({ id: item.id, name: item.name, ministry: item.ministry }))
         .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR')),
       ministries: ctx.ministries
@@ -370,6 +384,7 @@ export class MissionaryAgendaService {
       motivo_nao_aprovacao: workflow.motivo_nao_aprovacao || '',
       membros_enviados_por: workflow.membros_enviados_por || '',
       membros_enviados_em: workflow.membros_enviados_em || '',
+      ano_2_autorizados_ids: workflow.ano_2_autorizados_ids || '',
       ativo: 'TRUE',
       criado_por: audit.createdBy,
       criado_em: audit.createdAt,
@@ -516,6 +531,7 @@ export class MissionaryAgendaService {
       motivo_nao_aprovacao: item.rejectionReason,
       membros_enviados_por: item.membersSentBy,
       membros_enviados_em: item.membersSentAt,
+      ano_2_autorizados_ids: item.authorizedYearTwoIds.join(','),
     };
   }
   private async save(item: MissionaryAgenda, user: AuthenticatedUser, workflow: SheetRow) {
@@ -732,6 +748,18 @@ export class MissionaryAgendaService {
       selected = ctx.members.filter((member) => ids.includes(member.id));
     if (selected.length !== ids.length || selected.some((member) => !member.active))
       throw new BadRequestException('A seleção contém membro inexistente ou inativo.');
+    if (selected.some((member) => isVocationalYear(member.vocationalYear, 'ANO_1')))
+      throw new BadRequestException('Membros do Ano 1 não podem ser enviados para missões.');
+    const authorizedYearTwoIds = new Set(item.authorizedYearTwoIds);
+    if (
+      selected.some(
+        (member) =>
+          isVocationalYear(member.vocationalYear, 'ANO_2') && !authorizedYearTwoIds.has(member.id),
+      )
+    )
+      throw new BadRequestException(
+        'Membros do Ano 2 precisam de autorização da liderança para esta missão.',
+      );
     if (selected.some((member) => !this.memberInMinistry(member.ministry || '', item.ministryName)))
       throw new BadRequestException(
         'Todos os membros selecionados devem pertencer ao ministério responsável.',
@@ -767,6 +795,47 @@ export class MissionaryAgendaService {
     );
     await this.notify('Você foi enviado para uma agenda missionária', item.title, ids, item.id);
     return this.findOne(id, user);
+  }
+  async authorizeYearTwo(id: string, memberId: string, user: AuthenticatedUser) {
+    const item = await this.findOne(id, user);
+    if (!item.canSelectMembers)
+      throw new ForbiddenException(
+        'Somente a liderança responsável pode autorizar membros do Ano 2.',
+      );
+    const ctx = await this.context();
+    const member = ctx.members.find((entry) => entry.id === memberId && entry.active);
+    if (!member) throw new NotFoundException('Membro ativo não encontrado.');
+    if (!isVocationalYear(member.vocationalYear, 'ANO_2'))
+      throw new BadRequestException('Esta autorização é exclusiva para membros do Ano 2.');
+    if (!this.memberInMinistry(member.ministry || '', item.ministryName))
+      throw new BadRequestException(
+        'O membro do Ano 2 deve pertencer ao ministério solicitado para ser autorizado.',
+      );
+    const authorizedIds = new Set(item.authorizedYearTwoIds);
+    if (authorizedIds.has(memberId))
+      throw new ConflictException('Este membro do Ano 2 já foi autorizado nesta missão.');
+    authorizedIds.add(memberId);
+    await this.save(item, user, {
+      ...this.workflow(item),
+      ano_2_autorizados_ids: [...authorizedIds].join(','),
+    });
+    await this.log(
+      item,
+      item.status,
+      'ANO_2_AUTORIZADO',
+      `${member.name} foi autorizado(a) para esta missão.`,
+      user,
+    );
+    await this.notify(
+      'Autorização para agenda missionária',
+      `Sua participação foi autorizada para ${item.title}. Aguarde o envio da liderança.`,
+      [memberId],
+      item.id,
+    );
+    return {
+      success: true,
+      message: `${member.name} foi autorizado(a) e recebeu a notificação.`,
+    };
   }
   async history(id: string, user: AuthenticatedUser): Promise<MissionaryAgendaHistory[]> {
     await this.findOne(id, user);

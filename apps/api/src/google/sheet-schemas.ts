@@ -392,6 +392,7 @@ export const SHEET_SCHEMAS = {
     'motivo_nao_aprovacao',
     'membros_enviados_por',
     'membros_enviados_em',
+    'ano_2_autorizados_ids',
     'ativo',
     'criado_por',
     'criado_em',

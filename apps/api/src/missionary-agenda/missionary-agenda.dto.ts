@@ -125,3 +125,7 @@ export class RejectMissionaryAgendaDto {
 export class SendMissionaryAgendaDto {
   @IsArray() @IsString({ each: true }) memberIds!: string[];
 }
+
+export class AuthorizeMissionaryAgendaYearTwoDto {
+  @IsString() @MinLength(1) memberId!: string;
+}

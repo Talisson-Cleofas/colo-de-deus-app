@@ -120,6 +120,7 @@ export function CommunitiesPage({ type }: { type: 'CELL' | 'CENACLE' }) {
   }, [type, status, periodStart, periodEnd]);
   const setStatus = (value: CenacleStatus) => {
     const next = new URLSearchParams(params);
+    next.delete('tab');
     next.set('status', value);
     setParams(next);
   };

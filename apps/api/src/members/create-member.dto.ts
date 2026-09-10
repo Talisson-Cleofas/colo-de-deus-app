@@ -6,9 +6,11 @@ import {
   IsOptional,
   IsString,
   IsNumber,
+  IsIn,
   MaxLength,
   MinLength,
 } from 'class-validator';
+import { VOCATIONAL_YEARS } from './vocational-year';
 
 const trim = ({ value }: { value: unknown }) => (typeof value === 'string' ? value.trim() : value);
 
@@ -144,6 +146,11 @@ export class CreateMemberDto {
   @IsString()
   @MaxLength(120)
   profession?: string;
+
+  @Transform(trim)
+  @IsOptional()
+  @IsIn(VOCATIONAL_YEARS)
+  vocationalYear?: string;
 
   @Transform(trim)
   @IsOptional()

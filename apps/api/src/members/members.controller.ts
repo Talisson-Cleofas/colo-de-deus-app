@@ -86,6 +86,7 @@ export class MembersController {
           bio: dto.bio,
           instagram: dto.instagram,
           profession: dto.profession,
+          vocationalYear: dto.vocationalYear,
           birthDate: dto.birthDate,
           city: dto.city,
           state: dto.state,
@@ -269,6 +270,7 @@ export class MembersController {
       googlePlaceId: dto.googlePlaceId,
       gifts: dto.gifts,
       profession: dto.profession,
+      vocationalYear: dto.vocationalYear,
       formator: dto.formator,
     });
     return { member, message: 'Perfil atualizado com sucesso.' };

@@ -32,9 +32,25 @@ test('own profile accepts profession without forwarding administrative fields', 
     updateMember: async (_id, dto) => { saved = dto; return dto; },
   };
   await controller.updateMyProfile(
-    { profession: 'Professor', profile: 'DEVELOPER' },
+    { profession: 'Professor', vocationalYear: 'DISCIPULO', profile: 'DEVELOPER' },
     { memberId: 'member-test', email: 'member@example.com' },
   );
   assert.equal(saved.profession, 'Professor');
+  assert.equal(saved.vocationalYear, 'DISCIPULO');
   assert.equal(saved.profile, undefined);
+});
+
+test('vocational year is persisted in the member sheet', async () => {
+  const service = Object.create(GoogleSheetsService.prototype);
+  const member = { id: 'member-test', email: 'member@example.com', vocationalYear: '', gifts: [] };
+  let saved;
+  service.listMembers = async () => [member];
+  service.isDemo = () => false;
+  service.updateRecord = async (_tab, _key, _id, row) => { saved = row; };
+  service.membersByEmail = new Map();
+  service.membersById = new Map();
+  const updated = await service.updateMember(member.id, { vocationalYear: 'POSTULANTE' });
+  assert.equal(updated.vocationalYear, 'POSTULANTE');
+  assert.equal(saved.ano_vocacional, 'POSTULANTE');
+  assert.ok(SHEET_SCHEMAS.Membros.includes('ano_vocacional'));
 });

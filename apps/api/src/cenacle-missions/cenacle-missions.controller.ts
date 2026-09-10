@@ -1,7 +1,11 @@
 import { Body, Controller, Get, Param, Patch, Post } from '@nestjs/common';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { AuthenticatedUser } from '../auth/types/auth-user.type';
-import { SaveCenacleMissionDto, SaveCenacleMissionFeedbackDto } from './cenacle-missions.dto';
+import {
+  AuthorizeYearTwoDto,
+  SaveCenacleMissionDto,
+  SaveCenacleMissionFeedbackDto,
+} from './cenacle-missions.dto';
 import { CenacleMissionsService } from './cenacle-missions.service';
 
 @Controller('cenacle-missions')
@@ -29,6 +33,13 @@ export class CenacleMissionsController {
     @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.service.confirmPresence(id, body.confirmed, user);
+  }
+  @Post(':id/authorize-year-two') authorizeYearTwo(
+    @Param('id') id: string,
+    @Body() dto: AuthorizeYearTwoDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.service.authorizeYearTwo(id, dto.memberId, user);
   }
   @Post(':id/feedback/open') openFeedback(
     @Param('id') id: string,

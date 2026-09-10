@@ -23,3 +23,7 @@ export class SaveCenacleMissionFeedbackDto {
   @IsString()
   improvements?: string;
 }
+
+export class AuthorizeYearTwoDto {
+  @IsString() @MinLength(1) memberId!: string;
+}

@@ -13,10 +13,14 @@ import { SHEET_SCHEMAS } from '../google/sheet-schemas';
 import { normalizeMinistryModule } from '../rbac/ministry-permission.map';
 import type { SaveCenacleMissionDto, SaveCenacleMissionFeedbackDto } from './cenacle-missions.dto';
 import { NotificationsService } from '../notifications/notifications.service';
+import { canParticipateInMinistries, isVocationalYear } from '../members/vocational-year';
 
 @Injectable()
 export class CenacleMissionsService implements OnModuleInit {
-  constructor(private readonly sheets: GoogleSheetsService, private readonly notifications: NotificationsService) {}
+  constructor(
+    private readonly sheets: GoogleSheetsService,
+    private readonly notifications: NotificationsService,
+  ) {}
   async onModuleInit() {
     await this.sheets.ensureTab('MissoesCenaculo', SHEET_SCHEMAS.MissoesCenaculo);
     await this.sheets.ensureTab('MissoesCenaculoFeedback', SHEET_SCHEMAS.MissoesCenaculoFeedback);
@@ -33,6 +37,12 @@ export class CenacleMissionsService implements OnModuleInit {
   }
   private ids(row: SheetRecord) {
     return String(row.participantes_ids || '')
+      .split(',')
+      .map((id) => id.trim())
+      .filter(Boolean);
+  }
+  private authorizedYearTwoIds(row: SheetRecord) {
+    return String(row.ano_2_autorizados_ids || '')
       .split(',')
       .map((id) => id.trim())
       .filter(Boolean);
@@ -83,14 +93,18 @@ export class CenacleMissionsService implements OnModuleInit {
     ]);
     const memberNames = new Map(members.map((member) => [member.id, member.name]));
     const participantIds = this.ids(row);
+    const authorizedYearTwoIds = this.authorizedYearTwoIds(row);
     const ownFeedback = feedback.find(
       (item) => item.missao_id === row.id && item.membro_id === this.uid(user),
     );
     const missionPresences = presences.filter((item) => item.missao_id === row.id);
     const ownPresence = missionPresences.find((item) => item.membro_id === this.uid(user));
     const feedbackOpen = this.sheets.parseActive(row.feedback_liberado || '', false);
-    const activeUser = members.some(
-      (member) => member.id === this.uid(user) && member.active,
+    const currentMember = members.find((member) => member.id === this.uid(user));
+    const yearTwoAuthorized = authorizedYearTwoIds.includes(this.uid(user));
+    const activeUser = Boolean(
+      currentMember?.active &&
+      (canParticipateInMinistries(currentMember.vocationalYear) || yearTwoAuthorized),
     );
     return {
       id: row.id,
@@ -103,13 +117,22 @@ export class CenacleMissionsService implements OnModuleInit {
       status: row.status || 'AGENDADA',
       participantIds,
       participantNames: participantIds.map((id) => memberNames.get(id) || id),
+      authorizedYearTwoIds,
+      authorizedYearTwoNames: authorizedYearTwoIds.map((id) => memberNames.get(id) || id),
       participants: participantIds.map((id) => ({
         id,
         name: memberNames.get(id) || id,
-        presenceStatus: missionPresences.find((item) => item.membro_id === id)?.status || 'PENDENTE',
+        presenceStatus:
+          missionPresences.find((item) => item.membro_id === id)?.status || 'PENDENTE',
       })),
       presenceStatus: ownPresence?.status || 'PENDENTE',
       canConfirmPresence: activeUser,
+      participationBlockedReason:
+        currentMember?.active &&
+        !canParticipateInMinistries(currentMember.vocationalYear) &&
+        !yearTwoAuthorized
+          ? 'A participação é liberada a partir do Discipulado, salvo autorização da liderança para o Ano 2.'
+          : '',
       confirmedCount: missionPresences.filter((item) => item.status === 'CONFIRMADA').length,
       feedbackOpen,
       canManage: await this.canManage(user, row.ministerio_id || ''),
@@ -140,7 +163,10 @@ export class CenacleMissionsService implements OnModuleInit {
     const managed = await this.managedMinistryIds(user);
     return {
       members: members
-        .filter((member) => member.active)
+        .filter((member) => member.active && canParticipateInMinistries(member.vocationalYear))
+        .map((member) => ({ id: member.id, name: member.name })),
+      yearTwoMembers: members
+        .filter((member) => member.active && isVocationalYear(member.vocationalYear, 'ANO_2'))
         .map((member) => ({ id: member.id, name: member.name })),
       ministries: ministries
         .filter(
@@ -172,9 +198,15 @@ export class CenacleMissionsService implements OnModuleInit {
       ) !== 'MISSOES'
     )
       throw new BadRequestException('Selecione um Ministério de Missões ativo.');
-    const activeIds = new Set(members.filter((member) => member.active).map((member) => member.id));
+    const activeIds = new Set(
+      members
+        .filter((member) => member.active && canParticipateInMinistries(member.vocationalYear))
+        .map((member) => member.id),
+    );
     if ((dto.participantIds || []).some((id) => !activeIds.has(id)))
-      throw new BadRequestException('Selecione somente membros ativos como participantes.');
+      throw new BadRequestException(
+        'Selecione somente membros ativos a partir do Discipulado como participantes.',
+      );
   }
   async create(dto: SaveCenacleMissionDto, user: AuthenticatedUser) {
     this.validate(dto);
@@ -194,6 +226,7 @@ export class CenacleMissionsService implements OnModuleInit {
       local: dto.location.trim(),
       ministerio_id: dto.ministryId || '',
       participantes_ids: [...new Set(dto.participantIds || [])].join(','),
+      ano_2_autorizados_ids: '',
       status: dto.status || 'AGENDADA',
       feedback_liberado: 'FALSE',
       feedback_liberado_por: '',
@@ -204,11 +237,15 @@ export class CenacleMissionsService implements OnModuleInit {
       atualizado_por: this.uid(user),
       atualizado_em: now,
     });
+    const eligibleRecipientIds = (await this.sheets.listMembers())
+      .filter((member) => member.active && canParticipateInMinistries(member.vocationalYear))
+      .map((member) => member.id);
     await this.notifications.createSystem({
       title: `Nova missão: ${dto.title.trim()}`,
       message: `${dto.title.trim()} foi marcada para ${dto.date.split('-').reverse().join('/')} às ${dto.time}, em ${dto.location.trim()}. Confirme se você participará.`,
       type: 'EVENTO',
-      audience: 'TODOS',
+      audience: 'INDIVIDUAL',
+      recipientIds: eligibleRecipientIds,
       origin: 'Missões',
       referenceType: 'MISSAO_CENACULO',
       referenceId: id,
@@ -246,12 +283,16 @@ export class CenacleMissionsService implements OnModuleInit {
     if (!this.ids(row).includes(uid))
       throw new ForbiddenException('Somente participantes enviados podem responder ao feedback.');
     if (!this.sheets.parseActive(row.feedback_liberado || '', false))
-      throw new ForbiddenException('O formulário de feedback ainda não foi liberado pela liderança.');
+      throw new ForbiddenException(
+        'O formulário de feedback ainda não foi liberado pela liderança.',
+      );
     const presence = (await this.sheets.read('MissoesCenaculoPresencas')).find(
       (item) => item.missao_id === id && item.membro_id === uid && item.status === 'CONFIRMADA',
     );
     if (!presence)
-      throw new ForbiddenException('Somente participantes que confirmaram presença podem responder.');
+      throw new ForbiddenException(
+        'Somente participantes que confirmaram presença podem responder.',
+      );
     if (row.data > new Date().toISOString().slice(0, 10))
       throw new BadRequestException('O feedback ficará disponível após a data da missão.');
     const feedback = await this.sheets.read('MissoesCenaculoFeedback');
@@ -271,12 +312,20 @@ export class CenacleMissionsService implements OnModuleInit {
     return { success: true, message: 'Feedback enviado com sucesso.' };
   }
   async confirmPresence(id: string, confirmed: boolean, user: AuthenticatedUser) {
-    const row = await this.mission(id), uid = this.uid(user);
-    const activeMember = (await this.sheets.listMembers()).some(
+    const row = await this.mission(id),
+      uid = this.uid(user);
+    const activeMember = (await this.sheets.listMembers()).find(
       (member) => member.id === uid && member.active,
     );
     if (!activeMember)
       throw new ForbiddenException('Somente membros ativos podem confirmar participação.');
+    if (
+      !canParticipateInMinistries(activeMember.vocationalYear) &&
+      !this.authorizedYearTwoIds(row).includes(uid)
+    )
+      throw new ForbiddenException(
+        'A participação nas missões do Ministério de Missões é liberada a partir do Discipulado.',
+      );
     const rows = await this.sheets.read('MissoesCenaculoPresencas');
     const current = rows.find((item) => item.missao_id === id && item.membro_id === uid);
     const now = new Date().toISOString();
@@ -288,7 +337,8 @@ export class CenacleMissionsService implements OnModuleInit {
       confirmado_em: now,
       atualizado_em: now,
     };
-    if (current) await this.sheets.updateRecord('MissoesCenaculoPresencas', 'id', current.id, record);
+    if (current)
+      await this.sheets.updateRecord('MissoesCenaculoPresencas', 'id', current.id, record);
     else await this.sheets.appendRecord('MissoesCenaculoPresencas', record);
     const participants = new Set(this.ids(row));
     if (confirmed) participants.add(uid);
@@ -299,7 +349,45 @@ export class CenacleMissionsService implements OnModuleInit {
       atualizado_por: uid,
       atualizado_em: now,
     });
-    return { success: true, status: record.status, message: confirmed ? 'Presença confirmada.' : 'Participação recusada.' };
+    return {
+      success: true,
+      status: record.status,
+      message: confirmed ? 'Presença confirmada.' : 'Participação recusada.',
+    };
+  }
+  async authorizeYearTwo(id: string, memberId: string, user: AuthenticatedUser) {
+    const row = await this.mission(id);
+    if (!(await this.canManage(user, row.ministerio_id || '')))
+      throw new ForbiddenException('Você não pode autorizar participantes nesta missão.');
+    const member = (await this.sheets.listMembers()).find(
+      (item) => item.id === memberId && item.active,
+    );
+    if (!member) throw new NotFoundException('Membro ativo não encontrado.');
+    if (!isVocationalYear(member.vocationalYear, 'ANO_2'))
+      throw new BadRequestException('Esta autorização é exclusiva para membros do Ano 2.');
+    const authorizedIds = new Set(this.authorizedYearTwoIds(row));
+    if (authorizedIds.has(memberId))
+      throw new ConflictException('Este membro do Ano 2 já foi autorizado nesta missão.');
+    authorizedIds.add(memberId);
+    const now = new Date().toISOString();
+    await this.sheets.updateRecord('MissoesCenaculo', 'id', id, {
+      ...row,
+      ano_2_autorizados_ids: [...authorizedIds].join(','),
+      atualizado_por: this.uid(user),
+      atualizado_em: now,
+    });
+    await this.notifications.createSystem({
+      title: `Autorização para missão: ${row.titulo}`,
+      message: `Sua participação foi autorizada. Confirme sua presença na missão ${row.titulo}.`,
+      type: 'EVENTO',
+      audience: 'INDIVIDUAL',
+      recipientIds: [memberId],
+      origin: 'Missões',
+      referenceType: 'MISSAO_CENACULO',
+      referenceId: id,
+      link: '/cenaculos?tab=missoes',
+    });
+    return { success: true, message: `${member.name} foi autorizado e recebeu a notificação.` };
   }
   async openFeedback(id: string, user: AuthenticatedUser) {
     const row = await this.mission(id);
@@ -335,7 +423,11 @@ export class CenacleMissionsService implements OnModuleInit {
       referenceId: id,
       link: '/cenaculos',
     });
-    return { success: true, notified: new Set(confirmedIds).size, message: 'Feedback liberado para os participantes presentes.' };
+    return {
+      success: true,
+      notified: new Set(confirmedIds).size,
+      message: 'Feedback liberado para os participantes presentes.',
+    };
   }
   async results(id: string, user: AuthenticatedUser) {
     const row = await this.mission(id);

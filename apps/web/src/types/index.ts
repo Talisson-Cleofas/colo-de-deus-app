@@ -36,6 +36,7 @@ export type Member = {
   googlePlaceId: string;
   gifts: string[];
   profession?: string;
+  vocationalYear?: string;
   formator: string;
 };
 export type AuthUser = Member & { uid?: string; memberId?: string };

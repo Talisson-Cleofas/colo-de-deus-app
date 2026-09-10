@@ -19,6 +19,7 @@ type MinistryForm = {
 type DetailPayload={ministry:Ministry;members:MinistryMember[];attendances:MinistryAttendance[]};
 
 const emptyForm: MinistryForm = {missionId:'missao-brasilia',name:'',description:'',leaderEmail:'',viceLeaderEmail:'',color:'#9e6939',icon:'',type:'OUTRO',notes:'',active:true};
+const ministryEligible=(member:Member)=>member.vocationalYear!=='ANO_1';
 
 export function MinistriesPage() {
   const { user, hasRole } = useAuth();
@@ -58,7 +59,7 @@ export function MinistriesPage() {
   },[isAdmin,canManage,showInactive]);
   useEffect(()=>{void load();},[load]);
 
-  const leaderOptions=useMemo(()=>members.filter(m=>m.active&&['DEVELOPER','ADMIN','MINISTRY_LEADER'].includes(m.profile)),[members]);
+  const leaderOptions=useMemo(()=>members.filter(m=>m.active&&ministryEligible(m)&&['DEVELOPER','ADMIN','MINISTRY_LEADER'].includes(m.profile)),[members]);
   const startCreate=()=>{setEditing(null);setForm(emptyForm);setOpen(true);};
   const startEdit=(m:Ministry)=>{setEditing(m);setForm({missionId:m.missionId||'missao-brasilia',name:m.name,description:m.description,leaderEmail:m.leaderEmail,viceLeaderEmail:m.viceLeaderEmail,color:m.color||'#9e6939',icon:m.icon,type:m.type||'OUTRO',notes:m.notes,active:m.active});setOpen(true);};
 
@@ -86,6 +87,8 @@ export function MinistriesPage() {
 
   const addMember=async()=>{
     if(!detail||!selectedMemberId)return;
+    const selectedMember=members.find(member=>member.id===selectedMemberId);
+    if(selectedMember?.vocationalYear==='ANO_2'&&!window.confirm(`${selectedMember.name} está no Ano 2. Autorizar excepcionalmente a participação neste ministério?`))return;
     setSaving(true);
     try{await api.post(`/ministries/${detail.ministry.id}/members`,{memberId:selectedMemberId,function:'MEMBRO'});setSelectedMemberId('');setSuccess('Membro vinculado ao ministério.');await refreshDetail();await load();}catch(e){setError(apiErrorMessage(e));}finally{setSaving(false);}
   };
@@ -100,7 +103,7 @@ export function MinistriesPage() {
   };
 
   const linkedIds=new Set(detail?.members.map(m=>m.memberId)??[]);
-  const availableMembers=members.filter(m=>m.active&&!linkedIds.has(m.id));
+  const availableMembers=members.filter(m=>m.active&&ministryEligible(m)&&!linkedIds.has(m.id));
   const canEditCard=(m:Ministry)=>isAdmin||(user?.profile==='MINISTRY_LEADER'&&m.leaderId===user.memberId);
 
   return <Box>

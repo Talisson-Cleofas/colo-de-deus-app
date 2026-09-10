@@ -22,8 +22,27 @@ function missionFixture() {
       active: true,
       ministry: 'Música',
     },
-    { id: 'member', name: 'Participante', profile: 'MEMBER', active: true },
-    { id: 'outsider', name: 'Outro membro', profile: 'MEMBER', active: true },
+    {
+      id: 'member',
+      name: 'Participante',
+      profile: 'MEMBER',
+      active: true,
+      vocationalYear: 'DISCIPULO',
+    },
+    {
+      id: 'outsider',
+      name: 'Outro membro',
+      profile: 'MEMBER',
+      active: true,
+      vocationalYear: 'POSTULANTE',
+    },
+    {
+      id: 'novice',
+      name: 'Membro Ano 1',
+      profile: 'MEMBER',
+      active: true,
+      vocationalYear: 'ANO_1',
+    },
   ];
   const tabs = {
     Ministérios: [
@@ -45,7 +64,9 @@ function missionFixture() {
   };
   const notifications = [];
   return {
-    service: new CenacleMissionsService(sheets, { createSystem: async (dto) => notifications.push(dto) }),
+    service: new CenacleMissionsService(sheets, {
+      createSystem: async (dto) => notifications.push(dto),
+    }),
     members,
     tabs,
     notifications,
@@ -96,7 +117,9 @@ test('All active members see missions and confirmed participants answer released
   );
   assert.equal((await service.list(members[3])).length, 1);
   assert.equal((await service.list(members[4])).length, 1);
-  assert.equal(notifications[0].audience, 'TODOS');
+  assert.equal(notifications[0].audience, 'INDIVIDUAL');
+  assert.equal(notifications[0].recipientIds.includes('member'), true);
+  assert.equal(notifications[0].recipientIds.includes('novice'), false);
   await assert.rejects(
     () => service.feedback(mission.id, { rating: 5 }, members[3]),
     (error) => error.getStatus() === 403,
@@ -133,16 +156,83 @@ test('does not release feedback before mission end and lets every active member 
   const future = new Date();
   future.setDate(future.getDate() + 2);
   const date = future.toISOString().slice(0, 10);
-  const mission = await service.create({
-    title: 'Missão futura', description: '', date, time: '10:00', location: 'Praça',
-    ministryId: 'missions', participantIds: ['member'], status: 'AGENDADA',
-  }, members[0]);
+  const mission = await service.create(
+    {
+      title: 'Missão futura',
+      description: '',
+      date,
+      time: '10:00',
+      location: 'Praça',
+      ministryId: 'missions',
+      participantIds: ['member'],
+      status: 'AGENDADA',
+    },
+    members[0],
+  );
   await assert.rejects(
     () => service.openFeedback(mission.id, members[0]),
     (error) => error.getStatus() === 400,
   );
   const presence = await service.confirmPresence(mission.id, true, members[4]);
   assert.equal(presence.status, 'CONFIRMADA');
+});
+
+test('Ano 1 can see Ministry of Missions missions but cannot confirm presence', async () => {
+  const { service, members } = missionFixture();
+  const mission = await service.create(
+    {
+      title: 'Missão vocacional',
+      description: '',
+      date: '2026-01-01',
+      time: '10:00',
+      location: 'Praça',
+      ministryId: 'missions',
+      status: 'AGENDADA',
+    },
+    members[0],
+  );
+  const noviceView = (await service.list(members[5]))[0];
+  assert.equal(noviceView.id, mission.id);
+  assert.equal(noviceView.canConfirmPresence, false);
+  assert.match(noviceView.participationBlockedReason, /Discipulado/);
+  await assert.rejects(
+    () => service.confirmPresence(mission.id, true, members[5]),
+    (error) => error.getStatus() === 403,
+  );
+});
+
+test('Ministry and mission leadership can authorize Ano 2 for one mission and notify the member', async () => {
+  const { service, members, notifications } = missionFixture();
+  members[5].vocationalYear = 'ANO_2';
+  const mission = await service.create(
+    {
+      title: 'Missão autorizada',
+      description: '',
+      date: '2026-01-01',
+      time: '10:00',
+      location: 'Praça',
+      ministryId: 'missions',
+      status: 'AGENDADA',
+    },
+    members[0],
+  );
+  await service.authorizeYearTwo(mission.id, members[5].id, members[1]);
+  const view = (await service.list(members[5]))[0];
+  assert.equal(view.canConfirmPresence, true);
+  assert.deepEqual(view.authorizedYearTwoIds, ['novice']);
+  assert.deepEqual(notifications.at(-1).recipientIds, ['novice']);
+  const presence = await service.confirmPresence(mission.id, true, members[5]);
+  assert.equal(presence.status, 'CONFIRMADA');
+  const secondMission = await service.create({
+    title: 'Missão autorizada pela liderança central', description: '', date: '2026-01-02', time: '10:00', location: 'Praça',
+    ministryId: 'missions', status: 'AGENDADA',
+  }, members[0]);
+  await service.authorizeYearTwo(
+    secondMission.id,
+    members[5].id,
+    { id: 'central', memberId: 'central', profile: 'MISSION_LEADER' },
+  );
+  assert.equal((await service.list(members[5]))[1].canConfirmPresence, true);
 });
 
 test('Member and ministry leader receive the complete read-only member directory', async () => {

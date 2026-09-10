@@ -28,6 +28,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { api, apiErrorMessage } from '../../services/api';
 
 type MinistryOption = { id: string; name: string };
+type MemberOption = { id: string; name: string };
 type Mission = {
   id: string;
   title: string;
@@ -39,9 +40,12 @@ type Mission = {
   status: string;
   participantIds: string[];
   participantNames: string[];
+  authorizedYearTwoIds: string[];
+  authorizedYearTwoNames: string[];
   participants: { id: string; name: string; presenceStatus: string }[];
   presenceStatus: string;
   canConfirmPresence: boolean;
+  participationBlockedReason?: string;
   confirmedCount: number;
   feedbackOpen: boolean;
   canManage: boolean;
@@ -71,7 +75,8 @@ const empty = () => ({
 
 export function CenacleMissionsPanel() {
   const [items, setItems] = useState<Mission[]>([]),
-    [ministries, setMinistries] = useState<MinistryOption[]>([]);
+    [ministries, setMinistries] = useState<MinistryOption[]>([]),
+    [yearTwoMembers, setYearTwoMembers] = useState<MemberOption[]>([]);
   const [canCreate, setCanCreate] = useState(false),
     [loading, setLoading] = useState(true),
     [saving, setSaving] = useState(false);
@@ -84,18 +89,23 @@ export function CenacleMissionsPanel() {
     [feedback, setFeedback] = useState({ rating: 0, strengths: '', improvements: '' });
   const [resultsMission, setResultsMission] = useState<Mission | null>(null),
     [results, setResults] = useState<Feedback[]>([]);
+  const [authorizationMission, setAuthorizationMission] = useState<Mission | null>(null),
+    [authorizationMemberId, setAuthorizationMemberId] = useState('');
   const load = useCallback(async () => {
     setLoading(true);
     setError('');
     try {
       const [list, options] = await Promise.all([
         api.get<Mission[]>('/cenacle-missions'),
-        api.get<{ ministries: MinistryOption[]; canCreate: boolean }>(
-          '/cenacle-missions/options',
-        ),
+        api.get<{
+          ministries: MinistryOption[];
+          yearTwoMembers: MemberOption[];
+          canCreate: boolean;
+        }>('/cenacle-missions/options'),
       ]);
       setItems(list.data);
       setMinistries(options.data.ministries);
+      setYearTwoMembers(options.data.yearTwoMembers || []);
       setCanCreate(options.data.canCreate);
     } catch (e) {
       setError(apiErrorMessage(e));
@@ -183,11 +193,31 @@ export function CenacleMissionsPanel() {
   };
   const openMissionFeedback = async (item: Mission) => {
     try {
-      const response = await api.post<{ notified: number }>(`/cenacle-missions/${item.id}/feedback/open`);
+      const response = await api.post<{ notified: number }>(
+        `/cenacle-missions/${item.id}/feedback/open`,
+      );
       setSuccess(`Feedback liberado para ${response.data.notified} participante(s) confirmado(s).`);
       await load();
     } catch (e) {
       setError(apiErrorMessage(e));
+    }
+  };
+  const authorizeYearTwo = async () => {
+    if (!authorizationMission || !authorizationMemberId) return;
+    setSaving(true);
+    try {
+      const response = await api.post<{ message: string }>(
+        `/cenacle-missions/${authorizationMission.id}/authorize-year-two`,
+        { memberId: authorizationMemberId },
+      );
+      setSuccess(response.data.message);
+      setAuthorizationMission(null);
+      setAuthorizationMemberId('');
+      await load();
+    } catch (e) {
+      setError(apiErrorMessage(e));
+    } finally {
+      setSaving(false);
     }
   };
   return (
@@ -243,13 +273,24 @@ export function CenacleMissionsPanel() {
                     Participação confirmada:{' '}
                     {item.participantNames.join(', ') || 'Ninguém confirmou ainda'}
                   </Typography>
+                  {item.authorizedYearTwoNames.length ? (
+                    <Typography color="text.secondary" mt={0.5}>
+                      Ano 2 autorizado: {item.authorizedYearTwoNames.join(', ')}
+                    </Typography>
+                  ) : null}
                   <Stack direction="row" gap={1} flexWrap="wrap" mt={1}>
                     {item.participants.map((participant) => (
                       <Chip
                         key={participant.id}
                         size="small"
                         label={`${participant.name}: ${participant.presenceStatus.toLowerCase()}`}
-                        color={participant.presenceStatus === 'CONFIRMADA' ? 'success' : participant.presenceStatus === 'RECUSADA' ? 'error' : 'default'}
+                        color={
+                          participant.presenceStatus === 'CONFIRMADA'
+                            ? 'success'
+                            : participant.presenceStatus === 'RECUSADA'
+                              ? 'error'
+                              : 'default'
+                        }
                       />
                     ))}
                   </Stack>
@@ -260,19 +301,47 @@ export function CenacleMissionsPanel() {
                       Editar
                     </Button>
                   )}
+                  {item.canManage &&
+                  yearTwoMembers.some(
+                    (member) => !item.authorizedYearTwoIds.includes(member.id),
+                  ) ? (
+                    <Button
+                      startIcon={<LockOpenOutlined />}
+                      onClick={() => setAuthorizationMission(item)}
+                    >
+                      Autorizar Ano 2
+                    </Button>
+                  ) : null}
                   {item.canManageFeedback && !item.feedbackOpen && (
-                    <Button startIcon={<LockOpenOutlined />} onClick={() => void openMissionFeedback(item)}>
+                    <Button
+                      startIcon={<LockOpenOutlined />}
+                      onClick={() => void openMissionFeedback(item)}
+                    >
                       Liberar feedback ({item.confirmedCount})
                     </Button>
                   )}
                   {item.feedbackOpen && <Chip color="info" label="Feedback liberado" />}
                   {item.canConfirmPresence && item.presenceStatus !== 'CONFIRMADA' && (
-                    <Button variant="contained" color="success" startIcon={<CheckCircleOutlined />} onClick={() => void confirmPresence(item, true)}>
+                    <Button
+                      variant="contained"
+                      color="success"
+                      startIcon={<CheckCircleOutlined />}
+                      onClick={() => void confirmPresence(item, true)}
+                    >
                       Confirmar presença
                     </Button>
                   )}
+                  {item.participationBlockedReason ? (
+                    <Alert severity="info" sx={{ width: '100%' }}>
+                      {item.participationBlockedReason}
+                    </Alert>
+                  ) : null}
                   {item.canConfirmPresence && item.presenceStatus !== 'RECUSADA' && (
-                    <Button color="error" startIcon={<CancelOutlined />} onClick={() => void confirmPresence(item, false)}>
+                    <Button
+                      color="error"
+                      startIcon={<CancelOutlined />}
+                      onClick={() => void confirmPresence(item, false)}
+                    >
                       Não participarei
                     </Button>
                   )}
@@ -375,15 +444,48 @@ export function CenacleMissionsPanel() {
           <Button onClick={closeForm}>Cancelar</Button>
           <Button
             variant="contained"
-            disabled={
-              saving ||
-              !form.title.trim() ||
-              !form.location.trim() ||
-              !form.ministryId
-            }
+            disabled={saving || !form.title.trim() || !form.location.trim() || !form.ministryId}
             onClick={() => void save()}
           >
             Salvar
+          </Button>
+        </DialogActions>
+      </Dialog>
+      <Dialog
+        open={Boolean(authorizationMission)}
+        onClose={() => setAuthorizationMission(null)}
+        fullWidth
+        maxWidth="sm"
+      >
+        <DialogTitle>Autorizar membro do Ano 2 — {authorizationMission?.title}</DialogTitle>
+        <DialogContent dividers>
+          <Alert severity="warning" sx={{ mb: 2 }}>
+            A autorização vale somente para esta missão e será registrada.
+          </Alert>
+          <TextField
+            select
+            fullWidth
+            label="Membro do Ano 2"
+            value={authorizationMemberId}
+            onChange={(event) => setAuthorizationMemberId(event.target.value)}
+          >
+            {yearTwoMembers
+              .filter((member) => !authorizationMission?.authorizedYearTwoIds.includes(member.id))
+              .map((member) => (
+                <MenuItem key={member.id} value={member.id}>
+                  {member.name}
+                </MenuItem>
+              ))}
+          </TextField>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setAuthorizationMission(null)}>Cancelar</Button>
+          <Button
+            variant="contained"
+            disabled={saving || !authorizationMemberId}
+            onClick={() => void authorizeYearTwo()}
+          >
+            Autorizar e notificar
           </Button>
         </DialogActions>
       </Dialog>

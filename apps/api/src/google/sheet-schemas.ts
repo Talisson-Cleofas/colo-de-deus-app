@@ -81,6 +81,7 @@ export const SHEET_SCHEMAS = {
     'foto_drive_file_id',
     'foto_url',
     'profissao',
+    'ano_vocacional',
   ],
   Usuarios: [
     'id',
@@ -218,6 +219,8 @@ export const SHEET_SCHEMAS = {
     'atualizado_em',
     'externo_nome',
     'externo_contato',
+    'autorizacao_ano_2_por',
+    'autorizacao_ano_2_em',
   ],
   Presenças: [
     'id',
@@ -734,6 +737,7 @@ export const SHEET_SCHEMAS = {
     'local',
     'ministerio_id',
     'participantes_ids',
+    'ano_2_autorizados_ids',
     'status',
     'feedback_liberado',
     'feedback_liberado_por',

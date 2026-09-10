@@ -299,10 +299,11 @@ Module({
         presenceStatus: row.presences?.[id] || 'PENDENTE',
       })),
       presenceStatus,
-      canConfirmPresence: row.participantIds.includes(req.user.id),
+      canConfirmPresence: Boolean(req.user.active),
       confirmedCount: Object.values(row.presences || {}).filter((status) => status === 'CONFIRMADA').length,
       feedbackOpen: Boolean(row.feedbackOpen),
       canManage: ['DEVELOPER', 'MISSION_LEADER', 'MINISTRY_LEADER'].includes(req.user.profile),
+      canManageFeedback: ['DEVELOPER', 'MINISTRY_LEADER'].includes(req.user.profile),
       canGiveFeedback: row.participantIds.includes(req.user.id) && presenceStatus === 'CONFIRMADA' && Boolean(row.feedbackOpen) && row.date <= new Date().toISOString().slice(0, 10),
       feedbackSubmitted: false,
       feedbackCount: 0,
@@ -313,19 +314,25 @@ Module({
     ministries: [{ id: qaMissionsMinistry.id, name: qaMissionsMinistry.name }],
     canCreate: ['DEVELOPER', 'MISSION_LEADER', 'MINISTRY_LEADER'].includes(req.user.profile),
   }));
-  server.get('/api/cenacle-missions', (req, res) => {
-    const canViewAll = ['DEVELOPER', 'MISSION_LEADER', 'MINISTRY_LEADER'].includes(req.user.profile);
-    const visible = canViewAll
-      ? cenacleMissions
-      : cenacleMissions.filter((row) => row.participantIds.includes(req.user.id));
-    res.json(visible.map((row) => mapCenacleMission(row, req)));
-  });
+  server.get('/api/cenacle-missions', (req, res) =>
+    res.json(cenacleMissions.map((row) => mapCenacleMission(row, req))),
+  );
   server.post('/api/cenacle-missions', (req, res) => {
     const body = req.body || {};
-    if (!body.title || !body.date || !body.time || !body.location || !Array.isArray(body.participantIds) || !body.participantIds.length)
-      return res.status(400).json({ message: 'Preencha título, data, horário, local e participantes.' });
-    const row = { id: `qa-mission-${Date.now()}`, title: body.title, description: body.description || '', date: body.date, time: body.time, location: body.location, ministryId: qaMissionsMinistry.id, participantIds: body.participantIds, status: body.status || 'AGENDADA', presences: {}, feedbackOpen: false };
+    if (!body.title || !body.date || !body.time || !body.location)
+      return res.status(400).json({ message: 'Preencha título, data, horário e local.' });
+    const row = { id: `qa-mission-${Date.now()}`, title: body.title, description: body.description || '', date: body.date, time: body.time, location: body.location, ministryId: qaMissionsMinistry.id, participantIds: [], status: body.status || 'AGENDADA', presences: {}, feedbackOpen: false };
     cenacleMissions.push(row);
+    const now = new Date().toISOString();
+    tabs['Notificações'].push({
+      id: `qa-mission-notice-${Date.now()}`, titulo: `Nova missão: ${body.title}`,
+      mensagem: `${body.title} foi marcada. Confirme se você participará.`,
+      title: `Nova missão: ${body.title}`, message: `${body.title} foi marcada. Confirme se você participará.`,
+      tipo: 'EVENTO', type: 'EVENTO', publico: 'TODOS', audience: 'TODOS',
+      referencia_tipo: 'MISSAO_CENACULO', referencia_id: row.id, link: '/cenaculos?tab=missoes',
+      data_envio: now, sentAt: now, enviado_por: 'SYSTEM', enviado_por_nome: 'Sistema QA',
+      senderName: 'Sistema QA', ativo: 'TRUE', active: true, read: false,
+    });
     res.status(201).json(mapCenacleMission(row, req));
   });
   server.patch('/api/cenacle-missions/:id', (req, res) => {
@@ -337,17 +344,19 @@ Module({
   server.post('/api/cenacle-missions/:id/presence', (req, res) => {
     const row = cenacleMissions.find((item) => item.id === req.params.id);
     if (!row) return res.sendStatus(404);
-    if (!row.participantIds.includes(req.user.id))
-      return res.status(403).json({ message: 'Somente missionários enviados podem confirmar presença.' });
+    if (!req.user.active)
+      return res.status(403).json({ message: 'Somente membros ativos podem confirmar participação.' });
     row.presences ||= {};
     row.presences[req.user.id] = req.body?.confirmed ? 'CONFIRMADA' : 'RECUSADA';
+    if (req.body?.confirmed && !row.participantIds.includes(req.user.id)) row.participantIds.push(req.user.id);
+    if (!req.body?.confirmed) row.participantIds = row.participantIds.filter((id) => id !== req.user.id);
     res.json({ success: true, status: row.presences[req.user.id] });
   });
   server.post('/api/cenacle-missions/:id/feedback/open', (req, res) => {
     const row = cenacleMissions.find((item) => item.id === req.params.id);
     if (!row) return res.sendStatus(404);
-    if (!['DEVELOPER', 'MISSION_LEADER', 'MINISTRY_LEADER'].includes(req.user.profile))
-      return res.status(403).json({ message: 'Acesso restrito à liderança.' });
+    if (!['DEVELOPER', 'MINISTRY_LEADER'].includes(req.user.profile))
+      return res.status(403).json({ message: 'Acesso restrito ao líder do Ministério de Missões.' });
     if (row.date > new Date().toISOString().slice(0, 10))
       return res.status(400).json({ message: 'O feedback só pode ser liberado ao final da missão.' });
     const confirmedIds = row.participantIds.filter((id) => row.presences?.[id] === 'CONFIRMADA');

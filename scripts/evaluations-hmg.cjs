@@ -74,8 +74,51 @@ const qaMissionsMinistry = {
   type: 'MISSOES',
   membersCount: 4,
 };
-const cenacleMissions = [];
-const qaCommunities = [];
+const cenacleMissions = [
+  {
+    id: 'qa-mission-presence',
+    title: 'Missão com confirmação de presença',
+    description: 'Validação do fluxo completo',
+    date: '2026-09-08',
+    time: '19:00',
+    location: 'Local fictício',
+    ministryId: qaMissionsMinistry.id,
+    participantIds: ['qa-3', 'qa-5'],
+    status: 'CONCLUIDA',
+    presences: { 'qa-3': 'CONFIRMADA' },
+    feedbackOpen: true,
+  },
+];
+const qaCommunities = [
+  {
+    id: 'qa-cell-leader',
+    name: 'Célula Esperança — teste',
+    type: 'CELL',
+    description: 'Célula fictícia para validar visualização e permissões.',
+    leader: members[4],
+    coLeaders: [],
+    participants: [members[3], members[5]],
+    ministryId: 'qa-ministry-communication',
+    ministryName: 'Comunicação',
+    cellId: 'qa-cell-leader',
+    cellName: 'Célula Esperança — teste',
+    weekday: 'QUARTA',
+    time: '20:00',
+    recurrence: 'SEMANAL',
+    modality: 'PRESENCIAL',
+    status: 'UPCOMING',
+    address: 'Endereço fictício',
+    neighborhood: 'Bairro de teste',
+    city: 'Brasília',
+    state: 'DF',
+    latitude: 0,
+    longitude: 0,
+    active: true,
+    canEdit: false,
+    canManageParticipants: false,
+    canAddExternalParticipants: false,
+  },
+];
 const qaMinistryMembers = [members[2], members[3], members[5], members[6], members[7]].map(
   (member) => ({
     memberId: member.id,
@@ -144,7 +187,7 @@ Module({
   server.get('/test', (_req, res) =>
     res.send(
       '<h1>Homologação isolada — somente dados fictícios</h1><p>Os dados são temporários e compartilhados neste teste. Nenhuma mensagem sai deste ambiente.</p>' +
-        members.map((m) => `<p><a href="/test/profile/${m.id}">${m.profile}</a></p>`).join(''),
+        members.map((m) => `<p><a href="/test/profile/${m.id}">${m.profile} — ${m.name}</a></p>`).join(''),
     ),
   );
   server.get('/test/profile/:id', (req, res) => {
@@ -165,7 +208,7 @@ Module({
       profile: req.user.profile,
       permissions: rows.map((row) => row.permissionCode),
       scopes: Object.fromEntries(rows.map((row) => [row.permissionCode, row.scope])),
-      ministryIds: [],
+      ministryIds: req.user.profile === 'MINISTRY_LEADER' ? [qaMinistry.id, qaMissionsMinistry.id] : [],
       cellIds: req.user.profile === 'CELL_LEADER' ? ['qa-cell-leader'] : [],
     });
   });
@@ -270,9 +313,13 @@ Module({
     ministries: [{ id: qaMissionsMinistry.id, name: qaMissionsMinistry.name }],
     canCreate: ['DEVELOPER', 'MISSION_LEADER', 'MINISTRY_LEADER'].includes(req.user.profile),
   }));
-  server.get('/api/cenacle-missions', (req, res) =>
-    res.json(cenacleMissions.map((row) => mapCenacleMission(row, req))),
-  );
+  server.get('/api/cenacle-missions', (req, res) => {
+    const canViewAll = ['DEVELOPER', 'MISSION_LEADER', 'MINISTRY_LEADER'].includes(req.user.profile);
+    const visible = canViewAll
+      ? cenacleMissions
+      : cenacleMissions.filter((row) => row.participantIds.includes(req.user.id));
+    res.json(visible.map((row) => mapCenacleMission(row, req)));
+  });
   server.post('/api/cenacle-missions', (req, res) => {
     const body = req.body || {};
     if (!body.title || !body.date || !body.time || !body.location || !Array.isArray(body.participantIds) || !body.participantIds.length)

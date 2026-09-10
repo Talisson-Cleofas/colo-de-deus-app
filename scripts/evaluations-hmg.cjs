@@ -24,6 +24,7 @@ const members = ['DEVELOPER', 'MISSION_LEADER', 'MINISTRY_LEADER', 'MEMBER', 'CE
     cell: '',
     photo: '',
     role: profile,
+    vocationalYear: 'DISCIPULO',
   }),
 );
 members.push(
@@ -39,14 +40,14 @@ members.push(
     name: 'Isabella Silva Valverde',
     email: 'isabella.valverde.teste@example.test',
     profile: 'MEMBER', active: true, gifts: [], ministry: 'Comunicação',
-    cell: '', photo: '', role: 'MEMBER',
+    cell: '', photo: '', role: 'MEMBER', vocationalYear: 'ANO_2',
   },
   {
     id: 'qa-7', memberId: 'qa-7', uid: 'qa-7',
     name: 'Mariana Rodrigues com Nome Extenso para Teste Responsivo',
     email: 'mariana.rodrigues.email-extenso-homologacao@example.test',
     profile: 'MEMBER', active: true, gifts: [], ministry: 'Comunicação',
-    cell: '', photo: '', role: 'MEMBER',
+    cell: '', photo: '', role: 'MEMBER', vocationalYear: 'ANO_1',
   },
 );
 const qaMinistry = {
@@ -87,6 +88,7 @@ const cenacleMissions = [
     status: 'CONCLUIDA',
     presences: { 'qa-3': 'CONFIRMADA' },
     feedbackOpen: true,
+    authorizedYearTwoIds: [],
   },
 ];
 const qaCommunities = [
@@ -119,7 +121,7 @@ const qaCommunities = [
     canAddExternalParticipants: false,
   },
 ];
-const qaMinistryMembers = [members[2], members[3], members[5], members[6], members[7]].map(
+const qaMinistryMembers = [members[2], members[3], members[5]].map(
   (member) => ({
     memberId: member.id,
     name: member.name,
@@ -288,8 +290,25 @@ Module({
       ? res.json({ ministry: req.params.id === qaMinistry.id ? qaMinistry : qaMissionsMinistry, members: qaMinistryMembers, attendances: [] })
       : res.sendStatus(404),
   );
+  server.post('/api/ministries/:id/members', (req, res) => {
+    const member = members.find((item) => item.id === req.body?.memberId && item.active);
+    if (!member) return res.status(404).json({ message: 'Membro ativo não encontrado.' });
+    if (member.vocationalYear === 'ANO_1')
+      return res.status(403).json({ message: 'Membros do Ano 1 não podem ser vinculados.' });
+    if (!qaMinistryMembers.some((item) => item.memberId === member.id))
+      qaMinistryMembers.push({
+        memberId: member.id, name: member.name, email: member.email, profile: member.profile,
+        function: req.body?.function || 'MEMBRO', photo: member.photo, active: true,
+        autorizacao_ano_2_por: member.vocationalYear === 'ANO_2' ? req.user.id : '',
+        autorizacao_ano_2_em: member.vocationalYear === 'ANO_2' ? new Date().toISOString() : '',
+      });
+    res.json(qaMinistryMembers);
+  });
   const mapCenacleMission = (row, req) => {
     const presenceStatus = row.presences?.[req.user.id] || 'PENDENTE';
+    const authorizedYearTwoIds = row.authorizedYearTwoIds || [];
+    const normallyEligible = !['ANO_1', 'ANO_2'].includes(req.user.vocationalYear || '');
+    const yearTwoAuthorized = authorizedYearTwoIds.includes(req.user.id);
     return {
       ...row,
       participantNames: row.participantIds.map((id) => members.find((member) => member.id === id)?.name || id),
@@ -299,7 +318,10 @@ Module({
         presenceStatus: row.presences?.[id] || 'PENDENTE',
       })),
       presenceStatus,
-      canConfirmPresence: Boolean(req.user.active),
+      authorizedYearTwoIds,
+      authorizedYearTwoNames: authorizedYearTwoIds.map((id) => members.find((member) => member.id === id)?.name || id),
+      canConfirmPresence: Boolean(req.user.active && (normallyEligible || yearTwoAuthorized)),
+      participationBlockedReason: req.user.active && !normallyEligible && !yearTwoAuthorized ? 'A participação é liberada a partir do Discipulado, salvo autorização da liderança para o Ano 2.' : '',
       confirmedCount: Object.values(row.presences || {}).filter((status) => status === 'CONFIRMADA').length,
       feedbackOpen: Boolean(row.feedbackOpen),
       canManage: ['DEVELOPER', 'MISSION_LEADER', 'MINISTRY_LEADER'].includes(req.user.profile),
@@ -310,7 +332,8 @@ Module({
     };
   };
   server.get('/api/cenacle-missions/options', (req, res) => res.json({
-    members: members.map((member) => ({ id: member.id, name: member.name })),
+    members: members.filter((member) => !['ANO_1', 'ANO_2'].includes(member.vocationalYear || '')).map((member) => ({ id: member.id, name: member.name })),
+    yearTwoMembers: members.filter((member) => member.vocationalYear === 'ANO_2').map((member) => ({ id: member.id, name: member.name })),
     ministries: [{ id: qaMissionsMinistry.id, name: qaMissionsMinistry.name }],
     canCreate: ['DEVELOPER', 'MISSION_LEADER', 'MINISTRY_LEADER'].includes(req.user.profile),
   }));
@@ -321,14 +344,15 @@ Module({
     const body = req.body || {};
     if (!body.title || !body.date || !body.time || !body.location)
       return res.status(400).json({ message: 'Preencha título, data, horário e local.' });
-    const row = { id: `qa-mission-${Date.now()}`, title: body.title, description: body.description || '', date: body.date, time: body.time, location: body.location, ministryId: qaMissionsMinistry.id, participantIds: [], status: body.status || 'AGENDADA', presences: {}, feedbackOpen: false };
+    const row = { id: `qa-mission-${Date.now()}`, title: body.title, description: body.description || '', date: body.date, time: body.time, location: body.location, ministryId: qaMissionsMinistry.id, participantIds: [], authorizedYearTwoIds: [], status: body.status || 'AGENDADA', presences: {}, feedbackOpen: false };
     cenacleMissions.push(row);
     const now = new Date().toISOString();
     tabs['Notificações'].push({
       id: `qa-mission-notice-${Date.now()}`, titulo: `Nova missão: ${body.title}`,
       mensagem: `${body.title} foi marcada. Confirme se você participará.`,
       title: `Nova missão: ${body.title}`, message: `${body.title} foi marcada. Confirme se você participará.`,
-      tipo: 'EVENTO', type: 'EVENTO', publico: 'TODOS', audience: 'TODOS',
+      tipo: 'EVENTO', type: 'EVENTO', publico: 'INDIVIDUAL', audience: 'INDIVIDUAL',
+      destinatarios: members.filter((member) => !['ANO_1', 'ANO_2'].includes(member.vocationalYear || '')).map((member) => member.id).join(','),
       referencia_tipo: 'MISSAO_CENACULO', referencia_id: row.id, link: '/cenaculos?tab=missoes',
       data_envio: now, sentAt: now, enviado_por: 'SYSTEM', enviado_por_nome: 'Sistema QA',
       senderName: 'Sistema QA', ativo: 'TRUE', active: true, read: false,
@@ -346,11 +370,32 @@ Module({
     if (!row) return res.sendStatus(404);
     if (!req.user.active)
       return res.status(403).json({ message: 'Somente membros ativos podem confirmar participação.' });
+    const normallyEligible = !['ANO_1', 'ANO_2'].includes(req.user.vocationalYear || '');
+    if (!normallyEligible && !(row.authorizedYearTwoIds || []).includes(req.user.id))
+      return res.status(403).json({ message: 'Participação disponível a partir do Discipulado ou mediante autorização para o Ano 2.' });
     row.presences ||= {};
     row.presences[req.user.id] = req.body?.confirmed ? 'CONFIRMADA' : 'RECUSADA';
     if (req.body?.confirmed && !row.participantIds.includes(req.user.id)) row.participantIds.push(req.user.id);
     if (!req.body?.confirmed) row.participantIds = row.participantIds.filter((id) => id !== req.user.id);
     res.json({ success: true, status: row.presences[req.user.id] });
+  });
+  server.post('/api/cenacle-missions/:id/authorize-year-two', (req, res) => {
+    const row = cenacleMissions.find((item) => item.id === req.params.id);
+    if (!row) return res.sendStatus(404);
+    if (!['DEVELOPER', 'MISSION_LEADER', 'MINISTRY_LEADER'].includes(req.user.profile))
+      return res.status(403).json({ message: 'Sem permissão para autorizar.' });
+    const member = members.find((item) => item.id === req.body?.memberId && item.vocationalYear === 'ANO_2');
+    if (!member) return res.status(400).json({ message: 'Selecione um membro do Ano 2.' });
+    row.authorizedYearTwoIds ||= [];
+    if (!row.authorizedYearTwoIds.includes(member.id)) row.authorizedYearTwoIds.push(member.id);
+    tabs['Notificações'].push({
+      id: `qa-year-two-${Date.now()}`, title: `Autorização para missão: ${row.title}`,
+      message: 'Sua participação foi autorizada. Confirme sua presença.', type: 'EVENTO',
+      publico: 'INDIVIDUAL', audience: 'INDIVIDUAL', destinatarios: member.id,
+      referencia_tipo: 'MISSAO_CENACULO', referencia_id: row.id, link: '/cenaculos?tab=missoes',
+      sentAt: new Date().toISOString(), senderName: 'Sistema QA', active: true, read: false,
+    });
+    res.json({ success: true, message: `${member.name} foi autorizado e recebeu a notificação.` });
   });
   server.post('/api/cenacle-missions/:id/feedback/open', (req, res) => {
     const row = cenacleMissions.find((item) => item.id === req.params.id);

@@ -80,7 +80,7 @@ test('Ministry of Missions manages missions while other ministry leaders cannot'
   );
 });
 
-test('Only confirmed sent members answer feedback after leadership releases it', async () => {
+test('All active members see missions and confirmed participants answer released feedback', async () => {
   const { service, members, notifications } = missionFixture();
   const mission = await service.create(
     {
@@ -90,21 +90,27 @@ test('Only confirmed sent members answer feedback after leadership releases it',
       time: '10:00',
       location: 'Hospital',
       ministryId: 'missions',
-      participantIds: ['member'],
       status: 'CONCLUIDA',
     },
     members[0],
   );
   assert.equal((await service.list(members[3])).length, 1);
-  assert.equal((await service.list(members[4])).length, 0);
+  assert.equal((await service.list(members[4])).length, 1);
+  assert.equal(notifications[0].audience, 'TODOS');
   await assert.rejects(
     () => service.feedback(mission.id, { rating: 5 }, members[3]),
     (error) => error.getStatus() === 403,
   );
   await service.confirmPresence(mission.id, true, members[3]);
+  const afterConfirmation = (await service.list(members[3]))[0];
+  assert.deepEqual(afterConfirmation.participantIds, ['member']);
+  await assert.rejects(
+    () => service.openFeedback(mission.id, { id: 'mission-leader', profile: 'MISSION_LEADER' }),
+    (error) => error.getStatus() === 403,
+  );
   const released = await service.openFeedback(mission.id, members[1]);
   assert.equal(released.notified, 1);
-  assert.deepEqual(notifications[0].recipientIds, ['member']);
+  assert.deepEqual(notifications[1].recipientIds, ['member']);
   await service.feedback(
     mission.id,
     { rating: 5, strengths: 'Acolhimento', improvements: 'Horário' },
@@ -122,7 +128,7 @@ test('Only confirmed sent members answer feedback after leadership releases it',
   assert.equal(results[0].memberName, 'Participante');
 });
 
-test('does not release feedback before mission end or to unconfirmed members', async () => {
+test('does not release feedback before mission end and lets every active member respond', async () => {
   const { service, members } = missionFixture();
   const future = new Date();
   future.setDate(future.getDate() + 2);
@@ -135,10 +141,8 @@ test('does not release feedback before mission end or to unconfirmed members', a
     () => service.openFeedback(mission.id, members[0]),
     (error) => error.getStatus() === 400,
   );
-  await assert.rejects(
-    () => service.confirmPresence(mission.id, true, members[4]),
-    (error) => error.getStatus() === 403,
-  );
+  const presence = await service.confirmPresence(mission.id, true, members[4]);
+  assert.equal(presence.status, 'CONFIRMADA');
 });
 
 test('Member and ministry leader receive the complete read-only member directory', async () => {

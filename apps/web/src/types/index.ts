@@ -296,6 +296,12 @@ export type MissionaryAgenda = {
   rejectionReason: string;
   membersSentBy: string;
   membersSentAt: string;
+  ministrySelectionCompleted: boolean;
+  intercessionSelectionCompleted: boolean;
+  ministrySelectedBy: string;
+  ministrySelectedAt: string;
+  intercessionSelectedBy: string;
+  intercessionSelectedAt: string;
   participantIds: string[];
   participantNames: string[];
   authorizedYearTwoIds: string[];
@@ -312,6 +318,7 @@ export type MissionaryAgenda = {
   canSubmit: boolean;
   canReview: boolean;
   canSelectMembers: boolean;
+  canSelectIntercessors: boolean;
   active: boolean;
   createdBy: string;
   createdAt: string;
@@ -320,6 +327,8 @@ export type MissionaryAgenda = {
 };
 export type MissionaryAgendaOptions = {
   currentMemberId: string;
+  intercessionMinistryId: string;
+  intercessionMinistryName: string;
   members: { id: string; name: string; ministry: string }[];
   yearTwoMembers: { id: string; name: string; ministry: string }[];
   ministries: { id: string; name: string; managed: boolean }[];

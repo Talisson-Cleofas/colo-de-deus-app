@@ -9,8 +9,6 @@ import {
   FormHelperText,
   MenuItem,
   Stack,
-  Tab,
-  Tabs,
   TextField,
   Typography,
   Switch,
@@ -130,12 +128,10 @@ export function AgendaMissionariaForm({
 }) {
   const [value, setValue] = useState<AgendaMissionariaFormValue>(() => fromAgenda(agenda));
   const [submitted, setSubmitted] = useState(false);
-  const [teamTab, setTeamTab] = useState(0);
 
   useEffect(() => {
     setValue(fromAgenda(agenda));
     setSubmitted(false);
-    setTeamTab(0);
   }, [agenda]);
 
   const errors = useMemo(() => {
@@ -465,69 +461,36 @@ export function AgendaMissionariaForm({
                 />
               )}
             </Box>
-            <Box sx={{ mt: 2.5, border: 1, borderColor: 'divider', borderRadius: 2 }}>
-              <Tabs
-                value={teamTab}
-                onChange={(_, next) => setTeamTab(next)}
-                variant="fullWidth"
-                aria-label="Equipe missionária"
-              >
-                <Tab label={`Acompanhantes (${value.accompanyingIds.length})`} />
-                <Tab label={`Intercessores (${value.intercessorIds.length})`} />
-              </Tabs>
-              <Box sx={{ p: 2 }}>
-                {teamTab === 0 ? (
-                  <Autocomplete
-                    multiple
-                    options={options.members.filter(
-                      (member) => !value.intercessorIds.includes(member.id),
-                    )}
-                    value={options.members.filter((member) =>
-                      value.accompanyingIds.includes(member.id),
-                    )}
-                    getOptionLabel={(member) => member.name}
-                    isOptionEqualToValue={(option, selected) => option.id === selected.id}
-                    onChange={(_, selected) =>
-                      field(
-                        'accompanyingIds',
-                        selected.map((member) => member.id),
-                      )
-                    }
-                    renderInput={(params) => (
-                      <TextField
-                        {...params}
-                        label="Missionários acompanhantes"
-                        placeholder="Selecione um ou mais"
-                      />
-                    )}
-                  />
-                ) : (
-                  <Autocomplete
-                    multiple
-                    options={options.members.filter(
-                      (member) => !value.accompanyingIds.includes(member.id),
-                    )}
-                    value={options.members.filter((member) =>
-                      value.intercessorIds.includes(member.id),
-                    )}
-                    getOptionLabel={(member) => member.name}
-                    isOptionEqualToValue={(option, selected) => option.id === selected.id}
-                    onChange={(_, selected) =>
-                      field(
-                        'intercessorIds',
-                        selected.map((member) => member.id),
-                      )
-                    }
-                    renderInput={(params) => (
-                      <TextField
-                        {...params}
-                        label="Missionários intercessores"
-                        placeholder="Selecione um ou mais"
-                      />
-                    )}
+            <Box sx={{ mt: 2.5, p: 2, border: 1, borderColor: 'divider', borderRadius: 2 }}>
+              <Typography fontWeight={800} mb={1.5}>
+                Acompanhantes solicitados
+              </Typography>
+              <Autocomplete
+                multiple
+                options={options.members}
+                value={options.members.filter((member) =>
+                  value.accompanyingIds.includes(member.id),
+                )}
+                getOptionLabel={(member) => member.name}
+                isOptionEqualToValue={(option, selected) => option.id === selected.id}
+                onChange={(_, selected) =>
+                  field(
+                    'accompanyingIds',
+                    selected.map((member) => member.id),
+                  )
+                }
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Missionários acompanhantes"
+                    placeholder="Selecione um ou mais"
                   />
                 )}
-              </Box>
+              />
+              <FormHelperText sx={{ mt: 1 }}>
+                Os intercessores serão definidos posteriormente pelo líder do Ministério de
+                Intercessão.
+              </FormHelperText>
             </Box>
             <FormHelperText sx={{ mt: 1.5 }}>
               A equipe selecionada ficará vinculada à agenda e disponível durante a edição.

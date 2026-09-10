@@ -49,6 +49,16 @@ members.push(
     profile: 'MEMBER', active: true, gifts: [], ministry: 'Comunicação',
     cell: '', photo: '', role: 'MEMBER', vocationalYear: 'ANO_1',
   },
+  {
+    id: 'qa-8', memberId: 'qa-8', uid: 'qa-8',
+    name: 'Teste LIDER INTERCESSAO', email: 'qa-8@example.test', profile: 'MINISTRY_LEADER',
+    active: true, gifts: [], ministry: 'Intercessão', cell: '', photo: '', role: 'MINISTRY_LEADER', vocationalYear: 'DISCIPULO',
+  },
+  {
+    id: 'qa-9', memberId: 'qa-9', uid: 'qa-9',
+    name: 'Teste INTERCESSOR', email: 'qa-9@example.test', profile: 'MEMBER',
+    active: true, gifts: [], ministry: 'Intercessão', cell: '', photo: '', role: 'MEMBER', vocationalYear: 'DISCIPULO',
+  },
 );
 const qaMinistry = {
   id: 'qa-ministry-communication',
@@ -75,6 +85,12 @@ const qaMissionsMinistry = {
   type: 'MISSOES',
   membersCount: 4,
 };
+const qaIntercessionMinistry = {
+  ...qaMinistry, id: 'qa-ministry-intercession', name: 'Intercessão',
+  description: 'Ministério fictício para validar a seleção separada de intercessores.',
+  leaderId: 'qa-8', leaderName: 'Teste LIDER INTERCESSAO', leaderEmail: 'qa-8@example.test',
+  type: 'INTERCESSAO', membersCount: 2,
+};
 const cenacleMissions = [
   {
     id: 'qa-mission-presence',
@@ -96,9 +112,11 @@ const missionaryAgendas = [{
   title: 'Agenda Missionária — teste do Ano 2', description: 'Validação da autorização vocacional',
   type: 'MISSAO', status: 'AGUARDANDO_INDICACOES', startDate: '2026-09-20', endDate: '2026-09-20',
   startTime: '19:00', endTime: '21:00', location: 'Local fictício', address: '', neighborhood: '',
-  city: 'Brasília', state: 'DF', zipCode: '', responsibleId: '', ministryId: qaMinistry.id,
+  city: 'Brasília', state: 'DF', zipCode: '', responsibleId: 'qa-5', ministryId: qaMinistry.id,
   participantLimit: 20, meetingPoint: '', transport: '', notes: '', participantIds: [],
-  accompanyingIds: [], intercessorIds: [], authorizedYearTwoIds: [], takesStoreItems: false,
+  accompanyingIds: [], intercessorIds: [], authorizedYearTwoIds: [], ministrySelectionCompleted: false,
+  intercessionSelectionCompleted: false, ministrySelectedBy: '', ministrySelectedAt: '',
+  intercessionSelectedBy: '', intercessionSelectedAt: '', takesStoreItems: false,
   storeResponsibleId: '', storeCardMachine: false, submittedBy: 'qa-4', submittedAt: new Date().toISOString(),
   approvedBy: 'qa-1', approvedAt: new Date().toISOString(), approvalNotes: '', rejectedBy: '', rejectedAt: '',
   rejectionReason: '', membersSentBy: '', membersSentAt: '', createdBy: 'qa-4', createdAt: new Date().toISOString(),
@@ -224,7 +242,7 @@ Module({
       profile: req.user.profile,
       permissions: rows.map((row) => row.permissionCode),
       scopes: Object.fromEntries(rows.map((row) => [row.permissionCode, row.scope])),
-      ministryIds: req.user.profile === 'MINISTRY_LEADER' ? [qaMinistry.id, qaMissionsMinistry.id] : [],
+      ministryIds: req.user.profile === 'MINISTRY_LEADER' ? (req.user.id === 'qa-8' ? [qaIntercessionMinistry.id] : [qaMinistry.id, qaMissionsMinistry.id]) : [],
       cellIds: req.user.profile === 'CELL_LEADER' ? ['qa-cell-leader'] : [],
     });
   });
@@ -348,25 +366,32 @@ Module({
   const mapMissionaryAgenda = (row, req) => ({
     ...row,
     responsibleName: members.find((member) => member.id === row.responsibleId)?.name || '',
-    ministryName: [qaMinistry, qaMissionsMinistry].find((ministry) => ministry.id === row.ministryId)?.name || '',
+    ministryName: [qaMinistry, qaMissionsMinistry, qaIntercessionMinistry].find((ministry) => ministry.id === row.ministryId)?.name || '',
     storeResponsibleName: members.find((member) => member.id === row.storeResponsibleId)?.name || '',
-    participantIds: row.participantIds || [], participantNames: [],
+    participantIds: row.participantIds || [], participantNames: (row.participantIds || []).map((id) => members.find((member) => member.id === id)?.name || id),
     authorizedYearTwoIds: row.authorizedYearTwoIds || [],
     authorizedYearTwoNames: (row.authorizedYearTwoIds || []).map((id) => members.find((member) => member.id === id)?.name || id),
     accompanyingIds: row.accompanyingIds || [],
     accompanyingNames: (row.accompanyingIds || []).map((id) => members.find((member) => member.id === id)?.name || id),
     intercessorIds: row.intercessorIds || [],
     intercessorNames: (row.intercessorIds || []).map((id) => members.find((member) => member.id === id)?.name || id),
-    canEdit: ['DEVELOPER', 'MISSION_LEADER'].includes(req.user.profile) || row.createdBy === req.user.id,
+    ministrySelectionCompleted: Boolean(row.ministrySelectionCompleted),
+    intercessionSelectionCompleted: Boolean(row.intercessionSelectionCompleted),
+    ministrySelectedBy: row.ministrySelectedBy || '', ministrySelectedAt: row.ministrySelectedAt || '',
+    intercessionSelectedBy: row.intercessionSelectedBy || '', intercessionSelectedAt: row.intercessionSelectedAt || '',
+    canEdit: (['DEVELOPER', 'MISSION_LEADER'].includes(req.user.profile) || row.createdBy === req.user.id) && !row.ministrySelectionCompleted && !row.intercessionSelectionCompleted,
     canSubmit: false, canReview: false,
-    canSelectMembers: row.status === 'AGUARDANDO_INDICACOES' && ['DEVELOPER', 'MISSION_LEADER', 'MINISTRY_LEADER'].includes(req.user.profile),
+    canSelectMembers: row.status === 'AGUARDANDO_INDICACOES' && !row.ministrySelectionCompleted && (['DEVELOPER', 'MISSION_LEADER'].includes(req.user.profile) || req.user.id === 'qa-2'),
+    canSelectIntercessors: row.status === 'AGUARDANDO_INDICACOES' && !row.intercessionSelectionCompleted && (['DEVELOPER', 'MISSION_LEADER'].includes(req.user.profile) || req.user.id === 'qa-8'),
     active: true,
   });
   server.get('/api/missionary-agenda/options', (req, res) => res.json({
     currentMemberId: req.user.id,
+    intercessionMinistryId: qaIntercessionMinistry.id,
+    intercessionMinistryName: qaIntercessionMinistry.name,
     members: members.filter((member) => member.active && !['ANO_1', 'ANO_2'].includes(member.vocationalYear || '')).map((member) => ({ id: member.id, name: member.name, ministry: member.ministry || '' })),
     yearTwoMembers: members.filter((member) => member.active && member.vocationalYear === 'ANO_2').map((member) => ({ id: member.id, name: member.name, ministry: member.ministry || '' })),
-    ministries: [qaMinistry, qaMissionsMinistry].map((ministry) => ({ id: ministry.id, name: ministry.name, managed: true })),
+    ministries: [qaMinistry, qaMissionsMinistry, qaIntercessionMinistry].map((ministry) => ({ id: ministry.id, name: ministry.name, managed: true })),
   }));
   server.get('/api/missionary-agenda', (req, res) => res.json(missionaryAgendas.map((row) => mapMissionaryAgenda(row, req))));
   server.post('/api/missionary-agenda', (req, res) => {
@@ -384,7 +409,9 @@ Module({
       takesStoreItems: Boolean(body.takesStoreItems),
       storeResponsibleId: body.takesStoreItems ? body.storeResponsibleId : '',
       storeCardMachine: Boolean(body.takesStoreItems && body.storeCardMachine),
-      participantIds: [], authorizedYearTwoIds: [], accompanyingIds: body.accompanyingIds || [], intercessorIds: body.intercessorIds || [],
+      participantIds: [], authorizedYearTwoIds: [], accompanyingIds: body.accompanyingIds || [], intercessorIds: [],
+      ministrySelectionCompleted: false, intercessionSelectionCompleted: false,
+      ministrySelectedBy: '', ministrySelectedAt: '', intercessionSelectedBy: '', intercessionSelectedAt: '',
       submittedBy: '', submittedAt: '', approvedBy: '', approvedAt: '', approvalNotes: '',
       rejectedBy: '', rejectedAt: '', rejectionReason: '', membersSentBy: '', membersSentAt: '',
       createdBy: req.user.id, createdAt: now, updatedBy: req.user.id, updatedAt: now,
@@ -405,32 +432,62 @@ Module({
   server.post('/api/missionary-agenda/:id/authorize-year-two', (req, res) => {
     const row = missionaryAgendas.find((item) => item.id === req.params.id);
     if (!row) return res.sendStatus(404);
-    if (!['DEVELOPER', 'MISSION_LEADER', 'MINISTRY_LEADER'].includes(req.user.profile))
+    if (!['DEVELOPER', 'MISSION_LEADER'].includes(req.user.profile) && !['qa-2', 'qa-8'].includes(req.user.id))
       return res.status(403).json({ message: 'Somente a liderança responsável pode autorizar membros do Ano 2.' });
     const member = members.find((item) => item.id === req.body?.memberId && item.active && item.vocationalYear === 'ANO_2');
     if (!member) return res.status(400).json({ message: 'Esta autorização é exclusiva para membros do Ano 2.' });
-    if (!(member.ministry || '').split(',').map((value) => value.trim()).includes('Comunicação'))
+    const expectedMinistry = req.user.id === 'qa-8' ? 'Intercessão' : 'Comunicação';
+    if (!(member.ministry || '').split(',').map((value) => value.trim()).includes(expectedMinistry))
       return res.status(400).json({ message: 'O membro do Ano 2 deve pertencer ao ministério solicitado.' });
     if ((row.authorizedYearTwoIds || []).includes(member.id)) return res.status(409).json({ message: 'Membro já autorizado.' });
     row.authorizedYearTwoIds = [...(row.authorizedYearTwoIds || []), member.id];
     const now = new Date().toISOString();
     missionaryAgendaHistory.push({ id: 'qa-history-' + Date.now(), agendaId: row.id, previousStatus: row.status, status: row.status, action: 'ANO_2_AUTORIZADO', note: `${member.name} foi autorizado(a) para esta missão.`, userId: req.user.id, userName: req.user.name, createdAt: now });
+    res.json({ success: true, message: `${member.name} foi autorizado(a) para esta missão.` });
+  });
+  const finalizeMissionaryAgenda = (row, req) => {
+    if (!row.ministrySelectionCompleted || !row.intercessionSelectionCompleted) return;
+    row.status = 'ENVIADA_AOS_MEMBROS';
+    const now = new Date().toISOString();
+    const recipientIds = [...new Set([...(row.participantIds || []), ...(row.accompanyingIds || []), ...(row.intercessorIds || [])])];
     tabs['Notificações'].push({
-      id: `qa-agenda-year-two-${Date.now()}`, title: `Autorização para agenda missionária: ${row.title}`,
-      message: `Sua participação foi autorizada para ${row.title}. Aguarde o envio da liderança.`,
-      type: 'EVENTO', publico: 'INDIVIDUAL', audience: 'INDIVIDUAL', destinatarios: member.id,
+      id: `qa-agenda-team-${Date.now()}`, title: 'Você foi enviado para uma agenda missionária',
+      message: row.title, type: 'EVENTO', publico: 'INDIVIDUAL', audience: 'INDIVIDUAL',
+      destinatarios: recipientIds.join(','), referencia_tipo: 'AGENDA_MISSIONARIA', referencia_id: row.id,
+      link: '/agenda-missionaria', sentAt: now, senderName: 'Sistema QA', active: true, read: false,
+    });
+    tabs['Notificações'].push({
+      id: `qa-agenda-owner-${Date.now()}`, title: 'Equipe da agenda devidamente informada',
+      message: `${row.title}: missionários e intercessores foram notificados. Dê o retorno ao solicitante.`,
+      type: 'SISTEMA', publico: 'INDIVIDUAL', audience: 'INDIVIDUAL', destinatarios: row.createdBy,
       referencia_tipo: 'AGENDA_MISSIONARIA', referencia_id: row.id, link: '/agenda-missionaria',
       sentAt: now, senderName: 'Sistema QA', active: true, read: false,
     });
-    res.json({ success: true, message: `${member.name} foi autorizado(a) e recebeu a notificação.` });
-  });
+  };
   server.post('/api/missionary-agenda/:id/send', (req, res) => {
     const row = missionaryAgendas.find((item) => item.id === req.params.id);
     if (!row) return res.sendStatus(404);
     const selected = members.filter((member) => (req.body?.memberIds || []).includes(member.id));
     if (selected.some((member) => member.vocationalYear === 'ANO_1')) return res.status(400).json({ message: 'Membros do Ano 1 não podem ser enviados para missões.' });
     if (selected.some((member) => member.vocationalYear === 'ANO_2' && !(row.authorizedYearTwoIds || []).includes(member.id))) return res.status(400).json({ message: 'Membros do Ano 2 precisam de autorização da liderança para esta missão.' });
-    row.participantIds = selected.map((member) => member.id); row.status = 'ENVIADA_AOS_MEMBROS';
+    if (row.responsibleId && !req.body?.authorizeRequestedMissionary) return res.status(400).json({ message: 'Confirme a autorização do missionário solicitado antes de continuar.' });
+    if (row.responsibleId && !selected.some((member) => member.id === row.responsibleId)) return res.status(400).json({ message: 'O missionário solicitado precisa estar entre os membros selecionados.' });
+    row.participantIds = selected.map((member) => member.id);
+    row.ministrySelectionCompleted = true; row.ministrySelectedBy = req.user.id; row.ministrySelectedAt = new Date().toISOString();
+    finalizeMissionaryAgenda(row, req);
+    res.json(mapMissionaryAgenda(row, req));
+  });
+  server.post('/api/missionary-agenda/:id/send-intercessors', (req, res) => {
+    const row = missionaryAgendas.find((item) => item.id === req.params.id);
+    if (!row) return res.sendStatus(404);
+    if (!['DEVELOPER', 'MISSION_LEADER'].includes(req.user.profile) && req.user.id !== 'qa-8')
+      return res.status(403).json({ message: 'Somente o líder do Ministério de Intercessão pode selecionar os intercessores.' });
+    const selected = members.filter((member) => (req.body?.memberIds || []).includes(member.id));
+    if (!selected.length || selected.some((member) => member.ministry !== 'Intercessão'))
+      return res.status(400).json({ message: 'Selecione membros do Ministério de Intercessão.' });
+    row.intercessorIds = selected.map((member) => member.id);
+    row.intercessionSelectionCompleted = true; row.intercessionSelectedBy = req.user.id; row.intercessionSelectedAt = new Date().toISOString();
+    finalizeMissionaryAgenda(row, req);
     res.json(mapMissionaryAgenda(row, req));
   });
   server.get('/api/missionary-agenda/:id/history', (req, res) => res.json(missionaryAgendaHistory.filter((row) => row.agendaId === req.params.id)));

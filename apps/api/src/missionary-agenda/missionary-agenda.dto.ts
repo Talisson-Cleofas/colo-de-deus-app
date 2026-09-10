@@ -124,6 +124,11 @@ export class RejectMissionaryAgendaDto {
 
 export class SendMissionaryAgendaDto {
   @IsArray() @IsString({ each: true }) memberIds!: string[];
+  @IsOptional() @IsBoolean() authorizeRequestedMissionary = false;
+}
+
+export class SendMissionaryAgendaIntercessorsDto {
+  @IsArray() @IsString({ each: true }) memberIds!: string[];
 }
 
 export class AuthorizeMissionaryAgendaYearTwoDto {

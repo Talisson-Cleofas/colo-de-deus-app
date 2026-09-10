@@ -272,7 +272,7 @@ test('executa aprovação: líder da agenda → líder de missão → líder de 
   assert.equal(sent.status, 'AGUARDANDO_INDICACOES');
   assert.equal(sent.ministrySelectionCompleted, true);
   assert.equal(sent.intercessionSelectionCompleted, false);
-  assert.equal(notifications.length, 2);
+  assert.equal(notifications.length, 3);
 
   const finalized = await service.sendIntercessors(
     created.id,
@@ -284,11 +284,8 @@ test('executa aprovação: líder da agenda → líder de missão → líder de 
   assert.deepEqual(sent.participantIds, [users.member.id]);
   assert.equal((await service.list({}, users.member)).length, 1);
   assert.equal(tabs.AgendaMissionariaHistorico.length, 6);
-  assert.equal(notifications.length, 4);
-  assert.deepEqual(notifications.at(-2).recipientIds.sort(), [
-    users.intercessor.id,
-    users.member.id,
-  ]);
+  assert.equal(notifications.length, 5);
+  assert.deepEqual(notifications.at(-2).recipientIds, [users.intercessor.id]);
   assert.deepEqual(notifications.at(-1).recipientIds, [users.agenda.id]);
 });
 
@@ -423,7 +420,7 @@ test('bloqueia transições por perfil e seleção fora do ministério', async (
   );
 });
 
-test('bloqueia Ano 1 e exige autorização por missão para enviar Ano 2', async () => {
+test('permite anos iniciais somente como acompanhantes na Agenda Missionária', async () => {
   const { service, tabs, notifications } = fixture();
   const created = await service.create(
     { ...input('Missão com regra vocacional'), responsibleId: '' },
@@ -435,11 +432,11 @@ test('bloqueia Ano 1 e exige autorização por missão para enviar Ano 2', async
   const optionsBefore = await service.options(users.ministry);
   assert.equal(
     optionsBefore.members.some((member) => member.id === users.yearOne.id),
-    false,
+    true,
   );
   assert.equal(
     optionsBefore.members.some((member) => member.id === users.yearTwo.id),
-    false,
+    true,
   );
   assert.equal(
     optionsBefore.yearTwoMembers.some((member) => member.id === users.yearTwo.id),
@@ -453,7 +450,7 @@ test('bloqueia Ano 1 e exige autorização por missão para enviar Ano 2', async
         { memberIds: [users.yearOne.id], authorizeRequestedMissionary: true },
         users.ministry,
       ),
-    /Ano 1/i,
+    /somente como acompanhantes/i,
   );
   await assert.rejects(
     () =>
@@ -462,32 +459,15 @@ test('bloqueia Ano 1 e exige autorização por missão para enviar Ano 2', async
         { memberIds: [users.yearTwo.id], authorizeRequestedMissionary: true },
         users.ministry,
       ),
-    /Ano 2.*autorização/i,
+    /somente como acompanhantes/i,
   );
 
-  const authorization = await service.authorizeYearTwo(
-    created.id,
-    users.yearTwo.id,
-    users.ministry,
+  await assert.rejects(
+    () => service.authorizeYearTwo(created.id, users.yearTwo.id, users.ministry),
+    /somente como acompanhantes/i,
   );
-  assert.match(authorization.message, /autorizado/i);
-  const authorized = await service.findOne(created.id, users.ministry);
-  assert.deepEqual(authorized.authorizedYearTwoIds, [users.yearTwo.id]);
-  assert.equal(
-    tabs.AgendaMissionariaHistorico.some((row) => row.acao === 'ANO_2_AUTORIZADO'),
-    true,
-  );
-  assert.equal(
-    notifications.some((notice) => notice.recipientIds.includes(users.yearTwo.id)),
-    false,
-  );
-
-  const sent = await service.sendToMembers(
-    created.id,
-    { memberIds: [users.yearTwo.id], authorizeRequestedMissionary: true },
-    users.ministry,
-  );
-  assert.deepEqual(sent.participantIds, [users.yearTwo.id]);
+  assert.equal(tabs.AgendaMissionariaHistorico.some((row) => row.acao === 'ANO_2_AUTORIZADO'), false);
+  assert.equal(notifications.some((notice) => notice.recipientIds.includes(users.yearTwo.id)), false);
 });
 
 test('impede perfil sem gestão de autorizar Ano 2 na Agenda Missionária', async () => {
@@ -521,7 +501,7 @@ test('exige autorização explícita do missionário solicitado pelo líder do m
   );
 });
 
-test('somente Intercessão seleciona intercessores e a primeira seleção não notifica membros', async () => {
+test('somente Intercessão seleciona intercessores e cada equipe é notificada na sua etapa', async () => {
   const { service, notifications } = fixture();
   const created = await service.create(
     { ...input('Missão aguardando duas equipes'), responsibleId: '' },
@@ -531,7 +511,8 @@ test('somente Intercessão seleciona intercessores e a primeira seleção não n
   await service.approve(created.id, {}, users.mission);
   const workflowNotifications = notifications.length;
   await service.sendToMembers(created.id, { memberIds: [users.member.id] }, users.ministry);
-  assert.equal(notifications.length, workflowNotifications);
+  assert.equal(notifications.length, workflowNotifications + 1);
+  assert.deepEqual(notifications.at(-1).recipientIds, [users.member.id]);
   await assert.rejects(
     () =>
       service.sendIntercessors(created.id, { memberIds: [users.intercessor.id] }, users.ministry),

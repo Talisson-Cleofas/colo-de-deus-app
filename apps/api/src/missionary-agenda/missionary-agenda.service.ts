@@ -341,8 +341,14 @@ export class MissionaryAgendaService {
       intercessionMinistryId: intercession?.id || '',
       intercessionMinistryName: intercession?.nome || 'Intercessão',
       members: ctx.members
-        .filter((item) => item.active && canParticipateInMinistries(item.vocationalYear))
-        .map((item) => ({ id: item.id, name: item.name, ministry: item.ministry }))
+        .filter((item) => item.active)
+        .map((item) => ({
+          id: item.id,
+          name: item.name,
+          ministry: item.ministry,
+          vocationalYear: item.vocationalYear,
+          canBeSent: canParticipateInMinistries(item.vocationalYear),
+        }))
         .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR')),
       yearTwoMembers: ctx.members
         .filter((item) => item.active && isVocationalYear(item.vocationalYear, 'ANO_2'))
@@ -361,6 +367,10 @@ export class MissionaryAgendaService {
     ]);
     if (responsibleId && !member?.active)
       throw new BadRequestException('Selecione um missionário ativo.');
+    if (responsibleId && !canParticipateInMinistries(member?.vocationalYear))
+      throw new BadRequestException(
+        'Membros do Ano 1 e Ano 2 podem participar somente como acompanhantes.',
+      );
     if (
       ministryId &&
       !ministries.some(
@@ -492,6 +502,10 @@ export class MissionaryAgendaService {
     if (!responsible || !responsible.active)
       throw new BadRequestException(
         'O acompanhante responsável pela Store deve ser um membro ativo.',
+      );
+    if (!canParticipateInMinistries(responsible.vocationalYear))
+      throw new BadRequestException(
+        'Membros do Ano 1 e Ano 2 não podem ficar responsáveis pela Store.',
       );
   }
 
@@ -756,8 +770,14 @@ export class MissionaryAgendaService {
         ministry?.vice_lider_id,
         intercession?.lider_id,
         intercession?.vice_lider_id,
-      ].filter(Boolean) as string[];
+    ].filter(Boolean) as string[];
     await this.notify('Agenda aprovada — defina a equipe da missão', item.title, leaders, item.id);
+    await this.notify(
+      'Você foi indicado como acompanhante de uma agenda missionária',
+      item.title,
+      item.accompanyingIds,
+      item.id,
+    );
     return this.findOne(id, user);
   }
   async reject(id: string, dto: RejectMissionaryAgendaDto, user: AuthenticatedUser) {
@@ -832,24 +852,13 @@ export class MissionaryAgendaService {
       membros_enviados_por: this.userId(user),
       membros_enviados_em: now,
     });
-    const updated = await this.findOne(id, user),
-      recipients = [
-        ...updated.participantIds,
-        ...updated.accompanyingIds,
-        ...updated.intercessorIds,
-      ];
+    const updated = await this.findOne(id, user);
     await this.log(
       item,
       status,
       'EQUIPE_NOTIFICADA',
-      `${new Set(recipients).size} participante(s) informado(s).`,
+      'Missionários, acompanhantes e intercessores foram informados em suas respectivas etapas.',
       user,
-    );
-    await this.notify(
-      'Você foi enviado para uma agenda missionária',
-      updated.title,
-      recipients,
-      updated.id,
     );
     await this.notify(
       'Equipe da agenda devidamente informada',
@@ -873,17 +882,9 @@ export class MissionaryAgendaService {
       selected = ctx.members.filter((member) => ids.includes(member.id));
     if (selected.length !== ids.length || selected.some((member) => !member.active))
       throw new BadRequestException('A seleção contém membro inexistente ou inativo.');
-    if (selected.some((member) => isVocationalYear(member.vocationalYear, 'ANO_1')))
-      throw new BadRequestException('Membros do Ano 1 não podem ser enviados para missões.');
-    const authorizedYearTwoIds = new Set(item.authorizedYearTwoIds);
-    if (
-      selected.some(
-        (member) =>
-          isVocationalYear(member.vocationalYear, 'ANO_2') && !authorizedYearTwoIds.has(member.id),
-      )
-    )
+    if (selected.some((member) => !canParticipateInMinistries(member.vocationalYear)))
       throw new BadRequestException(
-        'Membros do Ano 2 precisam de autorização da liderança para esta missão.',
+        'Membros do Ano 1 e Ano 2 podem participar somente como acompanhantes.',
       );
     if (selected.some((member) => !this.memberInMinistry(member.ministry || '', item.ministryName)))
       throw new BadRequestException(
@@ -914,6 +915,12 @@ export class MissionaryAgendaService {
       `${ids.length} missionário(s) selecionado(s).`,
       user,
     );
+    await this.notify(
+      'Você foi enviado para uma agenda missionária',
+      item.title,
+      ids,
+      item.id,
+    );
     return this.finalizeSelections(id, user);
   }
   async sendIntercessors(
@@ -935,17 +942,9 @@ export class MissionaryAgendaService {
     const selected = ctx.members.filter((member) => ids.includes(member.id));
     if (selected.length !== ids.length || selected.some((member) => !member.active))
       throw new BadRequestException('A seleção contém membro inexistente ou inativo.');
-    if (selected.some((member) => isVocationalYear(member.vocationalYear, 'ANO_1')))
-      throw new BadRequestException('Membros do Ano 1 não podem ser enviados para missões.');
-    if (
-      selected.some(
-        (member) =>
-          isVocationalYear(member.vocationalYear, 'ANO_2') &&
-          !item.authorizedYearTwoIds.includes(member.id),
-      )
-    )
+    if (selected.some((member) => !canParticipateInMinistries(member.vocationalYear)))
       throw new BadRequestException(
-        'Membros do Ano 2 precisam de autorização da liderança para esta missão.',
+        'Membros do Ano 1 e Ano 2 podem participar somente como acompanhantes.',
       );
     if (
       selected.some(
@@ -970,6 +969,12 @@ export class MissionaryAgendaService {
       `${ids.length} intercessor(es) selecionado(s).`,
       user,
     );
+    await this.notify(
+      'Você foi enviado como intercessor para uma agenda missionária',
+      item.title,
+      ids,
+      item.id,
+    );
     return this.finalizeSelections(id, user);
   }
   async authorizeYearTwo(id: string, memberId: string, user: AuthenticatedUser) {
@@ -983,32 +988,9 @@ export class MissionaryAgendaService {
     if (!member) throw new NotFoundException('Membro ativo não encontrado.');
     if (!isVocationalYear(member.vocationalYear, 'ANO_2'))
       throw new BadRequestException('Esta autorização é exclusiva para membros do Ano 2.');
-    const expectedMinistry = item.canSelectMembers
-      ? item.ministryName
-      : this.intercessionMinistry(ctx)?.nome || '';
-    if (!this.memberInMinistry(member.ministry || '', expectedMinistry))
-      throw new BadRequestException(
-        'O membro do Ano 2 deve pertencer ao ministério responsável por esta etapa.',
-      );
-    const authorizedIds = new Set(item.authorizedYearTwoIds);
-    if (authorizedIds.has(memberId))
-      throw new ConflictException('Este membro do Ano 2 já foi autorizado nesta missão.');
-    authorizedIds.add(memberId);
-    await this.save(item, user, {
-      ...this.workflow(item),
-      ano_2_autorizados_ids: [...authorizedIds].join(','),
-    });
-    await this.log(
-      item,
-      item.status,
-      'ANO_2_AUTORIZADO',
-      `${member.name} foi autorizado(a) para esta missão.`,
-      user,
+    throw new BadRequestException(
+      'Na Agenda Missionária, membros do Ano 2 podem participar somente como acompanhantes.',
     );
-    return {
-      success: true,
-      message: `${member.name} foi autorizado(a) para esta missão.`,
-    };
   }
   async history(id: string, user: AuthenticatedUser): Promise<MissionaryAgendaHistory[]> {
     await this.findOne(id, user);

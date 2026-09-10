@@ -5,7 +5,6 @@ import {
   EditOutlined,
   ForwardToInboxOutlined,
   LocationOnOutlined,
-  LockOpenOutlined,
   PersonOutline,
   SearchOutlined,
   SendOutlined,
@@ -107,7 +106,6 @@ export function AgendaMissionariaPage() {
   const [sending, setSending] = useState<MissionaryAgenda | null>(null),
     [sendingRole, setSendingRole] = useState<'MINISTRY' | 'INTERCESSION'>('MINISTRY'),
     [selectedIds, setSelectedIds] = useState<string[]>([]),
-    [authorizationMemberId, setAuthorizationMemberId] = useState(''),
     [authorizeRequestedMissionary, setAuthorizeRequestedMissionary] = useState(false);
 
   const load = async () => {
@@ -141,7 +139,6 @@ export function AgendaMissionariaPage() {
       setSending(null);
       setReason('');
       setSelectedIds([]);
-      setAuthorizationMemberId('');
       setAuthorizeRequestedMissionary(false);
       await load();
     } catch (cause) {
@@ -167,12 +164,8 @@ export function AgendaMissionariaPage() {
   const candidates = useMemo(
     () =>
       sending
-        ? [
-            ...options.members,
-            ...options.yearTwoMembers.filter((member) =>
-              sending.authorizedYearTwoIds.includes(member.id),
-            ),
-          ].filter((member) =>
+        ? options.members.filter((member) =>
+            member.canBeSent !== false &&
             member.ministry
               .split(',')
               .map((value) => value.trim().toLocaleLowerCase('pt-BR'))
@@ -188,53 +181,9 @@ export function AgendaMissionariaPage() {
       sending,
       sendingRole,
       options.members,
-      options.yearTwoMembers,
       options.intercessionMinistryName,
     ],
   );
-  const yearTwoCandidates = useMemo(
-    () =>
-      sending
-        ? options.yearTwoMembers.filter(
-            (member) =>
-              !sending.authorizedYearTwoIds.includes(member.id) &&
-              member.ministry
-                .split(',')
-                .map((value) => value.trim().toLocaleLowerCase('pt-BR'))
-                .includes(
-                  (sendingRole === 'MINISTRY'
-                    ? sending.ministryName
-                    : options.intercessionMinistryName
-                  ).toLocaleLowerCase('pt-BR'),
-                ),
-          )
-        : [],
-    [sending, sendingRole, options.yearTwoMembers, options.intercessionMinistryName],
-  );
-  const authorizeYearTwo = async () => {
-    if (!sending || !authorizationMemberId) return;
-    const member = options.yearTwoMembers.find((item) => item.id === authorizationMemberId);
-    if (!member) return;
-    setSaving(true);
-    setError('');
-    try {
-      await api.post(`/missionary-agenda/${sending.id}/authorize-year-two`, {
-        memberId: authorizationMemberId,
-      });
-      const updated = {
-        ...sending,
-        authorizedYearTwoIds: [...sending.authorizedYearTwoIds, member.id],
-        authorizedYearTwoNames: [...sending.authorizedYearTwoNames, member.name],
-      };
-      setSending(updated);
-      setItems((current) => current.map((item) => (item.id === updated.id ? updated : item)));
-      setAuthorizationMemberId('');
-    } catch (cause) {
-      setError(apiErrorMessage(cause));
-    } finally {
-      setSaving(false);
-    }
-  };
 
   return (
     <Box>
@@ -498,7 +447,6 @@ export function AgendaMissionariaPage() {
                       setSending(item);
                       setSendingRole('MINISTRY');
                       setSelectedIds([]);
-                      setAuthorizationMemberId('');
                       setAuthorizeRequestedMissionary(false);
                     }}
                   >
@@ -513,7 +461,6 @@ export function AgendaMissionariaPage() {
                       setSending(item);
                       setSendingRole('INTERCESSION');
                       setSelectedIds([]);
-                      setAuthorizationMemberId('');
                       setAuthorizeRequestedMissionary(false);
                     }}
                   >
@@ -583,47 +530,9 @@ export function AgendaMissionariaPage() {
           <Alert severity="info" sx={{ mb: 2 }}>
             Somente membros de{' '}
             {sendingRole === 'MINISTRY' ? sending?.ministryName : options.intercessionMinistryName}{' '}
-            podem ser selecionados nesta etapa. As notificações serão enviadas somente quando as
-            duas equipes estiverem confirmadas.
+            podem ser selecionados nesta etapa. Cada pessoa será notificada assim que a seleção
+            desta equipe for confirmada.
           </Alert>
-          <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
-            <Typography fontWeight={700} mb={1}>
-              Autorizar membro do Ano 2
-            </Typography>
-            <Alert severity="warning" sx={{ mb: 2 }}>
-              A autorização vale somente para esta missão. O membro será notificado apenas depois
-              que a equipe missionária e a intercessão estiverem confirmadas.
-            </Alert>
-            <Stack direction={{ xs: 'column', sm: 'row' }} gap={1}>
-              <TextField
-                select
-                fullWidth
-                label="Membro do Ano 2"
-                value={authorizationMemberId}
-                onChange={(event) => setAuthorizationMemberId(event.target.value)}
-              >
-                {yearTwoCandidates.map((member) => (
-                  <MenuItem key={member.id} value={member.id}>
-                    {member.name}
-                  </MenuItem>
-                ))}
-              </TextField>
-              <Button
-                variant="outlined"
-                startIcon={<LockOpenOutlined />}
-                disabled={saving || !authorizationMemberId}
-                onClick={() => void authorizeYearTwo()}
-                sx={{ whiteSpace: 'nowrap' }}
-              >
-                Autorizar
-              </Button>
-            </Stack>
-            {sending?.authorizedYearTwoNames.length ? (
-              <Typography variant="body2" color="success.main" mt={1}>
-                Autorizados: {sending.authorizedYearTwoNames.join(', ')}
-              </Typography>
-            ) : null}
-          </Paper>
           {sendingRole === 'MINISTRY' && sending?.responsibleId && (
             <Alert severity="warning" sx={{ mb: 2 }}>
               <Typography variant="body2" mb={1}>

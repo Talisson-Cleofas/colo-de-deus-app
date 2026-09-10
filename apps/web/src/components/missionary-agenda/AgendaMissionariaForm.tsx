@@ -346,7 +346,7 @@ export function AgendaMissionariaForm({
                 helperText={error('responsibleId')}
               >
                 <MenuItem value="">A definir pelo líder do ministério</MenuItem>
-                {options.members.map((item) => (
+                {options.members.filter((item) => item.canBeSent !== false).map((item) => (
                   <MenuItem key={item.id} value={item.id}>
                     {item.name}
                   </MenuItem>
@@ -426,8 +426,9 @@ export function AgendaMissionariaForm({
                 </TextField>
                 {value.takesStoreItems && (
                   <Autocomplete
-                    options={options.members.filter((member) =>
-                      value.accompanyingIds.includes(member.id),
+                    options={options.members.filter(
+                      (member) =>
+                        member.canBeSent !== false && value.accompanyingIds.includes(member.id),
                     )}
                     value={
                       options.members.find((member) => member.id === value.storeResponsibleId) ||
@@ -487,6 +488,10 @@ export function AgendaMissionariaForm({
                   />
                 )}
               />
+              <FormHelperText sx={{ mt: 1 }}>
+                Membros do Ano 1 e Ano 2 podem acompanhar a missão, mas não podem ser responsáveis
+                pelos itens ou pela maquininha da Store.
+              </FormHelperText>
               <FormHelperText sx={{ mt: 1 }}>
                 Os intercessores serão definidos posteriormente pelo líder do Ministério de
                 Intercessão.

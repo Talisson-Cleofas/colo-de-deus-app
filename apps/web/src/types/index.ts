@@ -329,7 +329,13 @@ export type MissionaryAgendaOptions = {
   currentMemberId: string;
   intercessionMinistryId: string;
   intercessionMinistryName: string;
-  members: { id: string; name: string; ministry: string }[];
+  members: {
+    id: string;
+    name: string;
+    ministry: string;
+    vocationalYear?: string;
+    canBeSent?: boolean;
+  }[];
   yearTwoMembers: { id: string; name: string; ministry: string }[];
   ministries: { id: string; name: string; managed: boolean }[];
 };

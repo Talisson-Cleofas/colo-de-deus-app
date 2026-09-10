@@ -7,6 +7,7 @@ import { AppLoadingScreen } from './components/system/AppLoadingScreen';
 import { AppShell } from './layout/AppShell';
 import { PermissionRoute } from './rbac/PermissionRoute';
 import { Permission } from './rbac/permissions';
+import type { AccessProfile } from './types';
 
 const AgendaPage = lazy(() =>
   import('./pages/AgendaPage').then((m) => ({ default: m.AgendaPage })),
@@ -73,7 +74,9 @@ const ProfilesPage = lazy(() =>
 const ReportsPage = lazy(() =>
   import('./pages/ReportsPage').then((m) => ({ default: m.ReportsPage })),
 );
-const EvaluationsPage = lazy(() => import('./pages/EvaluationsPage').then(m => ({ default: m.EvaluationsPage })));
+const EvaluationsPage = lazy(() =>
+  import('./pages/EvaluationsPage').then((m) => ({ default: m.EvaluationsPage })),
+);
 const RbacPage = lazy(() => import('./pages/RbacPage').then((m) => ({ default: m.RbacPage })));
 const SettingsPage = lazy(() =>
   import('./pages/SettingsPage').then((m) => ({ default: m.SettingsPage })),
@@ -93,10 +96,21 @@ const ForbiddenPage = lazy(() =>
 const protect = (
   element: ReactNode,
   permission: Parameters<typeof PermissionRoute>[0]['permission'],
-) => <PermissionRoute permission={permission}>{element}</PermissionRoute>;
+  deniedProfiles?: AccessProfile[],
+) => (
+  <PermissionRoute permission={permission} deniedProfiles={deniedProfiles}>
+    {element}
+  </PermissionRoute>
+);
 
-const protectAny = (element: ReactNode, anyOf: Parameters<typeof PermissionRoute>[0]['anyOf']) => (
-  <PermissionRoute anyOf={anyOf}>{element}</PermissionRoute>
+const protectAny = (
+  element: ReactNode,
+  anyOf: Parameters<typeof PermissionRoute>[0]['anyOf'],
+  deniedProfiles?: AccessProfile[],
+) => (
+  <PermissionRoute anyOf={anyOf} deniedProfiles={deniedProfiles}>
+    {element}
+  </PermissionRoute>
 );
 
 function AuthenticatedRoutes() {
@@ -121,10 +135,20 @@ function AuthenticatedRoutes() {
             <Route path="/soma" element={protect(<SomaPage />, Permission.SOMA_READ)} />
             <Route
               path="/drive"
-              element={protect(<Navigate to="/eventos?tab=drive" replace />, Permission.EVENTS_READ)}
+              element={protect(
+                <Navigate to="/eventos?tab=drive" replace />,
+                Permission.EVENTS_READ,
+                ['MEMBER', 'CELL_LEADER'],
+              )}
             />
-            <Route path="/relatorios" element={protect(<ReportsPage />, Permission.REPORTS_READ)} />
-            <Route path="/avaliacoes" element={<EvaluationsPage />} />
+            <Route
+              path="/relatorios"
+              element={protect(<ReportsPage />, Permission.REPORTS_READ, ['CELL_LEADER', 'MEMBER'])}
+            />
+            <Route
+              path="/avaliacoes"
+              element={protect(<EvaluationsPage />, Permission.DASHBOARD_READ)}
+            />
             <Route path="/membros" element={protect(<MembersPage />, Permission.MEMBERS_READ)} />
             <Route
               path="/membros/:id"
@@ -132,18 +156,15 @@ function AuthenticatedRoutes() {
             />
             <Route
               path="/missoes"
-              element={
-                <PermissionRoute
-                  permission={Permission.MINISTRIES_READ}
-                  deniedProfiles={['MEMBER']}
-                >
-                  <MissionsPage />
-                </PermissionRoute>
-              }
+              element={protect(<MissionsPage />, Permission.MINISTRIES_READ, [
+                'MINISTRY_LEADER',
+                'CELL_LEADER',
+                'MEMBER',
+              ])}
             />
             <Route
               path="/ministerios"
-              element={protect(<MinistriesPage />, Permission.MINISTRIES_READ)}
+              element={protect(<MinistriesPage />, Permission.MINISTRIES_READ, ['MEMBER'])}
             />
             <Route
               path="/mapa"
@@ -190,42 +211,75 @@ function AuthenticatedRoutes() {
             <Route path="/perfil" element={protect(<ProfilePage />, Permission.DASHBOARD_READ)} />
             <Route
               path="/organizacao"
-              element={protect(<OrganizationDashboardPage />, Permission.SETTINGS_READ)}
-            />
-            <Route
-              path="/configuracoes"
-              element={protect(<SettingsPage />, Permission.SETTINGS_READ)}
-            />
-            <Route
-              path="/configuracoes/integracoes"
-              element={protect(<IntegrationsPage />, Permission.INTEGRATIONS_READ)}
-            />
-            <Route
-              path="/configuracoes/performance"
-              element={protect(<PerformancePage />, Permission.SETTINGS_READ)}
-            />
-            <Route
-              path="/configuracoes/tecnico"
-              element={protect(<TechnicalAdminPage />, Permission.TECHNICAL_ADMIN_READ)}
-            />
-            <Route
-              path="/configuracoes/perfis"
-              element={protect(<ProfilesPage />, Permission.SETTINGS_MANAGE)}
-            />
-            <Route
-              path="/auditoria"
-              element={protectAny(<AuditPage />, [Permission.LOGS_READ, Permission.SETTINGS_READ])}
-            />
-            <Route
-              path="/lixeira"
-              element={protectAny(<TrashPage />, [
-                Permission.SETTINGS_MANAGE,
-                Permission.MEMBERS_DELETE,
+              element={protect(<OrganizationDashboardPage />, Permission.SETTINGS_READ, [
+                'MINISTRY_LEADER',
+                'CELL_LEADER',
+                'MEMBER',
               ])}
             />
             <Route
+              path="/configuracoes"
+              element={protect(<SettingsPage />, Permission.SETTINGS_READ, [
+                'MINISTRY_LEADER',
+                'CELL_LEADER',
+                'MEMBER',
+              ])}
+            />
+            <Route
+              path="/configuracoes/integracoes"
+              element={protect(<IntegrationsPage />, Permission.INTEGRATIONS_READ, [
+                'MINISTRY_LEADER',
+                'CELL_LEADER',
+                'MEMBER',
+              ])}
+            />
+            <Route
+              path="/configuracoes/performance"
+              element={protect(<PerformancePage />, Permission.SETTINGS_READ, [
+                'MINISTRY_LEADER',
+                'CELL_LEADER',
+                'MEMBER',
+              ])}
+            />
+            <Route
+              path="/configuracoes/tecnico"
+              element={protect(<TechnicalAdminPage />, Permission.TECHNICAL_ADMIN_READ, [
+                'MINISTRY_LEADER',
+                'CELL_LEADER',
+                'MEMBER',
+              ])}
+            />
+            <Route
+              path="/configuracoes/perfis"
+              element={protect(<ProfilesPage />, Permission.SETTINGS_MANAGE, [
+                'MINISTRY_LEADER',
+                'CELL_LEADER',
+                'MEMBER',
+              ])}
+            />
+            <Route
+              path="/auditoria"
+              element={protectAny(
+                <AuditPage />,
+                [Permission.LOGS_READ, Permission.SETTINGS_READ],
+                ['MINISTRY_LEADER', 'CELL_LEADER', 'MEMBER'],
+              )}
+            />
+            <Route
+              path="/lixeira"
+              element={protectAny(
+                <TrashPage />,
+                [Permission.SETTINGS_MANAGE, Permission.MEMBERS_DELETE],
+                ['MINISTRY_LEADER', 'CELL_LEADER', 'MEMBER'],
+              )}
+            />
+            <Route
               path="/configuracoes/rbac"
-              element={protect(<RbacPage />, Permission.SETTINGS_MANAGE)}
+              element={protect(<RbacPage />, Permission.SETTINGS_MANAGE, [
+                'MINISTRY_LEADER',
+                'CELL_LEADER',
+                'MEMBER',
+              ])}
             />
             <Route path="/sem-permissao" element={<ForbiddenPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />

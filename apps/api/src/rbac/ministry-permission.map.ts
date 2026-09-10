@@ -1,6 +1,7 @@
 import { Permission } from './enums/permission.enum';
 
-export type MinistryModuleCode = 'CELULAS' | 'EVENTOS' | 'CENACULO' | 'FINANCAS' | 'COMUNICACAO';
+export type MinistryModuleCode =
+  'CELULAS' | 'EVENTOS' | 'CENACULO' | 'FINANCAS' | 'COMUNICACAO' | 'MISSOES';
 
 export const MINISTRY_PERMISSION_MAP: Record<MinistryModuleCode, Permission[]> = {
   CELULAS: [
@@ -23,24 +24,43 @@ export const MINISTRY_PERMISSION_MAP: Record<MinistryModuleCode, Permission[]> =
     Permission.CENACLES_UPDATE,
     Permission.CENACLES_DELETE,
   ],
-  FINANCAS: [
-    Permission.SOMA_READ,
-    Permission.SOMA_WRITE,
-    Permission.FINANCIAL_REPORT_READ,
-  ],
+  FINANCAS: [Permission.SOMA_READ, Permission.SOMA_WRITE, Permission.FINANCIAL_REPORT_READ],
   COMUNICACAO: [
     Permission.NOTIFICATIONS_READ,
     Permission.NOTIFICATIONS_CREATE,
     Permission.NOTIFICATIONS_SEND,
   ],
+  MISSOES: [
+    Permission.MISSIONARY_AGENDA_READ,
+    Permission.MISSIONARY_AGENDA_CREATE,
+    Permission.MISSIONARY_AGENDA_UPDATE,
+  ],
 };
 
 const aliases: Record<string, MinistryModuleCode> = {
-  CELULA: 'CELULAS', CELULAS: 'CELULAS', CELL: 'CELULAS', CELLS: 'CELULAS',
-  EVENTO: 'EVENTOS', EVENTOS: 'EVENTOS', EVENT: 'EVENTOS', EVENTS: 'EVENTOS',
-  CENACULO: 'CENACULO', CENACULOS: 'CENACULO', CENACLE: 'CENACULO', CENACLES: 'CENACULO',
-  FINANCA: 'FINANCAS', FINANCAS: 'FINANCAS', FINANCEIRO: 'FINANCAS', SOMA: 'FINANCAS',
-  COMUNICACAO: 'COMUNICACAO', COMMUNICATION: 'COMUNICACAO', NOTIFICACOES: 'COMUNICACAO',
+  CELULA: 'CELULAS',
+  CELULAS: 'CELULAS',
+  CELL: 'CELULAS',
+  CELLS: 'CELULAS',
+  EVENTO: 'EVENTOS',
+  EVENTOS: 'EVENTOS',
+  EVENT: 'EVENTOS',
+  EVENTS: 'EVENTOS',
+  CENACULO: 'CENACULO',
+  CENACULOS: 'CENACULO',
+  CENACLE: 'CENACULO',
+  CENACLES: 'CENACULO',
+  FINANCA: 'FINANCAS',
+  FINANCAS: 'FINANCAS',
+  FINANCEIRO: 'FINANCAS',
+  SOMA: 'FINANCAS',
+  COMUNICACAO: 'COMUNICACAO',
+  COMMUNICATION: 'COMUNICACAO',
+  NOTIFICACOES: 'COMUNICACAO',
+  MISSAO: 'MISSOES',
+  MISSOES: 'MISSOES',
+  MISSION: 'MISSOES',
+  MISSIONS: 'MISSOES',
 };
 
 export function normalizeMinistryModule(value: string): MinistryModuleCode | null {

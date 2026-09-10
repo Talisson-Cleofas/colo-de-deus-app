@@ -570,7 +570,31 @@ export class SomaService implements OnModuleInit, OnModuleDestroy {
     filter: { from?: string; to?: string; status?: string; method?: string } = {},
   ): Promise<FinancialReport> {
     let rows = await this.paymentRows();
-    if (!ADMIN_ROLES.includes(user.profile))
+    if (user.profile === 'MINISTRY_LEADER') {
+      const uid = user.memberId || user.id;
+      const [members, ministries] = await Promise.all([
+        this.memberRows(),
+        this.members.read('Ministérios'),
+      ]);
+      const led = ministries.filter(
+        (item) =>
+          item.lider_id === uid ||
+          item.vice_lider_id === uid ||
+          Boolean(user.ministry && item.nome === user.ministry),
+      );
+      const ministryIds = new Set(led.map((item) => item.id));
+      const ministryNames = new Set(led.map((item) => item.nome));
+      const memberIds = new Set(
+        members
+          .filter(
+            (member) =>
+              ministryIds.has(member.ministerio_id || '') ||
+              ministryNames.has(member.ministerio || ''),
+          )
+          .map((member) => member.id),
+      );
+      rows = rows.filter((payment) => memberIds.has(payment.member_id));
+    } else if (!ADMIN_ROLES.includes(user.profile))
       rows = rows.filter(
         (x) =>
           x.member_id === (user.memberId || user.id) ||

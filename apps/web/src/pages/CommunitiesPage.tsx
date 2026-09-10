@@ -4,6 +4,7 @@ import {
   MapOutlined,
   SearchOutlined,
   ViewListOutlined,
+  TravelExploreOutlined,
 } from '@mui/icons-material';
 import {
   Alert,
@@ -33,6 +34,7 @@ import type { Community } from '../types/community';
 import { CellsMapPage } from './CellsMapPage';
 import { usePermission } from '../rbac/usePermission';
 import { Permission } from '../rbac/permissions';
+import { CenacleMissionsPanel } from '../components/cenacles/CenacleMissionsPanel';
 type Member = { id: string; name: string; email: string; phone?: string; active: boolean };
 type Ministry = { id: string; name: string };
 type CellOption = { id: string; name: string };
@@ -67,10 +69,11 @@ export function CommunitiesPage({ type }: { type: 'CELL' | 'CENACLE' }) {
   const { hasRole } = useAuth();
   const { hasPermission, hasMinistryModule } = usePermission();
   const canCreate =
-    hasRole('ADMIN', 'DEVELOPER', 'MISSION_LEADER') ||
-    (type === 'CELL'
-      ? hasPermission(Permission.CELLS_CREATE) && hasMinistryModule('CELULAS')
-      : hasPermission(Permission.CENACLES_CREATE) && hasMinistryModule('CENACULO'));
+    !hasRole('CELL_LEADER', 'MEMBER') &&
+    (hasRole('ADMIN', 'DEVELOPER', 'MISSION_LEADER') ||
+      (type === 'CELL'
+        ? hasPermission(Permission.CELLS_CREATE) && hasMinistryModule('CELULAS')
+        : hasPermission(Permission.CENACLES_CREATE) && hasMinistryModule('CENACULO')));
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState(makeEmpty());
@@ -84,6 +87,7 @@ export function CommunitiesPage({ type }: { type: 'CELL' | 'CENACLE' }) {
   const [neighborhood, setNeighborhood] = useState('');
   const [params, setParams] = useSearchParams();
   const mapActive = type === 'CELL' && params.get('tab') === 'mapa';
+  const missionsActive = type === 'CENACLE' && params.get('tab') === 'missoes';
   const status = (params.get('status') || 'UPCOMING') as CenacleStatus;
   const periodStart = params.get('periodStart') || '';
   const periodEnd = params.get('periodEnd') || '';
@@ -174,7 +178,7 @@ export function CommunitiesPage({ type }: { type: 'CELL' | 'CENACLE' }) {
               : 'Encontros com data, horário, histórico e preservação de presenças.'}
           </Typography>
         </Box>
-        {canCreate && (
+        {canCreate && !missionsActive && (
           <Button variant="contained" startIcon={<AddOutlined />} onClick={() => setOpen(true)}>
             Novo {singular}
           </Button>
@@ -192,7 +196,21 @@ export function CommunitiesPage({ type }: { type: 'CELL' | 'CENACLE' }) {
         </Paper>
       ) : (
         <Paper sx={{ mt: 2 }}>
-          <Tabs value={status} onChange={(_, v) => setStatus(v)}>
+          <Tabs
+            value={missionsActive ? 'MISSIONS' : status}
+            variant="scrollable"
+            scrollButtons
+            allowScrollButtonsMobile
+            onChange={(_, v) => {
+              if (v === 'MISSIONS') setParams({ tab: 'missoes' });
+              else setStatus(v as CenacleStatus);
+            }}
+            sx={{
+              maxWidth: '100%',
+              '& .MuiTabs-scrollButtons': { flexShrink: 0 },
+              '& .MuiTabs-scrollButtons.Mui-disabled': { opacity: 0.25 },
+            }}
+          >
             <Tab value="UPCOMING" label="Próximos" />
             <Tab
               value="FINISHED"
@@ -201,6 +219,12 @@ export function CommunitiesPage({ type }: { type: 'CELL' | 'CENACLE' }) {
               label="Encerrados"
             />
             <Tab value="CANCELLED" label="Cancelados" />
+            <Tab
+              value="MISSIONS"
+              icon={<TravelExploreOutlined />}
+              iconPosition="start"
+              label="Missões"
+            />
           </Tabs>
         </Paper>
       )}
@@ -209,7 +233,11 @@ export function CommunitiesPage({ type }: { type: 'CELL' | 'CENACLE' }) {
           {error}
         </Alert>
       )}
-      {mapActive ? (
+      {missionsActive ? (
+        <Box mt={3}>
+          <CenacleMissionsPanel />
+        </Box>
+      ) : mapActive ? (
         <Box mt={3}>
           <CellsMapPage embedded type="CELL" />
         </Box>

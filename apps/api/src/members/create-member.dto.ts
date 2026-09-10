@@ -6,12 +6,13 @@ import {
   IsOptional,
   IsString,
   IsNumber,
+  IsIn,
   MaxLength,
   MinLength,
 } from 'class-validator';
+import { VOCATIONAL_YEARS } from './vocational-year';
 
-const trim = ({ value }: { value: unknown }) =>
-  typeof value === 'string' ? value.trim() : value;
+const trim = ({ value }: { value: unknown }) => (typeof value === 'string' ? value.trim() : value);
 
 export class CreateMemberDto {
   @Transform(trim)
@@ -20,7 +21,9 @@ export class CreateMemberDto {
   @MaxLength(120)
   name!: string;
 
-  @Transform(({ value }: { value: unknown }) => (typeof value === 'string' ? value.trim().toLowerCase() : value))
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.trim().toLowerCase() : value,
+  )
   @IsEmail()
   @MaxLength(160)
   email!: string;
@@ -60,6 +63,11 @@ export class CreateMemberDto {
   @MaxLength(80)
   profile = 'MEMBER';
 
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  profiles?: string[];
+
   @Type(() => Boolean)
   @IsBoolean()
   active = true;
@@ -93,7 +101,6 @@ export class CreateMemberDto {
   @IsString()
   @MaxLength(100)
   state = '';
-
 
   @Transform(trim)
   @IsOptional()
@@ -139,6 +146,11 @@ export class CreateMemberDto {
   @IsString()
   @MaxLength(120)
   profession?: string;
+
+  @Transform(trim)
+  @IsOptional()
+  @IsIn(VOCATIONAL_YEARS)
+  vocationalYear?: string;
 
   @Transform(trim)
   @IsOptional()

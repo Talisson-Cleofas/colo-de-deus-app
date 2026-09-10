@@ -19,6 +19,7 @@ type MinistryForm = {
 type DetailPayload={ministry:Ministry;members:MinistryMember[];attendances:MinistryAttendance[]};
 
 const emptyForm: MinistryForm = {missionId:'missao-brasilia',name:'',description:'',leaderEmail:'',viceLeaderEmail:'',color:'#9e6939',icon:'',type:'OUTRO',notes:'',active:true};
+const ministryEligible=(member:Member)=>member.vocationalYear!=='ANO_1';
 
 export function MinistriesPage() {
   const { user, hasRole } = useAuth();
@@ -58,7 +59,7 @@ export function MinistriesPage() {
   },[isAdmin,canManage,showInactive]);
   useEffect(()=>{void load();},[load]);
 
-  const leaderOptions=useMemo(()=>members.filter(m=>m.active&&['DEVELOPER','ADMIN','MINISTRY_LEADER'].includes(m.profile)),[members]);
+  const leaderOptions=useMemo(()=>members.filter(m=>m.active&&ministryEligible(m)&&['DEVELOPER','ADMIN','MINISTRY_LEADER'].includes(m.profile)),[members]);
   const startCreate=()=>{setEditing(null);setForm(emptyForm);setOpen(true);};
   const startEdit=(m:Ministry)=>{setEditing(m);setForm({missionId:m.missionId||'missao-brasilia',name:m.name,description:m.description,leaderEmail:m.leaderEmail,viceLeaderEmail:m.viceLeaderEmail,color:m.color||'#9e6939',icon:m.icon,type:m.type||'OUTRO',notes:m.notes,active:m.active});setOpen(true);};
 
@@ -86,6 +87,8 @@ export function MinistriesPage() {
 
   const addMember=async()=>{
     if(!detail||!selectedMemberId)return;
+    const selectedMember=members.find(member=>member.id===selectedMemberId);
+    if(selectedMember?.vocationalYear==='ANO_2'&&!window.confirm(`${selectedMember.name} está no Ano 2. Autorizar excepcionalmente a participação neste ministério?`))return;
     setSaving(true);
     try{await api.post(`/ministries/${detail.ministry.id}/members`,{memberId:selectedMemberId,function:'MEMBRO'});setSelectedMemberId('');setSuccess('Membro vinculado ao ministério.');await refreshDetail();await load();}catch(e){setError(apiErrorMessage(e));}finally{setSaving(false);}
   };
@@ -100,7 +103,7 @@ export function MinistriesPage() {
   };
 
   const linkedIds=new Set(detail?.members.map(m=>m.memberId)??[]);
-  const availableMembers=members.filter(m=>m.active&&!linkedIds.has(m.id));
+  const availableMembers=members.filter(m=>m.active&&ministryEligible(m)&&!linkedIds.has(m.id));
   const canEditCard=(m:Ministry)=>isAdmin||(user?.profile==='MINISTRY_LEADER'&&m.leaderId===user.memberId);
 
   return <Box>
@@ -126,10 +129,10 @@ export function MinistriesPage() {
       <TextField label="Observações" multiline minRows={2} value={form.notes} onChange={e=>setForm({...form,notes:e.target.value})}/>{editing&&isAdmin&&<FormControlLabel control={<Switch checked={form.active} onChange={e=>setForm({...form,active:e.target.checked})}/>} label="Ministério ativo"/>}
     </Stack></DialogContent><DialogActions><Button onClick={()=>setOpen(false)} disabled={saving}>Cancelar</Button><Button variant="contained" onClick={()=>void save()} disabled={saving}>{saving?'Salvando...':'Salvar'}</Button></DialogActions></Dialog>
 
-    <Dialog open={detailOpen} onClose={()=>setDetailOpen(false)} fullWidth maxWidth="lg"><DialogTitle><Stack direction="row" justifyContent="space-between" alignItems="center"><Box><Typography variant="h5">{detail?.ministry.name||'Ministério'}</Typography><Typography variant="body2" color="text.secondary">Gestão ministerial</Typography></Box><IconButton onClick={()=>setDetailOpen(false)}><CloseOutlined/></IconButton></Stack></DialogTitle><DialogContent dividers>
-      {detailLoading||!detail?<Box py={8} textAlign="center"><CircularProgress/></Box>:<><Tabs value={detailTab} onChange={(_,v)=>setDetailTab(v)} sx={{mb:3}}><Tab label="Membros" icon={<GroupsOutlined/>} iconPosition="start"/><Tab label="Presenças e justificativas" icon={<HowToRegOutlined/>} iconPosition="start"/></Tabs>
-      {detailTab===0&&<Stack gap={2}><Paper variant="outlined" sx={{p:2}}><Stack direction={{xs:'column',md:'row'}} gap={2}><TextField select fullWidth label="Adicionar membro" value={selectedMemberId} onChange={e=>setSelectedMemberId(e.target.value)}><MenuItem value="">Selecione</MenuItem>{availableMembers.map(m=><MenuItem key={m.id} value={m.id}>{m.name} — {m.email}</MenuItem>)}</TextField><Button variant="contained" startIcon={<PersonAddAltOutlined/>} onClick={()=>void addMember()} disabled={!selectedMemberId||saving}>Vincular</Button></Stack></Paper>
-      {detail.members.length===0?<Alert severity="info">Nenhum membro vinculado.</Alert>:detail.members.map(m=><Paper key={m.memberId} variant="outlined" sx={{p:2}}><Stack direction="row" alignItems="center" gap={2}><Avatar src={m.photo}>{m.name[0]}</Avatar><Box flex={1}><Typography fontWeight={700}>{m.name}</Typography><Typography variant="body2" color="text.secondary">{m.email} • {m.function}</Typography></Box><Chip label={m.profile} size="small"/><Tooltip title="Remover vínculo"><IconButton color="error" onClick={()=>void removeMember(m)}><DeleteOutline/></IconButton></Tooltip></Stack></Paper>)}</Stack>}
+    <Dialog open={detailOpen} onClose={()=>setDetailOpen(false)} fullWidth maxWidth="lg" slotProps={{paper:{sx:{m:{xs:1,sm:2},width:{xs:'calc(100% - 16px)',sm:'calc(100% - 32px)'},maxHeight:{xs:'calc(100dvh - 16px)',sm:'calc(100dvh - 32px)'},overflowX:'hidden'}}}}><DialogTitle sx={{px:{xs:2,sm:3},py:{xs:1.5,sm:2}}}><Stack direction="row" justifyContent="space-between" alignItems="flex-start" gap={1}><Box minWidth={0}><Typography variant="h5" sx={{overflowWrap:'anywhere'}}>{detail?.ministry.name||'Ministério'}</Typography><Typography variant="body2" color="text.secondary">Gestão ministerial</Typography></Box><IconButton aria-label="Fechar detalhes do ministério" onClick={()=>setDetailOpen(false)} sx={{flexShrink:0}}><CloseOutlined/></IconButton></Stack></DialogTitle><DialogContent dividers sx={{p:{xs:1.5,sm:3},overflowX:'hidden'}}>
+      {detailLoading||!detail?<Box py={8} textAlign="center"><CircularProgress/></Box>:<><Tabs value={detailTab} onChange={(_,v)=>setDetailTab(v)} variant="scrollable" scrollButtons="auto" allowScrollButtonsMobile sx={{mb:3,maxWidth:'100%'}}><Tab label="Membros" icon={<GroupsOutlined/>} iconPosition="start"/><Tab label="Presenças e justificativas" icon={<HowToRegOutlined/>} iconPosition="start"/></Tabs>
+      {detailTab===0&&<Stack gap={2} minWidth={0}><Paper variant="outlined" sx={{p:{xs:1.5,sm:2},minWidth:0,overflow:'hidden'}}><Stack direction={{xs:'column',md:'row'}} gap={2}><TextField select fullWidth label="Adicionar membro" value={selectedMemberId} onChange={e=>setSelectedMemberId(e.target.value)} sx={{minWidth:0}}><MenuItem value="">Selecione</MenuItem>{availableMembers.map(m=><MenuItem key={m.id} value={m.id}>{m.name} — {m.email}</MenuItem>)}</TextField><Button variant="contained" startIcon={<PersonAddAltOutlined/>} onClick={()=>void addMember()} disabled={!selectedMemberId||saving} sx={{width:{xs:'100%',md:'auto'},flexShrink:0}}>Vincular</Button></Stack></Paper>
+      {detail.members.length===0?<Alert severity="info">Nenhum membro vinculado.</Alert>:detail.members.map(m=><Paper key={m.memberId} variant="outlined" sx={{p:{xs:1.5,sm:2},minWidth:0,overflow:'hidden'}}><Stack direction={{xs:'column',sm:'row'}} alignItems={{xs:'stretch',sm:'center'}} gap={{xs:1.5,sm:2}}><Stack direction="row" alignItems="center" gap={1.5} flex={1} minWidth={0}><Avatar src={m.photo} sx={{flexShrink:0}}>{m.name[0]}</Avatar><Box minWidth={0}><Typography fontWeight={700} sx={{overflowWrap:'anywhere'}}>{m.name}</Typography><Typography variant="body2" color="text.secondary" sx={{overflowWrap:'anywhere'}}>{m.email} • {m.function}</Typography></Box></Stack><Stack direction="row" alignItems="center" justifyContent={{xs:'space-between',sm:'flex-end'}} gap={1}><Chip label={m.profile} size="small" sx={{maxWidth:'100%'}}/><Tooltip title="Remover vínculo"><IconButton color="error" onClick={()=>void removeMember(m)}><DeleteOutline/></IconButton></Tooltip></Stack></Stack></Paper>)}</Stack>}
       {detailTab===1&&<Stack gap={3}><Paper variant="outlined" sx={{p:2}}><Typography variant="h6" mb={2}>Registrar presença</Typography><Stack direction={{xs:'column',md:'row'}} gap={2}><TextField select fullWidth label="Membro" value={attendanceMemberId} onChange={e=>setAttendanceMemberId(e.target.value)}><MenuItem value="">Selecione</MenuItem>{detail.members.map(m=><MenuItem key={m.memberId} value={m.memberId}>{m.name}</MenuItem>)}</TextField><TextField type="date" label="Data" value={attendanceDate} onChange={e=>setAttendanceDate(e.target.value)} InputLabelProps={{shrink:true}}/><TextField select label="Situação" value={attendancePresent?'PRESENTE':'AUSENTE'} onChange={e=>setAttendancePresent(e.target.value==='PRESENTE')} sx={{minWidth:160}}><MenuItem value="PRESENTE">Presente</MenuItem><MenuItem value="AUSENTE">Ausente</MenuItem></TextField></Stack>{!attendancePresent&&<TextField sx={{mt:2}} fullWidth multiline minRows={2} label="Justificativa da ausência" value={attendanceJustification} onChange={e=>setAttendanceJustification(e.target.value)}/>}<Button sx={{mt:2}} variant="contained" onClick={()=>void registerAttendance()} disabled={!attendanceMemberId||saving}>Salvar presença</Button></Paper>
       <Divider/>{detail.attendances.length===0?<Alert severity="info">Nenhuma presença registrada.</Alert>:detail.attendances.map(a=><Paper key={a.id} variant="outlined" sx={{p:2}}><Stack direction={{xs:'column',sm:'row'}} justifyContent="space-between" gap={1}><Box><Typography fontWeight={700}>{a.memberName}</Typography><Typography variant="body2" color="text.secondary">{new Date(`${a.date}T12:00:00`).toLocaleDateString('pt-BR')}</Typography>{a.justification&&<Typography mt={1}>Justificativa: {a.justification}</Typography>}</Box><Chip icon={a.present?<CheckCircleOutline/>:<CloseOutlined/>} color={a.present?'success':'warning'} label={a.present?'Presente':'Ausente'}/></Stack></Paper>)}</Stack>}</>}
     </DialogContent></Dialog>

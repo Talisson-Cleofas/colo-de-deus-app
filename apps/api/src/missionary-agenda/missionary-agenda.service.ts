@@ -79,22 +79,32 @@ export class MissionaryAgendaService {
   }
   private async assertNoEventConflict(startDate: string, endDate: string) {
     const effectiveEnd = endDate || startDate;
-    const dateOnly = (value: string) => String(value || '').trim().split(/[T ]/)[0];
+    const dateOnly = (value: string) =>
+      String(value || '')
+        .trim()
+        .split(/[T ]/)[0];
     const formatDate = (value: string) => value.split('-').reverse().join('/');
     // Read the event calendar again for every write; never trust a stale form snapshot.
     const events = await this.repository.read('Eventos');
-    const conflicts = events.filter((event) => {
-      if (event.deleted_at || !this.repository.parseActive(event.ativo || '', true) ||
-          !this.repository.parseActive(event.publicado || '', false)) return false;
-      const start = dateOnly(event.inicio || event.data || '');
-      const end = dateOnly(event.fim || event.data_fim || '') || start;
-      return this.validDate(start) && this.validDate(end) &&
-        start <= effectiveEnd && end >= startDate;
-    }).map((event) => {
-      const start = dateOnly(event.inicio || event.data || '');
-      const end = dateOnly(event.fim || event.data_fim || '') || start;
-      return `${event.titulo || event.nome || 'Evento sem título'} (${formatDate(start)}${end !== start ? ` a ${formatDate(end)}` : ''})`;
-    });
+    const conflicts = events
+      .filter((event) => {
+        if (
+          event.deleted_at ||
+          !this.repository.parseActive(event.ativo || '', true) ||
+          !this.repository.parseActive(event.publicado || '', false)
+        )
+          return false;
+        const start = dateOnly(event.inicio || event.data || '');
+        const end = dateOnly(event.fim || event.data_fim || '') || start;
+        return (
+          this.validDate(start) && this.validDate(end) && start <= effectiveEnd && end >= startDate
+        );
+      })
+      .map((event) => {
+        const start = dateOnly(event.inicio || event.data || '');
+        const end = dateOnly(event.fim || event.data_fim || '') || start;
+        return `${event.titulo || event.nome || 'Evento sem título'} (${formatDate(start)}${end !== start ? ` a ${formatDate(end)}` : ''})`;
+      });
     if (conflicts.length) {
       throw new ConflictException(
         `Já existe uma agenda nessa data: ${conflicts.join('; ')}. Escolha outra data para a missão.`,
@@ -209,6 +219,11 @@ export class MissionaryAgendaService {
       this.central(user) ||
       item.createdBy === this.userId(user) ||
       item.responsibleId === this.userId(user)
+    )
+      return true;
+    if (
+      ['MINISTRY_LEADER', 'CELL_LEADER', 'MEMBER'].includes(user.profile) &&
+      !['RASCUNHO', 'NAO_APROVADA'].includes(item.status)
     )
       return true;
     if (

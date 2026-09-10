@@ -9,13 +9,18 @@ export class MinistryModuleService {
 
   async modulesForUser(user: AuthenticatedUser): Promise<MinistryModuleCode[]> {
     if (['DEVELOPER', 'ADMIN', 'MISSION_LEADER'].includes(user.profile)) {
-      return ['CELULAS', 'EVENTOS', 'CENACULO', 'FINANCAS', 'COMUNICACAO'];
+      return ['CELULAS', 'EVENTOS', 'CENACULO', 'FINANCAS', 'COMUNICACAO', 'MISSOES'];
     }
     if (user.profile !== 'MINISTRY_LEADER') return [];
     const memberId = user.memberId || user.id;
     const rows = await this.sheets.read('Ministérios');
     const modules = rows
-      .filter((row) => row.lider_id === memberId || row.vice_lider_id === memberId || (!!user.ministry && row.nome === user.ministry))
+      .filter(
+        (row) =>
+          row.lider_id === memberId ||
+          row.vice_lider_id === memberId ||
+          (!!user.ministry && row.nome === user.ministry),
+      )
       .map((row) => normalizeMinistryModule(row.codigo || row.code || row.tipo || row.nome || ''))
       .filter((value): value is MinistryModuleCode => Boolean(value));
     return [...new Set(modules)];

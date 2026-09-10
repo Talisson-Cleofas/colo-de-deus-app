@@ -9,6 +9,7 @@ import {
 import { StructureSyncService } from '../google/structure-sync.service';
 import { AdminUpdateMemberDto } from './admin-update-member.dto';
 import { memberProfileAccess } from './member-profile.policy';
+import { canParticipateInMinistries } from './vocational-year';
 @Injectable()
 export class MemberProfileService {
   constructor(
@@ -60,6 +61,7 @@ export class MemberProfileService {
       city: m.city,
       state: m.state,
       gifts: m.gifts,
+      vocationalYear: m.vocationalYear || '',
       active: m.active,
     };
   }
@@ -237,6 +239,13 @@ export class MemberProfileService {
     };
   }
   private async replaceLink(memberId: string, type: string, ids: string[], role = 'MEMBRO') {
+    if (type === 'MINISTERIO' && ids.some(Boolean)) {
+      const member = await this.member(memberId);
+      if (!canParticipateInMinistries(member.vocationalYear))
+        throw new ForbiddenException(
+          'Membros do Ano 1 e Ano 2 ainda não podem ser vinculados a ministérios.',
+        );
+    }
     const rows = await this.sheets.read('Participantes');
     const now = new Date().toISOString();
     for (const row of rows.filter(
@@ -292,6 +301,12 @@ export class MemberProfileService {
     if (!['DEVELOPER', 'MISSION_LEADER', 'ADMIN'].includes(user.profile))
       throw new ForbiddenException('Apenas ADMIN ou DEVELOPER pode alterar campos sensíveis.');
     const before = await this.member(id);
+    const requestsMinistryLink =
+      Boolean(dto.ministryId) || Boolean(dto.leadMinistryIds?.some(Boolean));
+    if (requestsMinistryLink && !canParticipateInMinistries(before.vocationalYear))
+      throw new ForbiddenException(
+        'Membros do Ano 1 e Ano 2 ainda não podem ser vinculados a ministérios.',
+      );
     const ministries = await this.sheets.read('Ministérios'),
       cells = await this.sheets.read('Células');
     const ministryName =

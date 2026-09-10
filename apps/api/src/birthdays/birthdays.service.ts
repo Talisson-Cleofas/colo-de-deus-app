@@ -117,7 +117,7 @@ export class BirthdaysService {
   }
 
   async history(user: AuthenticatedUser) {
-    if (!['DEVELOPER','ADMIN','MINISTRY_LEADER','CELL_LEADER'].includes(user.profile)) throw new ForbiddenException('Acesso restrito ao histórico de aniversários.');
+    if (!['DEVELOPER','ADMIN','MINISTRY_LEADER'].includes(user.profile)) throw new ForbiddenException('Acesso restrito ao histórico de aniversários.');
     const [notifications, deliveries] = await Promise.all([this.sheets.read('Notificações'), this.sheets.read('NotificacoesEntregas')]);
     const items: Array<Record<string, string | number>> = notifications.filter((row) => row.tipo === 'ANIVERSARIO')
       .map((row) => ({ ...row, deliveries: deliveries.filter((delivery) => delivery.notificacao_id === row.id).length } as Record<string, string | number>))
@@ -126,7 +126,7 @@ export class BirthdaysService {
   }
 
   async sendMessage(memberId: string, dto: SendBirthdayMessageDto, user: AuthenticatedUser) {
-    if (!['DEVELOPER','ADMIN','MINISTRY_LEADER','CELL_LEADER'].includes(user.profile)) throw new ForbiddenException('Você não possui permissão para enviar mensagens de aniversário.');
+    if (!['DEVELOPER','ADMIN','MINISTRY_LEADER'].includes(user.profile)) throw new ForbiddenException('Você não possui permissão para enviar mensagens de aniversário.');
     const members = await this.sheets.read('Membros');
     const member = members.find((item) => item.id === memberId);
     if (!member) throw new NotFoundException('Membro não encontrado.');

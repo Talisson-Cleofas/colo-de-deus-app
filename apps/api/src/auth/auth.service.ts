@@ -1,9 +1,15 @@
-import { ForbiddenException, Injectable, ServiceUnavailableException, UnauthorizedException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  ServiceUnavailableException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { applicationDefault, cert, getApps, initializeApp } from 'firebase-admin/app';
 import { getAuth, type DecodedIdToken } from 'firebase-admin/auth';
 import { GoogleSheetsService, type MemberRow } from '../google/google-sheets.service';
 import type { AccessProfile, AuthenticatedUser } from './types/auth-user.type';
+import { effectiveAccessProfile, resolveAccessProfiles } from './profile-priority';
 
 @Injectable()
 export class AuthService {
@@ -28,21 +34,16 @@ export class AuthService {
     return initializeApp({ credential: cert({ projectId, clientEmail, privateKey }) });
   }
 
-  private normalizeProfile(value: string): AccessProfile {
-    const normalized = value.trim().toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-    if (['DEVELOPER', 'DESENVOLVEDOR'].includes(normalized)) return 'DEVELOPER';
-    if (normalized === 'ADMIN') return 'ADMIN';
-    if (['LIDER_MINISTERIO', 'LIDER DE MINISTERIO', 'MINISTRY_LEADER'].includes(normalized)) return 'MINISTRY_LEADER';
-    if (['LIDER', 'LEADER', 'LIDER_CELULA', 'LIDER DE CELULA', 'CELL_LEADER'].includes(normalized)) return 'CELL_LEADER';
-    return 'MEMBER';
-  }
-
   private toUser(uid: string, member: MemberRow): AuthenticatedUser {
+    const profiles = resolveAccessProfiles(
+      member.profiles?.length ? member.profiles : member.profile,
+    );
     return {
       ...member,
       uid,
       memberId: member.id,
-      profile: this.normalizeProfile(member.profile),
+      profile: effectiveAccessProfile(profiles),
+      profiles,
       active: true,
     };
   }

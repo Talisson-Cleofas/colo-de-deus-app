@@ -22,6 +22,7 @@ import type {
 } from './create-community.dto';
 import type { AttendanceRecord, Cell, Participant } from './communities.types';
 import { CellScopeService } from '../rbac/cell-scope.service';
+import { NotificationsService } from '../notifications/notifications.service';
 type CommunityType = 'CELL' | 'CENACLE';
 type CenacleStatus = 'UPCOMING' | 'FINISHED' | 'CANCELLED' | 'ALL';
 @Injectable()
@@ -32,6 +33,7 @@ export class CommunitiesService {
     private readonly geocoding: GeocodingService,
     private readonly drive: GoogleDriveService,
     private readonly cellScope: CellScopeService,
+    private readonly notifications: NotificationsService,
   ) {}
   private demoData(): Cell[] {
     return [];
@@ -119,6 +121,9 @@ export class CommunitiesService {
   private canEdit(user: AuthenticatedUser, type: CommunityType, row: Record<string, string>) {
     const uid = this.userId(user);
     if (['DEVELOPER', 'MISSION_LEADER', 'ADMIN'].includes(user.profile)) return true;
+    if (user.profile === 'CELL_LEADER') {
+      return type === 'CELL' && Boolean(row.id && this.cellScopeIdsCache.has(row.id));
+    }
     if (
       this.managesAllCellsCache &&
       (type === 'CELL' || (type === 'CENACLE' && Boolean(row.celula_id)))
@@ -129,10 +134,6 @@ export class CommunitiesService {
       (type === 'CENACLE' && row.vice_responsavel_id === uid)
     )
       return true;
-    if (user.profile === 'CELL_LEADER') {
-      const cellId = type === 'CELL' ? row.id : row.celula_id;
-      return Boolean(cellId && this.cellScopeIdsCache.has(cellId));
-    }
     if (
       user.profile === 'MINISTRY_LEADER' &&
       row.ministerio_id &&
@@ -214,14 +215,8 @@ export class CommunitiesService {
     }
     const { rows, links, memberMap, ministryMap, cellMap } = await this.context(type);
     let scopedRows = rows.filter((r) => !r.deleted_at);
-    if (user?.profile === 'MINISTRY_LEADER' && !this.managesAllCellsCache)
-      scopedRows = scopedRows.filter((row) =>
-        Boolean(row.ministerio_id && this.ownedMinistryIdsCache.has(row.ministerio_id)),
-      );
-    if (user?.profile === 'CELL_LEADER')
-      scopedRows = scopedRows.filter((row) =>
-        this.cellScopeIdsCache.has(type === 'CELL' ? row.id : row.celula_id),
-      );
+    // Todos os perfis com permissão de leitura consultam o diretório completo.
+    // O escopo continua sendo aplicado exclusivamente às ações de alteração.
     const lt = this.linkType(type);
     const participantsBy = new Map<string, Participant[]>();
     links
@@ -479,6 +474,18 @@ export class CommunitiesService {
         dto.type === 'CELL' ? 'VICE_LIDER' : 'VICE_RESPONSAVEL',
       );
     await this.sync.reconcileStructure(dto.type === 'CELL' ? 'CELULA' : 'CENACULO', id);
+    if (dto.type === 'CENACLE') {
+      await this.notifications.createSystem({
+        title: `Novo cenáculo: ${dto.name.trim()}`,
+        message: `${dto.name.trim()} foi marcado para ${(dto.startDate || '').split('-').reverse().join('/')} às ${dto.time || ''}${dto.address?.trim() ? `, em ${dto.address.trim()}` : ''}.`,
+        type: 'EVENTO',
+        audience: 'TODOS',
+        origin: 'Cenáculos',
+        referenceType: 'CENACULO',
+        referenceId: id,
+        link: '/cenaculos',
+      });
+    }
     return this.detail(id, user);
   }
   async update(id: string, dto: UpdateCommunityDto, user: AuthenticatedUser) {

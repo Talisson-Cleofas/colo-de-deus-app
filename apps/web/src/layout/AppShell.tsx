@@ -101,7 +101,7 @@ const items: MenuItem[] = [
   },
   {
     icon: <GroupsOutlined />,
-    label: 'Cenáculos',
+    label: 'Missões e Cenáculos',
     path: '/cenaculos',
     permission: Permission.CENACLES_READ,
   },
@@ -134,6 +134,7 @@ const items: MenuItem[] = [
     label: 'Relatórios',
     path: '/relatorios',
     permission: Permission.REPORTS_READ,
+    hiddenFor: ['CELL_LEADER', 'MEMBER'],
   },
   {
     icon: <AssessmentOutlined />,
@@ -155,37 +156,42 @@ const organizationItems: MenuItem[] = [
     label: 'Dashboard',
     path: '/organizacao',
     permission: Permission.SETTINGS_READ,
+    hiddenFor: ['MINISTRY_LEADER', 'CELL_LEADER', 'MEMBER'],
   },
   {
     icon: <AccountTreeOutlined />,
     label: 'Missões',
     path: '/missoes',
     permission: Permission.MINISTRIES_READ,
-    hiddenFor: ['MEMBER'],
+    hiddenFor: ['MINISTRY_LEADER', 'CELL_LEADER', 'MEMBER'],
   },
   {
     icon: <VolunteerActivismOutlined />,
     label: 'Ministérios',
     path: '/ministerios',
     permission: Permission.MINISTRIES_READ,
+    hiddenFor: ['MEMBER'],
   },
   {
     icon: <AccountCircleOutlined />,
     label: 'Perfis',
     path: '/configuracoes/perfis',
     permission: Permission.SETTINGS_MANAGE,
+    hiddenFor: ['MINISTRY_LEADER', 'CELL_LEADER', 'MEMBER'],
   },
   {
     icon: <SecurityOutlined />,
     label: 'Permissões',
     path: '/configuracoes/rbac',
     permission: Permission.SETTINGS_MANAGE,
+    hiddenFor: ['MINISTRY_LEADER', 'CELL_LEADER', 'MEMBER'],
   },
   {
     icon: <HistoryOutlined />,
     label: 'Auditoria',
     path: '/auditoria',
     anyOf: [Permission.LOGS_READ, Permission.SETTINGS_READ],
+    hiddenFor: ['MINISTRY_LEADER', 'CELL_LEADER', 'MEMBER'],
   },
 ];
 
@@ -195,30 +201,35 @@ const adminItems: MenuItem[] = [
     label: 'Lixeira',
     path: '/lixeira',
     anyOf: [Permission.SETTINGS_MANAGE, Permission.MEMBERS_DELETE],
+    hiddenFor: ['MINISTRY_LEADER', 'CELL_LEADER', 'MEMBER'],
   },
   {
     icon: <SettingsOutlined />,
     label: 'Configurações',
     path: '/configuracoes',
     permission: Permission.SETTINGS_READ,
+    hiddenFor: ['MINISTRY_LEADER', 'CELL_LEADER', 'MEMBER'],
   },
   {
     icon: <SettingsSuggestOutlined />,
     label: 'Integrações',
     path: '/configuracoes/integracoes',
     permission: Permission.INTEGRATIONS_READ,
+    hiddenFor: ['MINISTRY_LEADER', 'CELL_LEADER', 'MEMBER'],
   },
   {
     icon: <SpeedOutlined />,
     label: 'Performance',
     path: '/configuracoes/performance',
     permission: Permission.SETTINGS_READ,
+    hiddenFor: ['MINISTRY_LEADER', 'CELL_LEADER', 'MEMBER'],
   },
   {
     icon: <SettingsSuggestOutlined />,
     label: 'Administração técnica',
     path: '/configuracoes/tecnico',
     permission: Permission.TECHNICAL_ADMIN_READ,
+    hiddenFor: ['MINISTRY_LEADER', 'CELL_LEADER', 'MEMBER'],
   },
 ];
 
@@ -292,34 +303,36 @@ export function AppShell({ children }: { children: ReactNode }) {
       <Brand />
       <List sx={{ mt: 2, flex: 1, minHeight: 0, overflowY: 'auto', pr: 0.5 }}>
         {items.map((item) => renderMenuItem(item))}
-        <Can
-          anyOf={[
-            Permission.SETTINGS_READ,
-            Permission.SETTINGS_MANAGE,
-            Permission.MINISTRIES_READ,
-            Permission.LOGS_READ,
-          ]}
-        >
-          <ListItemButton
-            onClick={() => setOrganizationOpen((value) => !value)}
-            selected={location.pathname.startsWith('/organizacao')}
-            sx={{ minHeight: 46, mb: 0.25, px: 1.75, borderRadius: 2 }}
+        {user?.profile !== 'MEMBER' && (
+          <Can
+            anyOf={[
+              Permission.SETTINGS_READ,
+              Permission.SETTINGS_MANAGE,
+              Permission.MINISTRIES_READ,
+              Permission.LOGS_READ,
+            ]}
           >
-            <ListItemIcon sx={{ minWidth: 40, color: 'text.secondary' }}>
-              <AccountTreeOutlined />
-            </ListItemIcon>
-            <ListItemText
-              primary="Organização"
-              primaryTypographyProps={{ fontSize: 15, fontWeight: 700 }}
-            />
-            {organizationOpen ? <ExpandLess /> : <ExpandMore />}
-          </ListItemButton>
-          <Collapse in={organizationOpen} timeout="auto" unmountOnExit>
-            <List disablePadding>
-              {organizationItems.map((item) => renderMenuItem(item, true))}
-            </List>
-          </Collapse>
-        </Can>
+            <ListItemButton
+              onClick={() => setOrganizationOpen((value) => !value)}
+              selected={location.pathname.startsWith('/organizacao')}
+              sx={{ minHeight: 46, mb: 0.25, px: 1.75, borderRadius: 2 }}
+            >
+              <ListItemIcon sx={{ minWidth: 40, color: 'text.secondary' }}>
+                <AccountTreeOutlined />
+              </ListItemIcon>
+              <ListItemText
+                primary="Organização"
+                primaryTypographyProps={{ fontSize: 15, fontWeight: 700 }}
+              />
+              {organizationOpen ? <ExpandLess /> : <ExpandMore />}
+            </ListItemButton>
+            <Collapse in={organizationOpen} timeout="auto" unmountOnExit>
+              <List disablePadding>
+                {organizationItems.map((item) => renderMenuItem(item, true))}
+              </List>
+            </Collapse>
+          </Can>
+        )}
         {adminItems.map((item) => renderMenuItem(item))}
       </List>
       <Box sx={{ flex: '0 0 auto', pt: 0.75 }}>

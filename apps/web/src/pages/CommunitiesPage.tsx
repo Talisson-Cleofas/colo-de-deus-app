@@ -198,9 +198,17 @@ export function CommunitiesPage({ type }: { type: 'CELL' | 'CENACLE' }) {
         <Paper sx={{ mt: 2 }}>
           <Tabs
             value={missionsActive ? 'MISSIONS' : status}
+            variant="scrollable"
+            scrollButtons
+            allowScrollButtonsMobile
             onChange={(_, v) => {
               if (v === 'MISSIONS') setParams({ tab: 'missoes' });
               else setStatus(v as CenacleStatus);
+            }}
+            sx={{
+              maxWidth: '100%',
+              '& .MuiTabs-scrollButtons': { flexShrink: 0 },
+              '& .MuiTabs-scrollButtons.Mui-disabled': { opacity: 0.25 },
             }}
           >
             <Tab value="UPCOMING" label="Próximos" />

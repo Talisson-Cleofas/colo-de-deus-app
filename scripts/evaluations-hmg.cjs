@@ -91,6 +91,8 @@ const cenacleMissions = [
     authorizedYearTwoIds: [],
   },
 ];
+const missionaryAgendas = [];
+const missionaryAgendaHistory = [];
 const qaCommunities = [
   {
     id: 'qa-cell-leader',
@@ -331,6 +333,59 @@ Module({
       feedbackCount: 0,
     };
   };
+  const mapMissionaryAgenda = (row, req) => ({
+    ...row,
+    responsibleName: members.find((member) => member.id === row.responsibleId)?.name || '',
+    ministryName: [qaMinistry, qaMissionsMinistry].find((ministry) => ministry.id === row.ministryId)?.name || '',
+    storeResponsibleName: members.find((member) => member.id === row.storeResponsibleId)?.name || '',
+    participantIds: row.participantIds || [], participantNames: [],
+    accompanyingIds: row.accompanyingIds || [],
+    accompanyingNames: (row.accompanyingIds || []).map((id) => members.find((member) => member.id === id)?.name || id),
+    intercessorIds: row.intercessorIds || [],
+    intercessorNames: (row.intercessorIds || []).map((id) => members.find((member) => member.id === id)?.name || id),
+    canEdit: ['DEVELOPER', 'MISSION_LEADER'].includes(req.user.profile) || row.createdBy === req.user.id,
+    canSubmit: false, canReview: false, canSelectMembers: false, active: true,
+  });
+  server.get('/api/missionary-agenda/options', (req, res) => res.json({
+    currentMemberId: req.user.id,
+    members: members.filter((member) => member.active).map((member) => ({ id: member.id, name: member.name, ministry: member.ministry || '' })),
+    ministries: [qaMinistry, qaMissionsMinistry].map((ministry) => ({ id: ministry.id, name: ministry.name, managed: true })),
+  }));
+  server.get('/api/missionary-agenda', (req, res) => res.json(missionaryAgendas.map((row) => mapMissionaryAgenda(row, req))));
+  server.post('/api/missionary-agenda', (req, res) => {
+    const body = req.body || {};
+    if (!body.title || !body.startDate || !body.startTime || !body.location || !body.city)
+      return res.status(400).json({ message: 'Preencha os campos obrigatórios da agenda.' });
+    if (body.takesStoreItems) {
+      const responsible = members.find((member) => member.id === body.storeResponsibleId && member.active);
+      if (!responsible) return res.status(400).json({ message: 'Selecione um missionário ativo como responsável pelos itens da Store.' });
+    }
+    const now = new Date().toISOString();
+    const row = {
+      id: 'qa-agenda-' + Date.now(), missionId: 'missao-brasilia',
+      ...body, status: 'RASCUNHO', endDate: body.endDate || body.startDate,
+      takesStoreItems: Boolean(body.takesStoreItems),
+      storeResponsibleId: body.takesStoreItems ? body.storeResponsibleId : '',
+      storeCardMachine: Boolean(body.takesStoreItems && body.storeCardMachine),
+      participantIds: [], accompanyingIds: body.accompanyingIds || [], intercessorIds: body.intercessorIds || [],
+      submittedBy: '', submittedAt: '', approvedBy: '', approvedAt: '', approvalNotes: '',
+      rejectedBy: '', rejectedAt: '', rejectionReason: '', membersSentBy: '', membersSentAt: '',
+      createdBy: req.user.id, createdAt: now, updatedBy: req.user.id, updatedAt: now,
+    };
+    missionaryAgendas.push(row);
+    missionaryAgendaHistory.push({ id: 'qa-history-' + Date.now(), agendaId: row.id, previousStatus: 'RASCUNHO', status: 'RASCUNHO', action: 'CRIADA', note: body.takesStoreItems ? 'Itens da Store registrados com responsável e controle da maquininha.' : 'Sem itens da Store.', userId: req.user.id, userName: req.user.name, createdAt: now });
+    res.status(201).json(mapMissionaryAgenda(row, req));
+  });
+  server.patch('/api/missionary-agenda/:id', (req, res) => {
+    const index = missionaryAgendas.findIndex((row) => row.id === req.params.id);
+    if (index < 0) return res.sendStatus(404);
+    const body = req.body || {};
+    if (body.takesStoreItems && !members.some((member) => member.id === body.storeResponsibleId && member.active))
+      return res.status(400).json({ message: 'Selecione um missionário ativo como responsável pelos itens da Store.' });
+    missionaryAgendas[index] = { ...missionaryAgendas[index], ...body, id: req.params.id, storeResponsibleId: body.takesStoreItems ? body.storeResponsibleId : '', storeCardMachine: Boolean(body.takesStoreItems && body.storeCardMachine), updatedBy: req.user.id, updatedAt: new Date().toISOString() };
+    res.json(mapMissionaryAgenda(missionaryAgendas[index], req));
+  });
+  server.get('/api/missionary-agenda/:id/history', (req, res) => res.json(missionaryAgendaHistory.filter((row) => row.agendaId === req.params.id)));
   server.get('/api/cenacle-missions/options', (req, res) => res.json({
     members: members.filter((member) => !['ANO_1', 'ANO_2'].includes(member.vocationalYear || '')).map((member) => ({ id: member.id, name: member.name })),
     yearTwoMembers: members.filter((member) => member.vocationalYear === 'ANO_2').map((member) => ({ id: member.id, name: member.name })),

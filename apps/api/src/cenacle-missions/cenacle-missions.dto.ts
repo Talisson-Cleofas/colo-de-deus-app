@@ -8,7 +8,7 @@ export class SaveCenacleMissionDto {
   @IsString() time!: string;
   @IsString() @MinLength(2) location!: string;
   @IsOptional() @IsString() ministryId?: string;
-  @IsArray() @IsString({ each: true }) participantIds!: string[];
+  @IsOptional() @IsArray() @IsString({ each: true }) participantIds?: string[];
   @IsOptional() @IsString() status?: string;
 }
 

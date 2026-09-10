@@ -1,5 +1,6 @@
 import {
   IsArray,
+  IsBoolean,
   IsIn,
   IsInt,
   IsOptional,
@@ -62,6 +63,9 @@ export class CreateMissionaryAgendaDto {
   @IsOptional() @IsString() @MaxLength(3000) notes = '';
   @IsOptional() @IsArray() @IsString({ each: true }) accompanyingIds: string[] = [];
   @IsOptional() @IsArray() @IsString({ each: true }) intercessorIds: string[] = [];
+  @IsOptional() @IsBoolean() takesStoreItems = false;
+  @IsOptional() @IsString() storeResponsibleId = '';
+  @IsOptional() @IsBoolean() storeCardMachine = false;
 }
 
 export class UpdateMissionaryAgendaDto {
@@ -105,6 +109,9 @@ export class UpdateMissionaryAgendaDto {
   @IsOptional() @IsString() @MaxLength(3000) notes?: string;
   @IsOptional() @IsArray() @IsString({ each: true }) accompanyingIds?: string[];
   @IsOptional() @IsArray() @IsString({ each: true }) intercessorIds?: string[];
+  @IsOptional() @IsBoolean() takesStoreItems?: boolean;
+  @IsOptional() @IsString() storeResponsibleId?: string;
+  @IsOptional() @IsBoolean() storeCardMachine?: boolean;
 }
 
 export class ApproveMissionaryAgendaDto {

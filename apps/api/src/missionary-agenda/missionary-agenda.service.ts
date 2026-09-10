@@ -193,6 +193,10 @@ export class MissionaryAgendaService {
       accompanyingNames: accompanyingIds.map((id) => ctx.memberNames.get(id) || id),
       intercessorIds,
       intercessorNames: intercessorIds.map((id) => ctx.memberNames.get(id) || id),
+      takesStoreItems: this.repository.parseActive(row.levar_itens_store || '', false),
+      storeResponsibleId: row.responsavel_store_id || '',
+      storeResponsibleName: ctx.memberNames.get(row.responsavel_store_id || '') || '',
+      storeCardMachine: this.repository.parseActive(row.maquininha_store || '', false),
       canEdit:
         (agendaLeader && ['RASCUNHO', 'NAO_APROVADA'].includes(status)) ||
         (central &&
@@ -349,6 +353,9 @@ export class MissionaryAgendaService {
       ponto_encontro: dto.meetingPoint.trim(),
       transporte: dto.transport.trim(),
       observacoes: dto.notes.trim(),
+      levar_itens_store: dto.takesStoreItems ? 'TRUE' : 'FALSE',
+      responsavel_store_id: dto.takesStoreItems ? dto.storeResponsibleId : '',
+      maquininha_store: dto.takesStoreItems && dto.storeCardMachine ? 'TRUE' : 'FALSE',
       recorrente: 'FALSE',
       recorrencia_regra: '',
       notificar: 'FALSE',
@@ -394,6 +401,9 @@ export class MissionaryAgendaService {
       notes: item.notes,
       accompanyingIds: item.accompanyingIds,
       intercessorIds: item.intercessorIds,
+      takesStoreItems: item.takesStoreItems,
+      storeResponsibleId: item.storeResponsibleId,
+      storeCardMachine: item.storeCardMachine,
     };
   }
 
@@ -411,6 +421,26 @@ export class MissionaryAgendaService {
     if (selected.length !== selectedIds.length || selected.some((member) => !member.active))
       throw new BadRequestException('A equipe contém membro inexistente ou inativo.');
     return { accompanying, intercessors };
+  }
+
+  private async validateStoreControl(dto: CreateMissionaryAgendaDto) {
+    if (!dto.takesStoreItems) return;
+    if (!dto.storeResponsibleId)
+      throw new BadRequestException(
+        'Selecione o missionário responsável pelos itens da Colo de Deus Store.',
+      );
+    const responsible = await this.repository.findMemberById(dto.storeResponsibleId);
+    if (!responsible || !responsible.active)
+      throw new BadRequestException('O responsável pela Store deve ser um membro ativo.');
+  }
+
+  private storeHistoryNote(item: MissionaryAgenda) {
+    if (!item.takesStoreItems) return 'Sem itens da Colo de Deus Store.';
+    return `Itens da Store sob responsabilidade de ${item.storeResponsibleName || item.storeResponsibleId}.${
+      item.storeCardMachine
+        ? ' Responsável também pela maquininha de cartão.'
+        : ' Sem maquininha de cartão.'
+    }`;
   }
 
   private async syncTeam(
@@ -543,6 +573,7 @@ export class MissionaryAgendaService {
     await this.assertNoEventConflict(dto.startDate, dto.endDate);
     await this.validateReferences(dto.responsibleId, dto.ministryId);
     await this.validateTeamSelection(dto.accompanyingIds || [], dto.intercessorIds || []);
+    await this.validateStoreControl(dto);
     const now = new Date().toISOString(),
       id = randomUUID();
     await this.repository.appendRecord(
@@ -563,7 +594,13 @@ export class MissionaryAgendaService {
       user,
     );
     const created = await this.findOne(id, user);
-    await this.log(created, 'RASCUNHO', 'CRIADA', 'Agenda criada como rascunho.', user);
+    await this.log(
+      created,
+      'RASCUNHO',
+      'CRIADA',
+      `Agenda criada como rascunho. ${this.storeHistoryNote(created)}`,
+      user,
+    );
     return created;
   }
   async update(id: string, dto: UpdateMissionaryAgendaDto, user: AuthenticatedUser) {
@@ -581,6 +618,7 @@ export class MissionaryAgendaService {
     await this.assertNoEventConflict(merged.startDate, merged.endDate);
     await this.validateReferences(merged.responsibleId, merged.ministryId);
     await this.validateTeamSelection(merged.accompanyingIds || [], merged.intercessorIds || []);
+    await this.validateStoreControl(merged);
     await this.save({ ...existing, ...merged } as MissionaryAgenda, user, this.workflow(existing));
     await this.syncTeam(
       id,
@@ -589,8 +627,15 @@ export class MissionaryAgendaService {
       merged.intercessorIds || [],
       user,
     );
-    await this.log(existing, existing.status, 'EDITADA', 'Dados da agenda atualizados.', user);
-    return this.findOne(id, user);
+    const updated = await this.findOne(id, user);
+    await this.log(
+      existing,
+      existing.status,
+      'EDITADA',
+      `Dados da agenda atualizados. ${this.storeHistoryNote(updated)}`,
+      user,
+    );
+    return updated;
   }
   async submit(id: string, user: AuthenticatedUser) {
     const item = await this.findOne(id, user);

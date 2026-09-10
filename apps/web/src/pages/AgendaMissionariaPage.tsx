@@ -335,6 +335,15 @@ export function AgendaMissionariaPage() {
                   <strong>Intercessores:</strong> {item.intercessorNames.join(', ')}
                 </Typography>
               )}
+              {item.takesStoreItems && (
+                <Alert severity="info" sx={{ py: 0.5 }}>
+                  <strong>Colo de Deus Store:</strong> itens sob responsabilidade de{' '}
+                  {item.storeResponsibleName || 'missionário não identificado'}.
+                  {item.storeCardMachine
+                    ? ' Também ficou responsável pela maquininha de cartão.'
+                    : ' Não ficou com a maquininha de cartão.'}
+                </Alert>
+              )}
               <Box sx={{ flex: 1 }} />
               <Stack direction="row" flexWrap="wrap" gap={1}>
                 {item.canEdit && (

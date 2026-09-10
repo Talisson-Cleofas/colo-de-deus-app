@@ -116,8 +116,13 @@ const input = (title = 'Evangelização na praça') => ({
 });
 
 const calendarEvent = (extra = {}) => ({
-  id: 'event-test', titulo: 'Retiro da Missão', inicio: '2026-09-05T08:00:00',
-  fim: '2026-09-05T10:00:00', ativo: 'TRUE', publicado: 'TRUE', ...extra,
+  id: 'event-test',
+  titulo: 'Retiro da Missão',
+  inicio: '2026-09-05T08:00:00',
+  fim: '2026-09-05T10:00:00',
+  ativo: 'TRUE',
+  publicado: 'TRUE',
+  ...extra,
 });
 
 test('permite várias missões na mesma data quando não há evento', async () => {
@@ -144,7 +149,8 @@ test('bloqueia cadastro na data de um evento, informa o título e não grava nem
 
 test('detecta sobreposição de períodos e limites inclusivos, ignorando horários', async () => {
   for (const [start, end] of [
-    ['2026-09-04', '2026-09-06'], ['2026-09-05', '2026-09-07'],
+    ['2026-09-04', '2026-09-06'],
+    ['2026-09-05', '2026-09-07'],
     ['2026-09-01', '2026-09-05'],
   ]) {
     const { service, tabs } = fixture();
@@ -153,13 +159,20 @@ test('detecta sobreposição de períodos e limites inclusivos, ignorando horár
   }
   const { service, tabs } = fixture();
   tabs.Eventos = [calendarEvent({ inicio: '2026-09-06', fim: '2026-09-06' })];
-  await assert.rejects(service.create({ ...input(), endDate: '2026-09-07' }, users.agenda), /Retiro da Missão/);
+  await assert.rejects(
+    service.create({ ...input(), endDate: '2026-09-07' }, users.agenda),
+    /Retiro da Missão/,
+  );
 });
 
 test('permite dias livres e ignora eventos excluídos, inativos ou rascunhos', async () => {
   const { service, tabs } = fixture();
-  tabs.Eventos = [calendarEvent({ deleted_at: '2026-09-01' }), calendarEvent({ ativo: 'FALSE' }),
-    calendarEvent({ publicado: 'FALSE' }), calendarEvent({ inicio: '2026-09-06', fim: '' })];
+  tabs.Eventos = [
+    calendarEvent({ deleted_at: '2026-09-01' }),
+    calendarEvent({ ativo: 'FALSE' }),
+    calendarEvent({ publicado: 'FALSE' }),
+    calendarEvent({ inicio: '2026-09-06', fim: '' }),
+  ];
   assert.equal((await service.create(input(), users.agenda)).status, 'RASCUNHO');
 });
 
@@ -167,7 +180,10 @@ test('revalida edição e envio quando um evento é cadastrado depois do rascunh
   const { service, tabs } = fixture();
   const created = await service.create(input(), users.agenda);
   tabs.Eventos = [calendarEvent()];
-  await assert.rejects(service.update(created.id, { title: 'Alterado' }, users.agenda), /Retiro da Missão/);
+  await assert.rejects(
+    service.update(created.id, { title: 'Alterado' }, users.agenda),
+    /Retiro da Missão/,
+  );
   await assert.rejects(service.submit(created.id, users.agenda), /Retiro da Missão/);
   assert.equal((await service.findOne(created.id, users.agenda)).title, input().title);
 });
@@ -261,6 +277,53 @@ test('impede que a mesma pessoa ocupe as duas funções da equipe', async () => 
       ),
     /não pode ser acompanhante e intercessora/i,
   );
+});
+
+test('registra o responsável pelos itens da Store e o controle da maquininha', async () => {
+  const { service, tabs } = fixture();
+  const created = await service.create(
+    {
+      ...input('Missão com Store'),
+      takesStoreItems: true,
+      storeResponsibleId: users.member.id,
+      storeCardMachine: true,
+    },
+    users.agenda,
+  );
+
+  assert.equal(created.takesStoreItems, true);
+  assert.equal(created.storeResponsibleId, users.member.id);
+  assert.equal(created.storeResponsibleName, users.member.name);
+  assert.equal(created.storeCardMachine, true);
+  assert.equal(tabs.AgendaMissionaria[0].levar_itens_store, 'TRUE');
+  assert.equal(tabs.AgendaMissionaria[0].responsavel_store_id, users.member.id);
+  assert.equal(tabs.AgendaMissionaria[0].maquininha_store, 'TRUE');
+  assert.match(tabs.AgendaMissionariaHistorico[0].observacao, /maquininha de cartão/i);
+});
+
+test('exige membro ativo como responsável quando a missão leva itens da Store', async () => {
+  const { service, tabs } = fixture();
+  await assert.rejects(
+    () =>
+      service.create(
+        { ...input('Missão sem responsável da Store'), takesStoreItems: true },
+        users.agenda,
+      ),
+    /responsável pelos itens/i,
+  );
+  await assert.rejects(
+    () =>
+      service.create(
+        {
+          ...input('Missão com responsável inválido'),
+          takesStoreItems: true,
+          storeResponsibleId: 'membro-inexistente',
+        },
+        users.agenda,
+      ),
+    /membro ativo/i,
+  );
+  assert.equal(tabs.AgendaMissionaria.length, 0);
 });
 
 test('executa não aprovação e devolve ao líder da agenda para editar e reenviar', async () => {

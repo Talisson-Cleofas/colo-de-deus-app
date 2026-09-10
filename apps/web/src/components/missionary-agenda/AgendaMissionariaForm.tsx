@@ -5,6 +5,7 @@ import {
   Button,
   DialogActions,
   DialogContent,
+  FormControlLabel,
   FormHelperText,
   MenuItem,
   Stack,
@@ -12,6 +13,7 @@ import {
   Tabs,
   TextField,
   Typography,
+  Switch,
 } from '@mui/material';
 import { useEffect, useMemo, useState } from 'react';
 import type { MissionaryAgenda, MissionaryAgendaOptions, MissionaryAgendaType } from '../../types';
@@ -39,6 +41,9 @@ export type AgendaMissionariaFormValue = {
   notes: string;
   accompanyingIds: string[];
   intercessorIds: string[];
+  takesStoreItems: boolean;
+  storeResponsibleId: string;
+  storeCardMachine: boolean;
 };
 
 const initialValue: AgendaMissionariaFormValue = {
@@ -64,6 +69,9 @@ const initialValue: AgendaMissionariaFormValue = {
   notes: '',
   accompanyingIds: [],
   intercessorIds: [],
+  takesStoreItems: false,
+  storeResponsibleId: '',
+  storeCardMachine: false,
 };
 
 const typeOptions: Array<{ value: MissionaryAgendaType; label: string }> = [
@@ -99,6 +107,9 @@ function fromAgenda(item: MissionaryAgenda | null): AgendaMissionariaFormValue {
     notes: item.notes,
     accompanyingIds: item.accompanyingIds,
     intercessorIds: item.intercessorIds,
+    takesStoreItems: Boolean(item.takesStoreItems),
+    storeResponsibleId: item.storeResponsibleId || '',
+    storeCardMachine: Boolean(item.storeCardMachine),
   };
 }
 
@@ -149,11 +160,15 @@ export function AgendaMissionariaForm({
     if (value.zipCode && !/^\d{5}-?\d{3}$/.test(value.zipCode))
       next.zipCode = 'Use o formato 00000-000.';
     if (value.participantLimit < 0) next.participantLimit = 'O limite não pode ser negativo.';
+    if (value.takesStoreItems && !value.storeResponsibleId)
+      next.storeResponsibleId = 'Selecione o missionário responsável pelos itens.';
     return next;
   }, [value]);
 
-  const field = (key: keyof AgendaMissionariaFormValue, next: string | number | string[]) =>
-    setValue((current) => ({ ...current, [key]: next }));
+  const field = (
+    key: keyof AgendaMissionariaFormValue,
+    next: string | number | boolean | string[],
+  ) => setValue((current) => ({ ...current, [key]: next }));
   const submit = async () => {
     setSubmitted(true);
     if (Object.keys(errors).length) return;
@@ -378,6 +393,73 @@ export function AgendaMissionariaForm({
                 value={value.notes}
                 onChange={(event) => field('notes', event.target.value)}
               />
+            </Box>
+            <Box sx={{ mt: 2.5, p: 2, border: 1, borderColor: 'divider', borderRadius: 2 }}>
+              <Typography fontWeight={800} mb={1.5}>
+                Colo de Deus Store
+              </Typography>
+              <Box
+                sx={{
+                  display: 'grid',
+                  gridTemplateColumns: { xs: '1fr', md: '1fr 2fr' },
+                  gap: 2,
+                  alignItems: 'start',
+                }}
+              >
+                <TextField
+                  select
+                  label="Levar itens da Store?"
+                  value={value.takesStoreItems ? 'SIM' : 'NAO'}
+                  onChange={(event) =>
+                    setValue((current) =>
+                      event.target.value === 'SIM'
+                        ? { ...current, takesStoreItems: true }
+                        : {
+                            ...current,
+                            takesStoreItems: false,
+                            storeResponsibleId: '',
+                            storeCardMachine: false,
+                          },
+                    )
+                  }
+                >
+                  <MenuItem value="NAO">Não</MenuItem>
+                  <MenuItem value="SIM">Sim</MenuItem>
+                </TextField>
+                {value.takesStoreItems && (
+                  <Autocomplete
+                    options={options.members}
+                    value={
+                      options.members.find((member) => member.id === value.storeResponsibleId) ||
+                      null
+                    }
+                    getOptionLabel={(member) => member.name}
+                    isOptionEqualToValue={(option, selected) => option.id === selected.id}
+                    onChange={(_, selected) => field('storeResponsibleId', selected?.id || '')}
+                    renderInput={(params) => (
+                      <TextField
+                        {...params}
+                        required
+                        label="Missionário responsável pelos itens"
+                        error={Boolean(error('storeResponsibleId'))}
+                        helperText={error('storeResponsibleId')}
+                      />
+                    )}
+                  />
+                )}
+              </Box>
+              {value.takesStoreItems && (
+                <FormControlLabel
+                  sx={{ mt: 1 }}
+                  control={
+                    <Switch
+                      checked={value.storeCardMachine}
+                      onChange={(event) => field('storeCardMachine', event.target.checked)}
+                    />
+                  }
+                  label="O missionário responsável também ficará com a maquininha de cartão"
+                />
+              )}
             </Box>
             <Box sx={{ mt: 2.5, border: 1, borderColor: 'divider', borderRadius: 2 }}>
               <Tabs

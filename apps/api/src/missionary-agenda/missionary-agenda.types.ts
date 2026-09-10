@@ -61,6 +61,10 @@ export type MissionaryAgenda = {
   accompanyingNames: string[];
   intercessorIds: string[];
   intercessorNames: string[];
+  takesStoreItems: boolean;
+  storeResponsibleId: string;
+  storeResponsibleName: string;
+  storeCardMachine: boolean;
   canEdit: boolean;
   canSubmit: boolean;
   canReview: boolean;

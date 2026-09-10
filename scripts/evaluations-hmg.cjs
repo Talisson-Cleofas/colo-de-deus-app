@@ -379,8 +379,9 @@ Module({
     intercessionSelectionCompleted: Boolean(row.intercessionSelectionCompleted),
     ministrySelectedBy: row.ministrySelectedBy || '', ministrySelectedAt: row.ministrySelectedAt || '',
     intercessionSelectedBy: row.intercessionSelectedBy || '', intercessionSelectedAt: row.intercessionSelectedAt || '',
-    canEdit: (['DEVELOPER', 'MISSION_LEADER'].includes(req.user.profile) || row.createdBy === req.user.id) && !row.ministrySelectionCompleted && !row.intercessionSelectionCompleted,
-    canSubmit: false, canReview: false,
+    canEdit: (['DEVELOPER', 'MISSION_LEADER'].includes(req.user.profile) || row.createdBy === req.user.id) && ['RASCUNHO', 'NAO_APROVADA'].includes(row.status),
+    canSubmit: (req.user.profile === 'DEVELOPER' || row.createdBy === req.user.id) && ['RASCUNHO', 'NAO_APROVADA'].includes(row.status),
+    canReview: ['DEVELOPER', 'MISSION_LEADER'].includes(req.user.profile) && row.status === 'AGUARDANDO_APROVACAO',
     canSelectMembers: row.status === 'AGUARDANDO_INDICACOES' && !row.ministrySelectionCompleted && (['DEVELOPER', 'MISSION_LEADER'].includes(req.user.profile) || req.user.id === 'qa-2'),
     canSelectIntercessors: row.status === 'AGUARDANDO_INDICACOES' && !row.intercessionSelectionCompleted && (['DEVELOPER', 'MISSION_LEADER'].includes(req.user.profile) || req.user.id === 'qa-8'),
     active: true,
@@ -428,6 +429,29 @@ Module({
       return res.status(400).json({ message: 'Selecione um acompanhante ativo como responsável pelos itens da Store.' });
     missionaryAgendas[index] = { ...missionaryAgendas[index], ...body, id: req.params.id, storeResponsibleId: body.takesStoreItems ? body.storeResponsibleId : '', storeCardMachine: Boolean(body.takesStoreItems && body.storeCardMachine), updatedBy: req.user.id, updatedAt: new Date().toISOString() };
     res.json(mapMissionaryAgenda(missionaryAgendas[index], req));
+  });
+  server.post('/api/missionary-agenda/:id/submit', (req, res) => {
+    const row = missionaryAgendas.find((item) => item.id === req.params.id);
+    if (!row || !['RASCUNHO', 'NAO_APROVADA'].includes(row.status)) return res.status(409).json({ message: 'Agenda indisponível para envio.' });
+    row.status = 'AGUARDANDO_APROVACAO'; row.submittedBy = req.user.id; row.submittedAt = new Date().toISOString(); row.rejectionReason = '';
+    tabs['Notificações'].push({ id: `qa-agenda-review-${Date.now()}`, title: 'Agenda aguardando aprovação', message: row.title, type: 'EVENTO', publico: 'INDIVIDUAL', audience: 'INDIVIDUAL', destinatarios: 'qa-0,qa-1', referencia_tipo: 'AGENDA_MISSIONARIA', referencia_id: row.id, link: '/agenda-missionaria', sentAt: new Date().toISOString(), senderName: 'Sistema QA', active: true, read: false });
+    res.json(mapMissionaryAgenda(row, req));
+  });
+  server.post('/api/missionary-agenda/:id/approve', (req, res) => {
+    const row = missionaryAgendas.find((item) => item.id === req.params.id);
+    if (!row || row.status !== 'AGUARDANDO_APROVACAO') return res.status(409).json({ message: 'Agenda indisponível para aprovação.' });
+    if (!['DEVELOPER', 'MISSION_LEADER'].includes(req.user.profile)) return res.status(403).json({ message: 'Somente líderes de missão podem aprovar.' });
+    row.status = 'AGUARDANDO_INDICACOES'; row.approvedBy = req.user.id; row.approvedAt = new Date().toISOString();
+    tabs['Notificações'].push({ id: `qa-agenda-approved-${Date.now()}`, title: 'Agenda aprovada — defina a equipe da missão', message: row.title, type: 'EVENTO', publico: 'INDIVIDUAL', audience: 'INDIVIDUAL', destinatarios: 'qa-2,qa-8', referencia_tipo: 'AGENDA_MISSIONARIA', referencia_id: row.id, link: '/agenda-missionaria', sentAt: new Date().toISOString(), senderName: 'Sistema QA', active: true, read: false });
+    res.json(mapMissionaryAgenda(row, req));
+  });
+  server.post('/api/missionary-agenda/:id/reject', (req, res) => {
+    const row = missionaryAgendas.find((item) => item.id === req.params.id);
+    if (!row || row.status !== 'AGUARDANDO_APROVACAO') return res.status(409).json({ message: 'Agenda indisponível para devolução.' });
+    if (!['DEVELOPER', 'MISSION_LEADER'].includes(req.user.profile)) return res.status(403).json({ message: 'Somente líderes de missão podem devolver.' });
+    row.status = 'NAO_APROVADA'; row.rejectionReason = req.body?.reason || 'Ajustes solicitados'; row.rejectedBy = req.user.id; row.rejectedAt = new Date().toISOString();
+    tabs['Notificações'].push({ id: `qa-agenda-rejected-${Date.now()}`, title: 'Agenda devolvida para ajustes', message: `${row.title}: ${row.rejectionReason}`, type: 'EVENTO', publico: 'INDIVIDUAL', audience: 'INDIVIDUAL', destinatarios: row.createdBy, referencia_tipo: 'AGENDA_MISSIONARIA', referencia_id: row.id, link: '/agenda-missionaria', sentAt: new Date().toISOString(), senderName: 'Sistema QA', active: true, read: false });
+    res.json(mapMissionaryAgenda(row, req));
   });
   server.post('/api/missionary-agenda/:id/authorize-year-two', (req, res) => {
     const row = missionaryAgendas.find((item) => item.id === req.params.id);

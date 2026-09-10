@@ -101,7 +101,7 @@ const items: MenuItem[] = [
   },
   {
     icon: <GroupsOutlined />,
-    label: 'Cenáculos',
+    label: 'Missões e Cenáculos',
     path: '/cenaculos',
     permission: Permission.CENACLES_READ,
   },

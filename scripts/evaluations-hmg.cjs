@@ -415,6 +415,13 @@ Module({
     row.authorizedYearTwoIds = [...(row.authorizedYearTwoIds || []), member.id];
     const now = new Date().toISOString();
     missionaryAgendaHistory.push({ id: 'qa-history-' + Date.now(), agendaId: row.id, previousStatus: row.status, status: row.status, action: 'ANO_2_AUTORIZADO', note: `${member.name} foi autorizado(a) para esta missão.`, userId: req.user.id, userName: req.user.name, createdAt: now });
+    tabs['Notificações'].push({
+      id: `qa-agenda-year-two-${Date.now()}`, title: `Autorização para agenda missionária: ${row.title}`,
+      message: `Sua participação foi autorizada para ${row.title}. Aguarde o envio da liderança.`,
+      type: 'EVENTO', publico: 'INDIVIDUAL', audience: 'INDIVIDUAL', destinatarios: member.id,
+      referencia_tipo: 'AGENDA_MISSIONARIA', referencia_id: row.id, link: '/agenda-missionaria',
+      sentAt: now, senderName: 'Sistema QA', active: true, read: false,
+    });
     res.json({ success: true, message: `${member.name} foi autorizado(a) e recebeu a notificação.` });
   });
   server.post('/api/missionary-agenda/:id/send', (req, res) => {

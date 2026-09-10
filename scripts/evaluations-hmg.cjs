@@ -83,7 +83,7 @@ const cenacleMissions = [
     time: '19:00',
     location: 'Local fictício',
     ministryId: qaMissionsMinistry.id,
-    participantIds: ['qa-3', 'qa-5'],
+    participantIds: ['qa-3'],
     status: 'CONCLUIDA',
     presences: { 'qa-3': 'CONFIRMADA' },
     feedbackOpen: true,

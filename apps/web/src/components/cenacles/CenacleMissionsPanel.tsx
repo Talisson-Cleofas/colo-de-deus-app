@@ -9,7 +9,6 @@ import {
 } from '@mui/icons-material';
 import {
   Alert,
-  Autocomplete,
   Box,
   Button,
   Card,
@@ -28,7 +27,6 @@ import {
 import { useCallback, useEffect, useState } from 'react';
 import { api, apiErrorMessage } from '../../services/api';
 
-type MemberOption = { id: string; name: string };
 type MinistryOption = { id: string; name: string };
 type Mission = {
   id: string;
@@ -47,6 +45,7 @@ type Mission = {
   confirmedCount: number;
   feedbackOpen: boolean;
   canManage: boolean;
+  canManageFeedback: boolean;
   canGiveFeedback: boolean;
   feedbackSubmitted: boolean;
   feedbackCount: number;
@@ -72,7 +71,6 @@ const empty = () => ({
 
 export function CenacleMissionsPanel() {
   const [items, setItems] = useState<Mission[]>([]),
-    [members, setMembers] = useState<MemberOption[]>([]),
     [ministries, setMinistries] = useState<MinistryOption[]>([]);
   const [canCreate, setCanCreate] = useState(false),
     [loading, setLoading] = useState(true),
@@ -92,12 +90,11 @@ export function CenacleMissionsPanel() {
     try {
       const [list, options] = await Promise.all([
         api.get<Mission[]>('/cenacle-missions'),
-        api.get<{ members: MemberOption[]; ministries: MinistryOption[]; canCreate: boolean }>(
+        api.get<{ ministries: MinistryOption[]; canCreate: boolean }>(
           '/cenacle-missions/options',
         ),
       ]);
       setItems(list.data);
-      setMembers(options.data.members);
       setMinistries(options.data.ministries);
       setCanCreate(options.data.canCreate);
     } catch (e) {
@@ -243,7 +240,8 @@ export function CenacleMissionsPanel() {
                     {item.date.split('-').reverse().join('/')} às {item.time} • {item.location}
                   </Typography>
                   <Typography color="text.secondary" mt={1}>
-                    Enviados: {item.participantNames.join(', ') || 'Nenhum'}
+                    Participação confirmada:{' '}
+                    {item.participantNames.join(', ') || 'Ninguém confirmou ainda'}
                   </Typography>
                   <Stack direction="row" gap={1} flexWrap="wrap" mt={1}>
                     {item.participants.map((participant) => (
@@ -262,7 +260,7 @@ export function CenacleMissionsPanel() {
                       Editar
                     </Button>
                   )}
-                  {item.canManage && !item.feedbackOpen && (
+                  {item.canManageFeedback && !item.feedbackOpen && (
                     <Button startIcon={<LockOpenOutlined />} onClick={() => void openMissionFeedback(item)}>
                       Liberar feedback ({item.confirmedCount})
                     </Button>
@@ -278,7 +276,7 @@ export function CenacleMissionsPanel() {
                       Não participarei
                     </Button>
                   )}
-                  {item.canManage && (
+                  {item.canManageFeedback && (
                     <Button
                       startIcon={<VisibilityOutlined />}
                       onClick={() => void showResults(item)}
@@ -361,14 +359,6 @@ export function CenacleMissionsPanel() {
                 </MenuItem>
               ))}
             </TextField>
-            <Autocomplete
-              multiple
-              options={members}
-              getOptionLabel={(m) => m.name}
-              value={members.filter((m) => form.participantIds.includes(m.id))}
-              onChange={(_, value) => setForm({ ...form, participantIds: value.map((m) => m.id) })}
-              renderInput={(params) => <TextField {...params} required label="Membros enviados" />}
-            />
             <TextField
               select
               label="Status"
@@ -389,8 +379,7 @@ export function CenacleMissionsPanel() {
               saving ||
               !form.title.trim() ||
               !form.location.trim() ||
-              !form.ministryId ||
-              !form.participantIds.length
+              !form.ministryId
             }
             onClick={() => void save()}
           >

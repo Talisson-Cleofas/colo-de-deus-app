@@ -358,7 +358,7 @@ Module({
       return res.status(400).json({ message: 'Preencha os campos obrigatórios da agenda.' });
     if (body.takesStoreItems) {
       const responsible = members.find((member) => member.id === body.storeResponsibleId && member.active);
-      if (!responsible) return res.status(400).json({ message: 'Selecione um missionário ativo como responsável pelos itens da Store.' });
+      if (!responsible || !(body.accompanyingIds || []).includes(body.storeResponsibleId)) return res.status(400).json({ message: 'Selecione um acompanhante ativo como responsável pelos itens da Store.' });
     }
     const now = new Date().toISOString();
     const row = {
@@ -380,8 +380,8 @@ Module({
     const index = missionaryAgendas.findIndex((row) => row.id === req.params.id);
     if (index < 0) return res.sendStatus(404);
     const body = req.body || {};
-    if (body.takesStoreItems && !members.some((member) => member.id === body.storeResponsibleId && member.active))
-      return res.status(400).json({ message: 'Selecione um missionário ativo como responsável pelos itens da Store.' });
+    if (body.takesStoreItems && (!members.some((member) => member.id === body.storeResponsibleId && member.active) || !(body.accompanyingIds || []).includes(body.storeResponsibleId)))
+      return res.status(400).json({ message: 'Selecione um acompanhante ativo como responsável pelos itens da Store.' });
     missionaryAgendas[index] = { ...missionaryAgendas[index], ...body, id: req.params.id, storeResponsibleId: body.takesStoreItems ? body.storeResponsibleId : '', storeCardMachine: Boolean(body.takesStoreItems && body.storeCardMachine), updatedBy: req.user.id, updatedAt: new Date().toISOString() };
     res.json(mapMissionaryAgenda(missionaryAgendas[index], req));
   });

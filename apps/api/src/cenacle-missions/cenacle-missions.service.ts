@@ -62,6 +62,12 @@ export class CenacleMissionsService implements OnModuleInit {
     const ids = await this.managedMinistryIds(user);
     return ids === null || (Boolean(ministryId) && ids.has(ministryId));
   }
+  private async canManageFeedback(user: AuthenticatedUser, ministryId = '') {
+    if (user.profile === 'DEVELOPER') return true;
+    if (user.profile !== 'MINISTRY_LEADER') return false;
+    const ids = await this.managedMinistryIds(user);
+    return Boolean(ministryId) && Boolean(ids?.has(ministryId));
+  }
   private async mission(id: string) {
     const row = (await this.sheets.read('MissoesCenaculo')).find(
       (item) => item.id === id && this.active(item),
@@ -83,6 +89,9 @@ export class CenacleMissionsService implements OnModuleInit {
     const missionPresences = presences.filter((item) => item.missao_id === row.id);
     const ownPresence = missionPresences.find((item) => item.membro_id === this.uid(user));
     const feedbackOpen = this.sheets.parseActive(row.feedback_liberado || '', false);
+    const activeUser = members.some(
+      (member) => member.id === this.uid(user) && member.active,
+    );
     return {
       id: row.id,
       title: row.titulo,
@@ -100,10 +109,11 @@ export class CenacleMissionsService implements OnModuleInit {
         presenceStatus: missionPresences.find((item) => item.membro_id === id)?.status || 'PENDENTE',
       })),
       presenceStatus: ownPresence?.status || 'PENDENTE',
-      canConfirmPresence: participantIds.includes(this.uid(user)),
+      canConfirmPresence: activeUser,
       confirmedCount: missionPresences.filter((item) => item.status === 'CONFIRMADA').length,
       feedbackOpen,
       canManage: await this.canManage(user, row.ministerio_id || ''),
+      canManageFeedback: await this.canManageFeedback(user, row.ministerio_id || ''),
       canGiveFeedback:
         participantIds.includes(this.uid(user)) &&
         ownPresence?.status === 'CONFIRMADA' &&
@@ -116,10 +126,8 @@ export class CenacleMissionsService implements OnModuleInit {
   }
   async list(user: AuthenticatedUser) {
     const rows = (await this.sheets.read('MissoesCenaculo')).filter((row) => this.active(row));
-    const manager = this.central(user) || (await this.managedMinistryIds(user))!.size > 0;
-    const visible = manager ? rows : rows.filter((row) => this.ids(row).includes(this.uid(user)));
     return Promise.all(
-      visible
+      rows
         .sort((a, b) => `${a.data}T${a.horario}`.localeCompare(`${b.data}T${b.horario}`))
         .map((row) => this.map(row, user)),
     );
@@ -149,8 +157,6 @@ export class CenacleMissionsService implements OnModuleInit {
   private validate(dto: SaveCenacleMissionDto) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(dto.date) || !/^([01]\d|2[0-3]):[0-5]\d$/.test(dto.time))
       throw new BadRequestException('Informe data e horário válidos.');
-    if (!dto.participantIds.length)
-      throw new BadRequestException('Selecione pelo menos um participante.');
   }
   private async assertReferences(dto: SaveCenacleMissionDto) {
     if (!dto.ministryId) throw new BadRequestException('Selecione o Ministério de Missões.');
@@ -167,7 +173,7 @@ export class CenacleMissionsService implements OnModuleInit {
     )
       throw new BadRequestException('Selecione um Ministério de Missões ativo.');
     const activeIds = new Set(members.filter((member) => member.active).map((member) => member.id));
-    if (dto.participantIds.some((id) => !activeIds.has(id)))
+    if ((dto.participantIds || []).some((id) => !activeIds.has(id)))
       throw new BadRequestException('Selecione somente membros ativos como participantes.');
   }
   async create(dto: SaveCenacleMissionDto, user: AuthenticatedUser) {
@@ -187,7 +193,7 @@ export class CenacleMissionsService implements OnModuleInit {
       horario: dto.time,
       local: dto.location.trim(),
       ministerio_id: dto.ministryId || '',
-      participantes_ids: [...new Set(dto.participantIds)].join(','),
+      participantes_ids: [...new Set(dto.participantIds || [])].join(','),
       status: dto.status || 'AGENDADA',
       feedback_liberado: 'FALSE',
       feedback_liberado_por: '',
@@ -197,6 +203,16 @@ export class CenacleMissionsService implements OnModuleInit {
       criado_em: now,
       atualizado_por: this.uid(user),
       atualizado_em: now,
+    });
+    await this.notifications.createSystem({
+      title: `Nova missão: ${dto.title.trim()}`,
+      message: `${dto.title.trim()} foi marcada para ${dto.date.split('-').reverse().join('/')} às ${dto.time}, em ${dto.location.trim()}. Confirme se você participará.`,
+      type: 'EVENTO',
+      audience: 'TODOS',
+      origin: 'Missões',
+      referenceType: 'MISSAO_CENACULO',
+      referenceId: id,
+      link: '/cenaculos?tab=missoes',
     });
     return this.map(await this.mission(id), user);
   }
@@ -214,7 +230,9 @@ export class CenacleMissionsService implements OnModuleInit {
       horario: dto.time,
       local: dto.location.trim(),
       ministerio_id: dto.ministryId || old.ministerio_id || '',
-      participantes_ids: [...new Set(dto.participantIds)].join(','),
+      participantes_ids: dto.participantIds
+        ? [...new Set(dto.participantIds)].join(',')
+        : old.participantes_ids || '',
       status: dto.status || old.status || 'AGENDADA',
       atualizado_por: this.uid(user),
       atualizado_em: new Date().toISOString(),
@@ -254,8 +272,11 @@ export class CenacleMissionsService implements OnModuleInit {
   }
   async confirmPresence(id: string, confirmed: boolean, user: AuthenticatedUser) {
     const row = await this.mission(id), uid = this.uid(user);
-    if (!this.ids(row).includes(uid))
-      throw new ForbiddenException('Somente missionários enviados podem confirmar presença.');
+    const activeMember = (await this.sheets.listMembers()).some(
+      (member) => member.id === uid && member.active,
+    );
+    if (!activeMember)
+      throw new ForbiddenException('Somente membros ativos podem confirmar participação.');
     const rows = await this.sheets.read('MissoesCenaculoPresencas');
     const current = rows.find((item) => item.missao_id === id && item.membro_id === uid);
     const now = new Date().toISOString();
@@ -269,11 +290,20 @@ export class CenacleMissionsService implements OnModuleInit {
     };
     if (current) await this.sheets.updateRecord('MissoesCenaculoPresencas', 'id', current.id, record);
     else await this.sheets.appendRecord('MissoesCenaculoPresencas', record);
+    const participants = new Set(this.ids(row));
+    if (confirmed) participants.add(uid);
+    else participants.delete(uid);
+    await this.sheets.updateRecord('MissoesCenaculo', 'id', id, {
+      ...row,
+      participantes_ids: [...participants].join(','),
+      atualizado_por: uid,
+      atualizado_em: now,
+    });
     return { success: true, status: record.status, message: confirmed ? 'Presença confirmada.' : 'Participação recusada.' };
   }
   async openFeedback(id: string, user: AuthenticatedUser) {
     const row = await this.mission(id);
-    if (!(await this.canManage(user, row.ministerio_id || '')))
+    if (!(await this.canManageFeedback(user, row.ministerio_id || '')))
       throw new ForbiddenException('Você não pode liberar o feedback desta missão.');
     if (row.data > new Date().toISOString().slice(0, 10))
       throw new BadRequestException('O feedback só pode ser liberado ao final da missão.');
@@ -309,7 +339,7 @@ export class CenacleMissionsService implements OnModuleInit {
   }
   async results(id: string, user: AuthenticatedUser) {
     const row = await this.mission(id);
-    if (!(await this.canManage(user, row.ministerio_id || '')))
+    if (!(await this.canManageFeedback(user, row.ministerio_id || '')))
       throw new ForbiddenException('Você não pode consultar estas respostas.');
     const [feedback, members] = await Promise.all([
       this.sheets.read('MissoesCenaculoFeedback'),

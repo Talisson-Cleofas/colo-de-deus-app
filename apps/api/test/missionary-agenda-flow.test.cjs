@@ -287,6 +287,7 @@ test('registra o responsável pelos itens da Store e o controle da maquininha', 
       takesStoreItems: true,
       storeResponsibleId: users.member.id,
       storeCardMachine: true,
+      accompanyingIds: [users.member.id],
     },
     users.agenda,
   );
@@ -299,9 +300,13 @@ test('registra o responsável pelos itens da Store e o controle da maquininha', 
   assert.equal(tabs.AgendaMissionaria[0].responsavel_store_id, users.member.id);
   assert.equal(tabs.AgendaMissionaria[0].maquininha_store, 'TRUE');
   assert.match(tabs.AgendaMissionariaHistorico[0].observacao, /maquininha de cartão/i);
+  await assert.rejects(
+    () => service.update(created.id, { accompanyingIds: [] }, users.agenda),
+    /selecionado como acompanhante/i,
+  );
 });
 
-test('exige membro ativo como responsável quando a missão leva itens da Store', async () => {
+test('exige acompanhante selecionado como responsável quando a missão leva itens da Store', async () => {
   const { service, tabs } = fixture();
   await assert.rejects(
     () =>
@@ -315,13 +320,13 @@ test('exige membro ativo como responsável quando a missão leva itens da Store'
     () =>
       service.create(
         {
-          ...input('Missão com responsável inválido'),
+          ...input('Missão com responsável fora dos acompanhantes'),
           takesStoreItems: true,
-          storeResponsibleId: 'membro-inexistente',
+          storeResponsibleId: users.member.id,
         },
         users.agenda,
       ),
-    /membro ativo/i,
+    /selecionado como acompanhante/i,
   );
   assert.equal(tabs.AgendaMissionaria.length, 0);
 });

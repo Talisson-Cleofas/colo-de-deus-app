@@ -427,16 +427,22 @@ export class MissionaryAgendaService {
     if (!dto.takesStoreItems) return;
     if (!dto.storeResponsibleId)
       throw new BadRequestException(
-        'Selecione o missionário responsável pelos itens da Colo de Deus Store.',
+        'Selecione o acompanhante responsável pelos itens da Colo de Deus Store.',
+      );
+    if (!(dto.accompanyingIds || []).includes(dto.storeResponsibleId))
+      throw new BadRequestException(
+        'O responsável pelos itens da Store deve estar selecionado como acompanhante da missão.',
       );
     const responsible = await this.repository.findMemberById(dto.storeResponsibleId);
     if (!responsible || !responsible.active)
-      throw new BadRequestException('O responsável pela Store deve ser um membro ativo.');
+      throw new BadRequestException(
+        'O acompanhante responsável pela Store deve ser um membro ativo.',
+      );
   }
 
   private storeHistoryNote(item: MissionaryAgenda) {
     if (!item.takesStoreItems) return 'Sem itens da Colo de Deus Store.';
-    return `Itens da Store sob responsabilidade de ${item.storeResponsibleName || item.storeResponsibleId}.${
+    return `Itens da Store sob responsabilidade do acompanhante ${item.storeResponsibleName || item.storeResponsibleId}.${
       item.storeCardMachine
         ? ' Responsável também pela maquininha de cartão.'
         : ' Sem maquininha de cartão.'

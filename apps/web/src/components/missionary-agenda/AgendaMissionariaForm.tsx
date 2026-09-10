@@ -161,7 +161,9 @@ export function AgendaMissionariaForm({
       next.zipCode = 'Use o formato 00000-000.';
     if (value.participantLimit < 0) next.participantLimit = 'O limite não pode ser negativo.';
     if (value.takesStoreItems && !value.storeResponsibleId)
-      next.storeResponsibleId = 'Selecione o missionário responsável pelos itens.';
+      next.storeResponsibleId = 'Selecione o acompanhante responsável pelos itens.';
+    else if (value.takesStoreItems && !value.accompanyingIds.includes(value.storeResponsibleId))
+      next.storeResponsibleId = 'O responsável precisa estar selecionado como acompanhante.';
     return next;
   }, [value]);
 
@@ -428,7 +430,9 @@ export function AgendaMissionariaForm({
                 </TextField>
                 {value.takesStoreItems && (
                   <Autocomplete
-                    options={options.members}
+                    options={options.members.filter((member) =>
+                      value.accompanyingIds.includes(member.id),
+                    )}
                     value={
                       options.members.find((member) => member.id === value.storeResponsibleId) ||
                       null
@@ -440,7 +444,7 @@ export function AgendaMissionariaForm({
                       <TextField
                         {...params}
                         required
-                        label="Missionário responsável pelos itens"
+                        label="Acompanhante responsável pelos itens"
                         error={Boolean(error('storeResponsibleId'))}
                         helperText={error('storeResponsibleId')}
                       />
@@ -457,7 +461,7 @@ export function AgendaMissionariaForm({
                       onChange={(event) => field('storeCardMachine', event.target.checked)}
                     />
                   }
-                  label="O missionário responsável também ficará com a maquininha de cartão"
+                  label="O acompanhante responsável também ficará com a maquininha de cartão"
                 />
               )}
             </Box>

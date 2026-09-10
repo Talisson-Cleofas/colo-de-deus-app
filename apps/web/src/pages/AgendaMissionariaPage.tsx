@@ -338,7 +338,7 @@ export function AgendaMissionariaPage() {
               {item.takesStoreItems && (
                 <Alert severity="info" sx={{ py: 0.5 }}>
                   <strong>Colo de Deus Store:</strong> itens sob responsabilidade de{' '}
-                  {item.storeResponsibleName || 'missionário não identificado'}.
+                  {item.storeResponsibleName || 'acompanhante não identificado'}.
                   {item.storeCardMachine
                     ? ' Também ficou responsável pela maquininha de cartão.'
                     : ' Não ficou com a maquininha de cartão.'}

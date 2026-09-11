@@ -16,12 +16,14 @@ import {
   Autocomplete,
   Box,
   Button,
+  Checkbox,
   Chip,
   CircularProgress,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
+  FormControlLabel,
   InputAdornment,
   MenuItem,
   Paper,
@@ -84,7 +86,10 @@ export function AgendaMissionariaPage() {
   const [items, setItems] = useState<MissionaryAgenda[]>([]),
     [options, setOptions] = useState<MissionaryAgendaOptions>({
       currentMemberId: '',
+      intercessionMinistryId: '',
+      intercessionMinistryName: 'Intercessão',
       members: [],
+      yearTwoMembers: [],
       ministries: [],
     });
   const [status, setStatus] = useState(''),
@@ -99,7 +104,9 @@ export function AgendaMissionariaPage() {
   const [rejecting, setRejecting] = useState<MissionaryAgenda | null>(null),
     [reason, setReason] = useState('');
   const [sending, setSending] = useState<MissionaryAgenda | null>(null),
-    [selectedIds, setSelectedIds] = useState<string[]>([]);
+    [sendingRole, setSendingRole] = useState<'MINISTRY' | 'INTERCESSION'>('MINISTRY'),
+    [selectedIds, setSelectedIds] = useState<string[]>([]),
+    [authorizeRequestedMissionary, setAuthorizeRequestedMissionary] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -132,6 +139,7 @@ export function AgendaMissionariaPage() {
       setSending(null);
       setReason('');
       setSelectedIds([]);
+      setAuthorizeRequestedMissionary(false);
       await load();
     } catch (cause) {
       setError(apiErrorMessage(cause));
@@ -157,13 +165,25 @@ export function AgendaMissionariaPage() {
     () =>
       sending
         ? options.members.filter((member) =>
+            member.canBeSent !== false &&
+            !sending.accompanyingIds.includes(member.id) &&
             member.ministry
               .split(',')
               .map((value) => value.trim().toLocaleLowerCase('pt-BR'))
-              .includes(sending.ministryName.toLocaleLowerCase('pt-BR')),
+              .includes(
+                (sendingRole === 'MINISTRY'
+                  ? sending.ministryName
+                  : options.intercessionMinistryName
+                ).toLocaleLowerCase('pt-BR'),
+              ),
           )
         : [],
-    [sending, options.members],
+    [
+      sending,
+      sendingRole,
+      options.members,
+      options.intercessionMinistryName,
+    ],
   );
 
   return (
@@ -325,6 +345,11 @@ export function AgendaMissionariaPage() {
                   <strong>Membros enviados:</strong> {item.participantNames.join(', ')}
                 </Typography>
               )}
+              {item.authorizedYearTwoNames.length > 0 && (
+                <Typography variant="body2" color="warning.main">
+                  <strong>Ano 2 autorizado:</strong> {item.authorizedYearTwoNames.join(', ')}
+                </Typography>
+              )}
               {item.accompanyingNames.length > 0 && (
                 <Typography variant="body2">
                   <strong>Acompanhantes:</strong> {item.accompanyingNames.join(', ')}
@@ -334,6 +359,37 @@ export function AgendaMissionariaPage() {
                 <Typography variant="body2">
                   <strong>Intercessores:</strong> {item.intercessorNames.join(', ')}
                 </Typography>
+              )}
+              {item.status === 'AGUARDANDO_INDICACOES' && (
+                <Stack direction="row" flexWrap="wrap" gap={1}>
+                  <Chip
+                    size="small"
+                    color={item.ministrySelectionCompleted ? 'success' : 'warning'}
+                    label={
+                      item.ministrySelectionCompleted
+                        ? 'Equipe missionária confirmada'
+                        : 'Aguardando ministério solicitado'
+                    }
+                  />
+                  <Chip
+                    size="small"
+                    color={item.intercessionSelectionCompleted ? 'success' : 'warning'}
+                    label={
+                      item.intercessionSelectionCompleted
+                        ? 'Intercessores confirmados'
+                        : 'Aguardando Intercessão'
+                    }
+                  />
+                </Stack>
+              )}
+              {item.takesStoreItems && (
+                <Alert severity="info" sx={{ py: 0.5 }}>
+                  <strong>Colo de Deus Store:</strong> itens sob responsabilidade de{' '}
+                  {item.storeResponsibleName || 'acompanhante não identificado'}.
+                  {item.storeCardMachine
+                    ? ' Também ficou responsável pela maquininha de cartão.'
+                    : ' Não ficou com a maquininha de cartão.'}
+                </Alert>
               )}
               <Box sx={{ flex: 1 }} />
               <Stack direction="row" flexWrap="wrap" gap={1}>
@@ -390,10 +446,26 @@ export function AgendaMissionariaPage() {
                     startIcon={<ForwardToInboxOutlined />}
                     onClick={() => {
                       setSending(item);
+                      setSendingRole('MINISTRY');
                       setSelectedIds([]);
+                      setAuthorizeRequestedMissionary(false);
                     }}
                   >
-                    Selecionar membros
+                    Selecionar equipe missionária
+                  </Button>
+                )}
+                {item.canSelectIntercessors && (
+                  <Button
+                    variant="contained"
+                    startIcon={<ForwardToInboxOutlined />}
+                    onClick={() => {
+                      setSending(item);
+                      setSendingRole('INTERCESSION');
+                      setSelectedIds([]);
+                      setAuthorizeRequestedMissionary(false);
+                    }}
+                  >
+                    Selecionar intercessores
                   </Button>
                 )}
               </Stack>
@@ -450,11 +522,36 @@ export function AgendaMissionariaPage() {
         </DialogActions>
       </Dialog>
       <Dialog open={Boolean(sending)} onClose={() => setSending(null)} fullWidth maxWidth="sm">
-        <DialogTitle>Selecionar membros do ministério</DialogTitle>
+        <DialogTitle>
+          {sendingRole === 'MINISTRY'
+            ? 'Selecionar equipe missionária'
+            : 'Selecionar intercessores'}
+        </DialogTitle>
         <DialogContent>
           <Alert severity="info" sx={{ mb: 2 }}>
-            Somente membros de {sending?.ministryName} podem ser enviados nesta etapa.
+            Somente membros de{' '}
+            {sendingRole === 'MINISTRY' ? sending?.ministryName : options.intercessionMinistryName}{' '}
+            podem ser selecionados nesta etapa. Cada pessoa será notificada assim que a seleção
+            desta equipe for confirmada.
           </Alert>
+          {sendingRole === 'MINISTRY' && sending?.responsibleId && (
+            <Alert severity="warning" sx={{ mb: 2 }}>
+              <Typography variant="body2" mb={1}>
+                O solicitante indicou <strong>{sending.responsibleName}</strong>. Para manter essa
+                indicação, o líder do ministério deve autorizar e incluir esse missionário na
+                equipe.
+              </Typography>
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={authorizeRequestedMissionary}
+                    onChange={(event) => setAuthorizeRequestedMissionary(event.target.checked)}
+                  />
+                }
+                label={`Autorizar ${sending.responsibleName} como missionário solicitado`}
+              />
+            </Alert>
+          )}
           <Autocomplete
             multiple
             options={candidates}
@@ -472,10 +569,17 @@ export function AgendaMissionariaPage() {
             variant="contained"
             disabled={saving || selectedIds.length === 0}
             onClick={() =>
-              void action(`/missionary-agenda/${sending?.id}/send`, { memberIds: selectedIds })
+              void action(
+                sendingRole === 'MINISTRY'
+                  ? `/missionary-agenda/${sending?.id}/send`
+                  : `/missionary-agenda/${sending?.id}/send-intercessors`,
+                sendingRole === 'MINISTRY'
+                  ? { memberIds: selectedIds, authorizeRequestedMissionary }
+                  : { memberIds: selectedIds },
+              )
             }
           >
-            Enviar para membros
+            Confirmar seleção
           </Button>
         </DialogActions>
       </Dialog>

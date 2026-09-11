@@ -5,13 +5,13 @@ import {
   Button,
   DialogActions,
   DialogContent,
+  FormControlLabel,
   FormHelperText,
   MenuItem,
   Stack,
-  Tab,
-  Tabs,
   TextField,
   Typography,
+  Switch,
 } from '@mui/material';
 import { useEffect, useMemo, useState } from 'react';
 import type { MissionaryAgenda, MissionaryAgendaOptions, MissionaryAgendaType } from '../../types';
@@ -39,6 +39,9 @@ export type AgendaMissionariaFormValue = {
   notes: string;
   accompanyingIds: string[];
   intercessorIds: string[];
+  takesStoreItems: boolean;
+  storeResponsibleId: string;
+  storeCardMachine: boolean;
 };
 
 const initialValue: AgendaMissionariaFormValue = {
@@ -64,6 +67,9 @@ const initialValue: AgendaMissionariaFormValue = {
   notes: '',
   accompanyingIds: [],
   intercessorIds: [],
+  takesStoreItems: false,
+  storeResponsibleId: '',
+  storeCardMachine: false,
 };
 
 const typeOptions: Array<{ value: MissionaryAgendaType; label: string }> = [
@@ -99,6 +105,9 @@ function fromAgenda(item: MissionaryAgenda | null): AgendaMissionariaFormValue {
     notes: item.notes,
     accompanyingIds: item.accompanyingIds,
     intercessorIds: item.intercessorIds,
+    takesStoreItems: Boolean(item.takesStoreItems),
+    storeResponsibleId: item.storeResponsibleId || '',
+    storeCardMachine: Boolean(item.storeCardMachine),
   };
 }
 
@@ -119,12 +128,10 @@ export function AgendaMissionariaForm({
 }) {
   const [value, setValue] = useState<AgendaMissionariaFormValue>(() => fromAgenda(agenda));
   const [submitted, setSubmitted] = useState(false);
-  const [teamTab, setTeamTab] = useState(0);
 
   useEffect(() => {
     setValue(fromAgenda(agenda));
     setSubmitted(false);
-    setTeamTab(0);
   }, [agenda]);
 
   const errors = useMemo(() => {
@@ -149,11 +156,17 @@ export function AgendaMissionariaForm({
     if (value.zipCode && !/^\d{5}-?\d{3}$/.test(value.zipCode))
       next.zipCode = 'Use o formato 00000-000.';
     if (value.participantLimit < 0) next.participantLimit = 'O limite não pode ser negativo.';
+    if (value.takesStoreItems && !value.storeResponsibleId)
+      next.storeResponsibleId = 'Selecione o acompanhante responsável pelos itens.';
+    else if (value.takesStoreItems && !value.accompanyingIds.includes(value.storeResponsibleId))
+      next.storeResponsibleId = 'O responsável precisa estar selecionado como acompanhante.';
     return next;
   }, [value]);
 
-  const field = (key: keyof AgendaMissionariaFormValue, next: string | number | string[]) =>
-    setValue((current) => ({ ...current, [key]: next }));
+  const field = (
+    key: keyof AgendaMissionariaFormValue,
+    next: string | number | boolean | string[],
+  ) => setValue((current) => ({ ...current, [key]: next }));
   const submit = async () => {
     setSubmitted(true);
     if (Object.keys(errors).length) return;
@@ -328,12 +341,25 @@ export function AgendaMissionariaForm({
                 select
                 label="Missionário solicitado"
                 value={value.responsibleId}
-                onChange={(event) => field('responsibleId', event.target.value)}
+                onChange={(event) => {
+                  const responsibleId = event.target.value;
+                  setValue((current) => ({
+                    ...current,
+                    responsibleId,
+                    accompanyingIds: current.accompanyingIds.filter(
+                      (memberId) => memberId !== responsibleId,
+                    ),
+                    storeResponsibleId:
+                      current.storeResponsibleId === responsibleId
+                        ? ''
+                        : current.storeResponsibleId,
+                  }));
+                }}
                 error={Boolean(error('responsibleId'))}
                 helperText={error('responsibleId')}
               >
                 <MenuItem value="">A definir pelo líder do ministério</MenuItem>
-                {options.members.map((item) => (
+                {options.members.filter((item) => item.canBeSent !== false).map((item) => (
                   <MenuItem key={item.id} value={item.id}>
                     {item.name}
                   </MenuItem>
@@ -379,69 +405,110 @@ export function AgendaMissionariaForm({
                 onChange={(event) => field('notes', event.target.value)}
               />
             </Box>
-            <Box sx={{ mt: 2.5, border: 1, borderColor: 'divider', borderRadius: 2 }}>
-              <Tabs
-                value={teamTab}
-                onChange={(_, next) => setTeamTab(next)}
-                variant="fullWidth"
-                aria-label="Equipe missionária"
+            <Box sx={{ mt: 2.5, p: 2, border: 1, borderColor: 'divider', borderRadius: 2 }}>
+              <Typography fontWeight={800} mb={1.5}>
+                Colo de Deus Store
+              </Typography>
+              <Box
+                sx={{
+                  display: 'grid',
+                  gridTemplateColumns: { xs: '1fr', md: '1fr 2fr' },
+                  gap: 2,
+                  alignItems: 'start',
+                }}
               >
-                <Tab label={`Acompanhantes (${value.accompanyingIds.length})`} />
-                <Tab label={`Intercessores (${value.intercessorIds.length})`} />
-              </Tabs>
-              <Box sx={{ p: 2 }}>
-                {teamTab === 0 ? (
+                <TextField
+                  select
+                  label="Levar itens da Store?"
+                  value={value.takesStoreItems ? 'SIM' : 'NAO'}
+                  onChange={(event) =>
+                    setValue((current) =>
+                      event.target.value === 'SIM'
+                        ? { ...current, takesStoreItems: true }
+                        : {
+                            ...current,
+                            takesStoreItems: false,
+                            storeResponsibleId: '',
+                            storeCardMachine: false,
+                          },
+                    )
+                  }
+                >
+                  <MenuItem value="NAO">Não</MenuItem>
+                  <MenuItem value="SIM">Sim</MenuItem>
+                </TextField>
+                {value.takesStoreItems && (
                   <Autocomplete
-                    multiple
                     options={options.members.filter(
-                      (member) => !value.intercessorIds.includes(member.id),
+                      (member) =>
+                        member.canBeSent !== false && value.accompanyingIds.includes(member.id),
                     )}
-                    value={options.members.filter((member) =>
-                      value.accompanyingIds.includes(member.id),
-                    )}
+                    value={
+                      options.members.find((member) => member.id === value.storeResponsibleId) ||
+                      null
+                    }
                     getOptionLabel={(member) => member.name}
                     isOptionEqualToValue={(option, selected) => option.id === selected.id}
-                    onChange={(_, selected) =>
-                      field(
-                        'accompanyingIds',
-                        selected.map((member) => member.id),
-                      )
-                    }
+                    onChange={(_, selected) => field('storeResponsibleId', selected?.id || '')}
                     renderInput={(params) => (
                       <TextField
                         {...params}
-                        label="Missionários acompanhantes"
-                        placeholder="Selecione um ou mais"
-                      />
-                    )}
-                  />
-                ) : (
-                  <Autocomplete
-                    multiple
-                    options={options.members.filter(
-                      (member) => !value.accompanyingIds.includes(member.id),
-                    )}
-                    value={options.members.filter((member) =>
-                      value.intercessorIds.includes(member.id),
-                    )}
-                    getOptionLabel={(member) => member.name}
-                    isOptionEqualToValue={(option, selected) => option.id === selected.id}
-                    onChange={(_, selected) =>
-                      field(
-                        'intercessorIds',
-                        selected.map((member) => member.id),
-                      )
-                    }
-                    renderInput={(params) => (
-                      <TextField
-                        {...params}
-                        label="Missionários intercessores"
-                        placeholder="Selecione um ou mais"
+                        required
+                        label="Acompanhante responsável pelos itens"
+                        error={Boolean(error('storeResponsibleId'))}
+                        helperText={error('storeResponsibleId')}
                       />
                     )}
                   />
                 )}
               </Box>
+              {value.takesStoreItems && (
+                <FormControlLabel
+                  sx={{ mt: 1 }}
+                  control={
+                    <Switch
+                      checked={value.storeCardMachine}
+                      onChange={(event) => field('storeCardMachine', event.target.checked)}
+                    />
+                  }
+                  label="O acompanhante responsável também ficará com a maquininha de cartão"
+                />
+              )}
+            </Box>
+            <Box sx={{ mt: 2.5, p: 2, border: 1, borderColor: 'divider', borderRadius: 2 }}>
+              <Typography fontWeight={800} mb={1.5}>
+                Acompanhantes solicitados
+              </Typography>
+              <Autocomplete
+                multiple
+                options={options.members.filter((member) => member.id !== value.responsibleId)}
+                value={options.members.filter((member) =>
+                  value.accompanyingIds.includes(member.id),
+                )}
+                getOptionLabel={(member) => member.name}
+                isOptionEqualToValue={(option, selected) => option.id === selected.id}
+                onChange={(_, selected) =>
+                  field(
+                    'accompanyingIds',
+                    selected.map((member) => member.id),
+                  )
+                }
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Acompanhantes da missão"
+                    placeholder="Selecione um ou mais"
+                  />
+                )}
+              />
+              <FormHelperText sx={{ mt: 1 }}>
+                Membros do Ano 1 e Ano 2 podem acompanhar a missão, mas não podem ser responsáveis
+                pelos itens ou pela maquininha da Store.
+              </FormHelperText>
+              <FormHelperText sx={{ mt: 1 }}>
+                Os intercessores serão definidos posteriormente pelo líder do Ministério de
+                Intercessão.
+              </FormHelperText>
             </Box>
             <FormHelperText sx={{ mt: 1.5 }}>
               A equipe selecionada ficará vinculada à agenda e disponível durante a edição.

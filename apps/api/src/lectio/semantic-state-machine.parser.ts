@@ -57,8 +57,10 @@ export class SemanticStateMachineParser {
       .replace(/\r/g, '')
       // Alguns provedores entregam o título da seção e o conteúdo no mesmo bloco.
       // Inserimos limites semânticos antes de quebrar em linhas.
-      .replace(/\s+(?=(?:Primeira Leitura|1\s*[ªa]\s*Leitura|Segunda Leitura|2\s*[ªa]\s*Leitura|Salmo Responsorial|Salmo|Responsório|Responsorio|Aclamação(?: ao Evangelho)?|Aclamacao(?: ao Evangelho)?|(?<!do )(?<!ao )Evangelho)\b)/gi, '\n')
-      .replace(/((?:Primeira Leitura|1\s*[ªa]\s*Leitura|Segunda Leitura|2\s*[ªa]\s*Leitura|Salmo Responsorial|Responsório|Responsorio|Aclamação(?: ao Evangelho)?|Aclamacao(?: ao Evangelho)?|(?<!do )(?<!ao )Evangelho)\s*(?:\([^\n)]{1,100}\))?)/gi, '\n$1\n')
+      // "evangelho" aparece muitas vezes dentro da primeira leitura. Só o
+      // tratamos como divisor quando estiver acompanhado de referência bíblica.
+      .replace(/\s+(?=(?:Primeira Leitura|1\s*[ªa]\s*Leitura|Segunda Leitura|2\s*[ªa]\s*Leitura|Salmo Responsorial|Salmo|Responsório|Responsorio|Aclamação(?: ao Evangelho)?|Aclamacao(?: ao Evangelho)?|Evangelho(?=\s*(?:\(|(?:[1-3]\s*)?[A-ZÁÉÍÓÚ][a-záéíóúç]{0,14}\s+\d)))\b)/gi, '\n')
+      .replace(/((?:Primeira Leitura|1\s*[ªa]\s*Leitura|Segunda Leitura|2\s*[ªa]\s*Leitura|Salmo Responsorial|Responsório|Responsorio|Aclamação(?: ao Evangelho)?|Aclamacao(?: ao Evangelho)?|Evangelho(?=\s*(?:\(|(?:[1-3]\s*)?[A-ZÁÉÍÓÚ][a-záéíóúç]{0,14}\s+\d)))\s*(?:\([^\n)]{1,100}\))?)/gi, '\n$1\n')
       // Não quebrar antes de "palavra do Senhor" de forma genérica: a expressão
       // também aparece dentro da própria leitura (ex.: "A palavra do Senhor foi...").
       ;

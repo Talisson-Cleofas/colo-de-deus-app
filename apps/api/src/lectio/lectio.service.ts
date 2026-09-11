@@ -322,7 +322,9 @@ export class LectioService {
   async providerStatus(): Promise<Array<{ source: LectioSource; enabled: boolean; priority: number; role: 'PRINCIPAL' | 'FALLBACK'; lastStatus: string; lastSyncAt: string; lastError: string }>> {
     const settings = await this.getSettings(); const logs = await this.logs();
     return [settings.primarySource, settings.fallbackSource].map((source, index) => {
-      const last = logs.find((log) => log.usedSource === source || log.primarySource === source);
+      // Cada cartão deve refletir apenas tentativas da própria fonte. Usar
+      // primarySource fazia o erro do fallback aparecer também no cartão CNBB.
+      const last = logs.find((log) => log.usedSource === source);
       return { source, enabled: this.providerEnabled(source, settings), priority: index + 1, role: index === 0 ? 'PRINCIPAL' : 'FALLBACK',
         lastStatus: last?.status || 'NUNCA_EXECUTADA', lastSyncAt: last?.finishedAt || '', lastError: last?.status === 'ERRO' ? last.error : '' };
     });

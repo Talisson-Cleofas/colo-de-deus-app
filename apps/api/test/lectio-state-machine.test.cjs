@@ -94,3 +94,27 @@ test('ignora o menu real da Canção Nova antes dos blocos litúrgicos', () => {
   assert.match(result.gospelText, /Naquele tempo/);
   assert.doesNotMatch(result.firstReadingText, /^Jr 2/);
 });
+
+test('não interpreta a palavra evangelho dentro da primeira leitura como cabeçalho', () => {
+  const html = `<main>
+    <p><strong>Primeira Leitura (</strong><strong>1Cor 9,16-19.22b-27)</strong></p>
+    <p>Leitura da Primeira Carta de São Paulo aos Coríntios.</p>
+    <p>Irmãos, 16 pregar o evangelho não é para mim motivo de glória. É antes uma necessidade para mim, uma imposição. Ai de mim se eu não pregar o evangelho! Com todos eu me fiz tudo, para certamente salvar alguns.</p>
+    <p>Palavra do Senhor.</p>
+    <p><strong>Responsório </strong><strong>Sl 83(84),3.4.5-6.12 (R. 2)</strong></p>
+    <p>R. Quão amável, ó Senhor, é vossa casa!</p>
+    <p>Minha alma desfalece de saudades e anseia pelos átrios do Senhor.</p>
+    <p>Felizes os que habitam vossa casa; para sempre haverão de vos louvar.</p>
+    <p><strong>Evangelho (</strong><strong>Lc 6,39-42)</strong></p>
+    <p>Proclamação do Evangelho de Jesus Cristo segundo Lucas.</p>
+    <p>Naquele tempo, Jesus contou uma parábola aos discípulos: Pode um cego guiar outro cego? Não cairão os dois num buraco? Todo discípulo bem formado será como o mestre.</p>
+    <p>Palavra da Salvação.</p>
+  </main>`;
+  const result = parser.parse(html, '2026-09-11', 'CANCAO_NOVA');
+  assert.match(result.firstReadingText, /pregar o evangelho/);
+  assert.ok(result.firstReadingText.length > 100);
+  assert.match(result.psalmResponse, /Quão amável/);
+  assert.match(result.psalmText, /Minha alma/);
+  assert.match(result.gospelText, /Naquele tempo/);
+  assert.doesNotMatch(result.gospelText, /pregar o evangelho/);
+});

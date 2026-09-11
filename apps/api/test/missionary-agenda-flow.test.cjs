@@ -340,6 +340,7 @@ test('registra o responsável pelos itens da Store e o controle da maquininha', 
   const created = await service.create(
     {
       ...input('Missão com Store'),
+      responsibleId: users.ministry.id,
       takesStoreItems: true,
       storeResponsibleId: users.member.id,
       storeCardMachine: true,
@@ -359,6 +360,36 @@ test('registra o responsável pelos itens da Store e o controle da maquininha', 
   await assert.rejects(
     () => service.update(created.id, { accompanyingIds: [] }, users.agenda),
     /selecionado como acompanhante/i,
+  );
+});
+
+test('impede que missionário solicitado ou enviado também seja acompanhante ou responsável pela Store', async () => {
+  const { service } = fixture();
+  await assert.rejects(
+    () =>
+      service.create(
+        {
+          ...input('Missão com função duplicada'),
+          accompanyingIds: [users.member.id],
+        },
+        users.agenda,
+      ),
+    /missionário solicitado não pode ser acompanhante/i,
+  );
+
+  const created = await service.create(
+    {
+      ...input('Missão com acompanhante exclusivo'),
+      responsibleId: '',
+      accompanyingIds: [users.member.id],
+    },
+    users.agenda,
+  );
+  await service.submit(created.id, users.agenda);
+  await service.approve(created.id, {}, users.mission);
+  await assert.rejects(
+    () => service.sendToMembers(created.id, { memberIds: [users.member.id] }, users.ministry),
+    /não pode estar selecionado como acompanhante/i,
   );
 });
 

@@ -341,7 +341,20 @@ export function AgendaMissionariaForm({
                 select
                 label="Missionário solicitado"
                 value={value.responsibleId}
-                onChange={(event) => field('responsibleId', event.target.value)}
+                onChange={(event) => {
+                  const responsibleId = event.target.value;
+                  setValue((current) => ({
+                    ...current,
+                    responsibleId,
+                    accompanyingIds: current.accompanyingIds.filter(
+                      (memberId) => memberId !== responsibleId,
+                    ),
+                    storeResponsibleId:
+                      current.storeResponsibleId === responsibleId
+                        ? ''
+                        : current.storeResponsibleId,
+                  }));
+                }}
                 error={Boolean(error('responsibleId'))}
                 helperText={error('responsibleId')}
               >
@@ -468,7 +481,7 @@ export function AgendaMissionariaForm({
               </Typography>
               <Autocomplete
                 multiple
-                options={options.members}
+                options={options.members.filter((member) => member.id !== value.responsibleId)}
                 value={options.members.filter((member) =>
                   value.accompanyingIds.includes(member.id),
                 )}

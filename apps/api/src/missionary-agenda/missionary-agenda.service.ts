@@ -509,6 +509,13 @@ export class MissionaryAgendaService {
       );
   }
 
+  private validateRequestedMissionaryIsNotCompanion(dto: CreateMissionaryAgendaDto) {
+    if (dto.responsibleId && (dto.accompanyingIds || []).includes(dto.responsibleId))
+      throw new BadRequestException(
+        'O missionário solicitado não pode ser acompanhante nem responsável pela Store.',
+      );
+  }
+
   private storeHistoryNote(item: MissionaryAgenda) {
     if (!item.takesStoreItems) return 'Sem itens da Colo de Deus Store.';
     return `Itens da Store sob responsabilidade do acompanhante ${item.storeResponsibleName || item.storeResponsibleId}.${
@@ -654,6 +661,7 @@ export class MissionaryAgendaService {
     await this.assertNoEventConflict(dto.startDate, dto.endDate);
     await this.validateReferences(dto.responsibleId, dto.ministryId);
     await this.validateTeamSelection(dto.accompanyingIds || [], dto.intercessorIds || []);
+    this.validateRequestedMissionaryIsNotCompanion(dto);
     await this.validateStoreControl(dto);
     const now = new Date().toISOString(),
       id = randomUUID();
@@ -700,6 +708,7 @@ export class MissionaryAgendaService {
     await this.assertNoEventConflict(merged.startDate, merged.endDate);
     await this.validateReferences(merged.responsibleId, merged.ministryId);
     await this.validateTeamSelection(merged.accompanyingIds || [], merged.intercessorIds || []);
+    this.validateRequestedMissionaryIsNotCompanion(merged);
     await this.validateStoreControl(merged);
     await this.save({ ...existing, ...merged } as MissionaryAgenda, user, this.workflow(existing));
     await this.syncTeam(
@@ -885,6 +894,10 @@ export class MissionaryAgendaService {
     if (selected.some((member) => !canParticipateInMinistries(member.vocationalYear)))
       throw new BadRequestException(
         'Membros do Ano 1 e Ano 2 podem participar somente como acompanhantes.',
+      );
+    if (ids.some((memberId) => item.accompanyingIds.includes(memberId)))
+      throw new BadRequestException(
+        'Um missionário enviado não pode estar selecionado como acompanhante ou responsável pela Store.',
       );
     if (selected.some((member) => !this.memberInMinistry(member.ministry || '', item.ministryName)))
       throw new BadRequestException(

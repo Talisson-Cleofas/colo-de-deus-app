@@ -166,6 +166,7 @@ export function AgendaMissionariaPage() {
       sending
         ? options.members.filter((member) =>
             member.canBeSent !== false &&
+            !sending.accompanyingIds.includes(member.id) &&
             member.ministry
               .split(',')
               .map((value) => value.trim().toLocaleLowerCase('pt-BR'))

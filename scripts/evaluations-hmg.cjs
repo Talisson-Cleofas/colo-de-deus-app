@@ -399,6 +399,8 @@ Module({
     const body = req.body || {};
     if (!body.title || !body.startDate || !body.startTime || !body.location || !body.city)
       return res.status(400).json({ message: 'Preencha os campos obrigatórios da agenda.' });
+    if (body.responsibleId && (body.accompanyingIds || []).includes(body.responsibleId))
+      return res.status(400).json({ message: 'O missionário solicitado não pode ser acompanhante nem responsável pela Store.' });
     if (body.takesStoreItems) {
       const responsible = members.find((member) => member.id === body.storeResponsibleId && member.active);
       if (!responsible || !(body.accompanyingIds || []).includes(body.storeResponsibleId)) return res.status(400).json({ message: 'Selecione um acompanhante ativo como responsável pelos itens da Store.' });
@@ -488,6 +490,7 @@ Module({
     if (!row) return res.sendStatus(404);
     const selected = members.filter((member) => (req.body?.memberIds || []).includes(member.id));
     if (selected.some((member) => ['ANO_1', 'ANO_2'].includes(member.vocationalYear || ''))) return res.status(400).json({ message: 'Membros do Ano 1 e Ano 2 podem participar somente como acompanhantes.' });
+    if (selected.some((member) => (row.accompanyingIds || []).includes(member.id))) return res.status(400).json({ message: 'Um missionário enviado não pode estar selecionado como acompanhante ou responsável pela Store.' });
     if (row.responsibleId && !req.body?.authorizeRequestedMissionary) return res.status(400).json({ message: 'Confirme a autorização do missionário solicitado antes de continuar.' });
     if (row.responsibleId && !selected.some((member) => member.id === row.responsibleId)) return res.status(400).json({ message: 'O missionário solicitado precisa estar entre os membros selecionados.' });
     row.participantIds = selected.map((member) => member.id);

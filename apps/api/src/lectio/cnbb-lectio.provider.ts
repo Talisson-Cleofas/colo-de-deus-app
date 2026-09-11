@@ -32,6 +32,31 @@ export class CnbbLectioProvider {
     }
   }
 
+  private async requestOfficialContent(baseUrl: string, date: string, timeoutMs: number): Promise<string> {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const endpoint = `${baseUrl.replace(/\/$/, '')}/${date}`;
+      const response = await fetch(endpoint, {
+        signal: controller.signal,
+        headers: {
+          'user-agent': 'Mozilla/5.0 (compatible; ColoDeDeus/4.5.13; +LectioSync)',
+          accept: 'application/json',
+          origin: 'https://liturgiadiaria.edicoescnbb.com.br',
+          referer: 'https://liturgiadiaria.edicoescnbb.com.br/',
+          'cache-control': 'no-cache',
+        },
+      });
+      if (!response.ok) throw new ServiceUnavailableException(`API oficial da CNBB respondeu HTTP ${response.status}.`);
+      const payload = await response.json() as { content?: { details?: string; body?: string } };
+      const html = `${payload.content?.details || ''}${payload.content?.body || ''}`;
+      if (!html.trim()) throw new ServiceUnavailableException('API oficial da CNBB não retornou conteúdo litúrgico.');
+      return html;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
   async fetchWithMetadata(date: string, force = false): Promise<{ value: CnbbParsedLectio; fromCache: boolean }> {
     const ttlMs = Math.max(60_000, Number(this.config.get<string>('LECTIO_PROVIDER_CACHE_TTL_MS', '900000')) || 900000);
     const cached = this.cache.get(date);
@@ -41,8 +66,18 @@ export class CnbbLectioProvider {
     // A página nacional pode entregar apenas o shell do WordPress para requisições de servidor.
     // Neste caso usamos um espelho regional oficial da própria CNBB, com o mesmo conteúdo litúrgico.
     const mirrorUrl = this.config.get<string>('LECTIO_CNBB_MIRROR_URL', 'https://cnbbsul3.org.br/liturgia-diaria/');
+    const officialApiUrl = this.config.get<string>('LECTIO_CNBB_API_URL', 'https://api-liturgia.edicoescnbb.com.br/contents/in/date/');
     const timeoutMs = Math.max(3000, Number(this.config.get<string>('LECTIO_PROVIDER_TIMEOUT_MS', '20000')) || 20000);
     const errors: string[] = [];
+
+    try {
+      const html = await this.requestOfficialContent(officialApiUrl, date, timeoutMs);
+      const parsed = this.parse(html, date);
+      this.cache.set(date, { expiresAt: Date.now() + ttlMs, value: parsed });
+      return { value: parsed, fromCache: false };
+    } catch (error) {
+      errors.push(`${officialApiUrl}: ${error instanceof Error ? error.message : 'erro desconhecido'}`);
+    }
 
     for (const url of [...new Set([primaryUrl, mirrorUrl].filter(Boolean))]) {
       try {

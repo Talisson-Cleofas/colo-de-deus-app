@@ -57,8 +57,13 @@ export class SemanticStateMachineParser {
       .replace(/\r/g, '')
       // Alguns provedores entregam o título da seção e o conteúdo no mesmo bloco.
       // Inserimos limites semânticos antes de quebrar em linhas.
-      .replace(/\s+(?=(?:Primeira Leitura|1\s*[ªa]\s*Leitura|Segunda Leitura|2\s*[ªa]\s*Leitura|Salmo Responsorial|Salmo|Responsório|Responsorio|Aclamação(?: ao Evangelho)?|Aclamacao(?: ao Evangelho)?|(?<!do )(?<!ao )Evangelho)\b)/gi, '\n')
-      .replace(/((?:Primeira Leitura|1\s*[ªa]\s*Leitura|Segunda Leitura|2\s*[ªa]\s*Leitura|Salmo Responsorial|Responsório|Responsorio|Aclamação(?: ao Evangelho)?|Aclamacao(?: ao Evangelho)?|(?<!do )(?<!ao )Evangelho)\s*(?:\([^\n)]{1,100}\))?)/gi, '\n$1\n')
+      .replace(/\s+(?=(?:Primeira Leitura|1\s*[ªa]\s*Leitura|Segunda Leitura|2\s*[ªa]\s*Leitura|Salmo Responsorial|Salmo|Responsório|Responsorio|Aclamação(?: ao Evangelho)?|Aclamacao(?: ao Evangelho)?)\b)/gi, '\n')
+      .replace(/((?:Primeira Leitura|1\s*[ªa]\s*Leitura|Segunda Leitura|2\s*[ªa]\s*Leitura|Salmo Responsorial|Responsório|Responsorio|Aclamação(?: ao Evangelho)?|Aclamacao(?: ao Evangelho)?)\s*(?:\([^\n)]{1,100}\))?)/gi, '\n$1\n')
+      // "evangelho" aparece muitas vezes dentro das próprias leituras. O rótulo
+      // só é isolado aqui quando traz uma referência bíblica explícita;
+      // cabeçalhos em elementos HTML próprios já são separados pelas tags.
+      .replace(/(Evangelho\s*\([^\n)]{1,100}\))/gi, '\n$1\n')
+      .replace(/(Evangelho\s+(?:[1-3]\s*)?[A-ZÁÉÍÓÚ][a-záéíóúç]{0,14}\s+\d+[a-z]?(?:[,.:]\s*\d+)?(?:[-.]\d+)*)/g, '\n$1\n')
       // Não quebrar antes de "palavra do Senhor" de forma genérica: a expressão
       // também aparece dentro da própria leitura (ex.: "A palavra do Senhor foi...").
       ;
@@ -105,9 +110,9 @@ export class SemanticStateMachineParser {
       };
       const remainder = line
         .replace(labelPatterns[section], '')
-        .replace(/^[:.-–—]+\s*/, '')
+        .replace(/^[:.\-–—]+\s*/, '')
         .trim();
-      const unwrapped = remainder.replace(/^\(([^)]+)\)\s*[:.-–—]?$/, '$1').trim();
+      const unwrapped = remainder.replace(/^\(([^)]+)\)\s*[:.\-–—]?$/, '$1').trim();
       const reference = this.referenceFrom(unwrapped) || (unwrapped.length <= 100 && /\d/.test(unwrapped) ? unwrapped : '');
       return { section, reference };
     };
@@ -252,8 +257,8 @@ export class SemanticStateMachineParser {
   private referenceFrom(value: string): string {
     const normalized = value.replace(/[–—]/g, '-').replace(/\s+/g, ' ');
     const patterns = [
-      /\bSl\s*\d+(?:\(\d+\))?(?:[,.:]\s*\d+)?(?:[-.]\d+)*(?:\s*\(R\.?\s*[^)]+\))?/i,
-      /\b(?:[1-3]\s*)?[A-ZÁÉÍÓÚ][a-záéíóúç]{0,14}\s+\d+[a-z]?(?:[,.:]\s*\d+)?(?:[-.]\d+)*(?:\s*\([^)]+\))?/,
+      /\bSl\s*\d+(?:\(\d+\))?(?:[,.:]\s*\d+[a-z]?)?(?:[-.]\d+[a-z]?)*(?:\s*\(R\.?\s*[^)]+\))?/i,
+      /\b(?:[1-3]\s*)?[A-ZÁÉÍÓÚ][a-záéíóúç]{0,14}\s+\d+[a-z]?(?:[,.:]\s*\d+[a-z]?)?(?:[-.]\d+[a-z]?)*(?:\s*\([^)]+\))?/,
     ];
     for (const pattern of patterns) {
       const match = pattern.exec(normalized);

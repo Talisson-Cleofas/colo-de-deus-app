@@ -1,6 +1,8 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { SemanticStateMachineParser } = require('../dist/lectio/semantic-state-machine.parser');
+const { SemanticLectioParser } = require('../dist/lectio/semantic-lectio.parser');
+const { CnbbLectioProvider } = require('../dist/lectio/cnbb-lectio.provider');
 
 const parser = new SemanticStateMachineParser();
 
@@ -45,6 +47,30 @@ test('aceita variação de títulos da Canção Nova', () => {
   assert.match(result.firstReadingText, /Apascenta/);
   assert.match(result.gospelText, /Naquele tempo/);
   assert.doesNotMatch(result.gospelText, /Ajude a Canção Nova/);
+});
+
+test('não interpreta a palavra evangelho dentro da leitura como cabeçalho', () => {
+  const html = `<main>
+    <h2>Primeira Leitura (1Cor 9,16-19.22b-27)</h2>
+    <p>Leitura da Primeira Carta de São Paulo aos Coríntios.</p>
+    <p>Pregar o evangelho é uma necessidade. O evangelho foi confiado a mim e, por causa do evangelho, faço tudo para servir aos irmãos.</p>
+    <p>Assim continuo a anunciar a boa-nova com fidelidade e perseverança diante de todos.</p>
+    <p>Palavra do Senhor.</p>
+    <h2>Responsório Sl 83(84),3.4.5-6.12 (R. 2)</h2>
+    <p>R. Quão amável, ó Senhor, é vossa casa!</p>
+    <p>Minha alma desfalece de saudades e anseia pelos átrios do Senhor.</p>
+    <p>R. Quão amável, ó Senhor, é vossa casa!</p>
+    <h2>Evangelho (Lc 6,39-42)</h2>
+    <p>Proclamação do Evangelho de Jesus Cristo segundo Lucas.</p>
+    <p>Naquele tempo, Jesus contou uma parábola aos discípulos sobre o caminho e a verdade.</p>
+    <p>Palavra da Salvação.</p>
+  </main>`;
+  const result = parser.parse(html, '2026-09-11', 'CANCAO_NOVA');
+  assert.match(result.firstReadingText, /Pregar o evangelho/);
+  assert.match(result.firstReadingText, /por causa do evangelho/);
+  assert.match(result.psalmText, /Minha alma/);
+  assert.match(result.gospelText, /Naquele tempo/);
+  assert.doesNotMatch(result.gospelText, /Pregar o evangelho/);
 });
 
 test('aceita títulos e referências na mesma linha sem parênteses', () => {
@@ -93,4 +119,27 @@ test('ignora o menu real da Canção Nova antes dos blocos litúrgicos', () => {
   assert.match(result.psalmResponse, /fonte da vida/);
   assert.match(result.gospelText, /Naquele tempo/);
   assert.doesNotMatch(result.firstReadingText, /^Jr 2/);
+});
+
+test('consulta a API oficial da CNBB com origem e referer exigidos', async () => {
+  const previousFetch = global.fetch;
+  let request;
+  global.fetch = async (url, options) => {
+    request = { url: String(url), options };
+    return {
+      ok: true,
+      json: async () => ({ content: { details: '', body: cnbbLike } }),
+    };
+  };
+  try {
+    const config = { get: (_key, fallback) => fallback };
+    const provider = new CnbbLectioProvider(config, new SemanticLectioParser(parser));
+    const result = await provider.fetchWithMetadata('2026-09-11', true);
+    assert.match(request.url, /contents\/in\/date\/2026-09-11$/);
+    assert.equal(request.options.headers.origin, 'https://liturgiadiaria.edicoescnbb.com.br');
+    assert.equal(request.options.headers.referer, 'https://liturgiadiaria.edicoescnbb.com.br/');
+    assert.match(result.value.firstReadingText, /Apascenta/);
+  } finally {
+    global.fetch = previousFetch;
+  }
 });

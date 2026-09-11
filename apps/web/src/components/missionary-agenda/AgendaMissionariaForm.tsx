@@ -483,7 +483,7 @@ export function AgendaMissionariaForm({
                 renderInput={(params) => (
                   <TextField
                     {...params}
-                    label="Missionários acompanhantes"
+                    label="Acompanhantes da missão"
                     placeholder="Selecione um ou mais"
                   />
                 )}

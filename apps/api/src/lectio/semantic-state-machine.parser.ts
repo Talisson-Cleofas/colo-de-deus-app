@@ -355,7 +355,11 @@ export class SemanticStateMachineParser {
         }
         return line;
       }).filter(Boolean);
-      if (referenceParts.length) reference = `${reference}${referenceParts.join('')}`;
+      // Uma referência que já contém versículos e/ou responsório está completa.
+      // Nessa situação, números seguintes são os versículos do salmo, não uma
+      // continuação da referência (formato usado pela API oficial da CNBB).
+      const referenceLooksComplete = /[,.:]\s*\d/i.test(reference) || /\(R\./i.test(reference);
+      if (referenceParts.length && !referenceLooksComplete) reference = `${reference}${referenceParts.join('')}`;
     }
     reference = this.normalizePsalmReference(reference);
 

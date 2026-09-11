@@ -118,3 +118,30 @@ test('não interpreta a palavra evangelho dentro da primeira leitura como cabeç
   assert.match(result.gospelText, /Naquele tempo/);
   assert.doesNotMatch(result.gospelText, /pregar o evangelho/);
 });
+
+test('interpreta o formato HTML retornado pela API oficial da Edições CNBB', () => {
+  const html = `<div><b>23ª Semana do Tempo Comum</b>, Ano Par (II)</div>
+    <font color="red"><center>PRIMEIRA LEITURA</center></font>
+    <p>Leitura da Primeira Carta de São Paulo aos Coríntios <font>9,16-19.22b-27</font></p>
+    <div>16</div><div>pregar o evangelho não é para mim motivo de glória. É antes uma necessidade para mim, uma imposição. Ai de mim se eu não pregar o evangelho!</div>
+    <div>19</div><div>Assim, livre em relação a todos, eu me tornei escravo de todos, a fim de ganhar o maior número possível.</div>
+    <span>Palavra do Senhor.</span>
+    <font>Salmo responsorial</font><br><font>Sl 83(84),3.4.5-6.12 (R. 2)</font><br>
+    <font>R.</font> Quão amável, ó Senhor, é vossa casa!<br>
+    <div>3</div><div>Minha alma desfalece de saudades e anseia pelos átrios do Senhor!</div>
+    <div>4</div><div>Mesmo o pardal encontra abrigo em vossa casa e a andorinha ali prepara seu ninho.</div>
+    <font>Aclamação ao Evangelho</font><br><font>Cf. Jo 17,17b.a</font><br>
+    <font>R.</font> Aleluia, Aleluia, Aleluia.<br>
+    <font><center>EVANGELHO</center></font>
+    <b>Proclamação do Evangelho de Jesus Cristo segundo Lucas</b> <font>6,39-42</font><br>
+    <div>Naquele tempo, Jesus contou uma parábola aos discípulos: Pode um cego guiar outro cego? Não cairão os dois num buraco?</div>
+    <div>Todo discípulo bem formado será como o mestre e poderá enxergar corretamente o seu caminho.</div>
+    <span>Palavra da Salvação.</span>`;
+  const result = parser.parse(html, '2026-09-11', 'CNBB');
+  assert.ok(result.firstReadingText.length > 100);
+  assert.match(result.firstReadingText, /pregar o evangelho/);
+  assert.equal(result.psalmReference, 'Sl 83(84),3.4.5-6.12 (R. 2)');
+  assert.match(result.psalmResponse, /Quão amável/);
+  assert.match(result.gospelText, /Naquele tempo/);
+  assert.doesNotMatch(result.gospelText, /pregar o evangelho/);
+});

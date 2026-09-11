@@ -16,27 +16,27 @@ export class LectioController {
   @Get('today') @ApiOperation({ summary: 'Obtém a Lectio da data informada ou de hoje' })
   today(@Query('date') date?: string) { return this.service.today(date); }
 
-  @Get('settings') @Roles('ADMIN')
+  @Get('settings') @Roles('DEVELOPER')
   settings() { return this.service.getSettings(); }
 
-  @Patch('settings') @Roles('ADMIN')
+  @Patch('settings') @Roles('DEVELOPER')
   updateSettings(@Body() dto: UpdateLectioSettingsDto) { return this.service.updateSettings(dto); }
 
-  @Get('sync-logs') @Roles('ADMIN')
+  @Get('sync-logs') @Roles('DEVELOPER')
   logs() { return this.service.logs(); }
 
-  @Get('providers/status') @Roles('ADMIN')
+  @Get('providers/status') @Roles('DEVELOPER')
   providerStatus() { return this.service.providerStatus(); }
 
-  @Post('sync') @Roles('ADMIN')
+  @Post('sync') @Roles('DEVELOPER')
   @ApiOperation({ summary: 'Sincroniza usando fonte principal e fallback configurados' })
   sync(@Query('date') date?: string, @Query('force') force?: string) { return this.service.sync(date, force === 'true'); }
 
-  @Post('sync/cnbb') @Roles('ADMIN')
+  @Post('sync/cnbb') @Roles('DEVELOPER')
   @ApiOperation({ summary: 'Importa a liturgia da CNBB e atualiza a aba Lectio' })
   syncCnbb(@Query('date') date?: string) { return this.service.syncCnbb(date); }
 
-  @Post('retention/run') @Roles('ADMIN')
+  @Post('retention/run') @Roles('DEVELOPER')
   retention() { return this.service.applyRetention('EXECUCAO_MANUAL'); }
 
   @Post() @Roles('ADMIN')

@@ -27,6 +27,21 @@ function ReadingBlock({ title, reference, subtitle, children }: { title:string; 
     <Typography whiteSpace="pre-wrap" lineHeight={1.8}>{children}</Typography></CardContent></Card>;
 }
 
+function GospelBlock({ reference, proclamation, text }: { reference?:string; proclamation?:string; text:string }) {
+  if (!text && !reference) return null;
+  const lines=text.split('\n');
+  const gloryIndex=lines.findIndex(line=>/^[-–—]?\s*Glória a vós, Senhor\.?$/i.test(line.trim()));
+  const acclamation=gloryIndex>=0?lines.slice(0,gloryIndex).join('\n').trim():'';
+  const gospelBody=gloryIndex>=0?lines.slice(gloryIndex).join('\n').trim():text;
+  return <Card variant="outlined"><CardContent>
+    <Typography variant="overline" color="primary.main">Evangelho</Typography>
+    {reference&&<Typography fontWeight={800}>{reference}</Typography>}
+    {acclamation&&<Typography whiteSpace="pre-wrap" lineHeight={1.8} mt={1}>{acclamation}</Typography>}
+    {proclamation&&<Typography fontStyle="italic" color="text.secondary" my={1}>{proclamation}</Typography>}
+    <Typography whiteSpace="pre-wrap" lineHeight={1.8}>{gospelBody}</Typography>
+  </CardContent></Card>;
+}
+
 export function LectioPage() {
   const { user } = useAuth();
   const isAdmin = user?.profile === 'MISSION_LEADER' || user?.profile === 'ADMIN' || user?.profile === 'DEVELOPER';
@@ -86,7 +101,7 @@ export function LectioPage() {
       <ReadingBlock title="Salmo Responsorial" reference={selected.psalmReference}>{[selected.psalmResponse,selected.psalmText].filter(Boolean).join('\n\n')}</ReadingBlock>
       {(selected.secondReadingReference||selected.secondReadingTitle||selected.secondReadingText)&&<ReadingBlock title="Segunda Leitura" reference={selected.secondReadingReference} subtitle={selected.secondReadingTitle}>{selected.secondReadingText}</ReadingBlock>}
       <ReadingBlock title="Aclamação" reference={selected.acclamationReference}>{selected.acclamationText}</ReadingBlock>
-      <ReadingBlock title="Evangelho" reference={selected.gospelReference} subtitle={selected.gospelTitle}>{selected.gospelText}</ReadingBlock>
+      <GospelBlock reference={selected.gospelReference} proclamation={selected.gospelTitle} text={selected.gospelText}/>
       <Box sx={{display:'grid',gridTemplateColumns:{xs:'1fr',md:'1fr 1fr'},gap:2}}><ReadingBlock title="Reflexão">{selected.reflection}</ReadingBlock><ReadingBlock title="Oração">{selected.prayer}</ReadingBlock></Box>
       <Button variant={completed?'outlined':'contained'} color={completed?'success':'primary'} startIcon={<CheckCircleOutline/>} onClick={toggleCompleted}>{completed?'Lectio concluída':'Marcar como concluída'}</Button>
     </Stack>:<Alert severity="info">Nenhuma Lectio cadastrada. O administrador pode criar o primeiro conteúdo manualmente.</Alert>)}

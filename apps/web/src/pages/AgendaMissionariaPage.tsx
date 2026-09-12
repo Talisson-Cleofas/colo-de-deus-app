@@ -36,6 +36,7 @@ import {
   AgendaMissionariaForm,
   type AgendaMissionariaFormValue,
 } from '../components/missionary-agenda/AgendaMissionariaForm';
+import { MissionaryAgendaCalendar } from '../components/missionary-agenda/MissionaryAgendaCalendar';
 import { Permission } from '../rbac/permissions';
 import { usePermission } from '../rbac/usePermission';
 import { api, apiErrorMessage } from '../services/api';
@@ -215,6 +216,7 @@ export function AgendaMissionariaPage() {
           </Button>
         )}
       </Stack>
+      {!loading && <MissionaryAgendaCalendar items={items} />}
       <Paper sx={{ p: 2, mb: 3 }}>
         <Stack direction={{ xs: 'column', md: 'row' }} gap={2}>
           <TextField

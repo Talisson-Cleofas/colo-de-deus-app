@@ -11,6 +11,7 @@ import {
   RejectMissionaryAgendaDto,
   SendMissionaryAgendaDto,
   SendMissionaryAgendaIntercessorsDto,
+  UpdateMissionaryAgendaCompanionsDto,
   UpdateMissionaryAgendaDto,
 } from './missionary-agenda.dto';
 import { MissionaryAgendaService } from './missionary-agenda.service';
@@ -57,6 +58,16 @@ export class MissionaryAgendaController {
     @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.service.update(id, dto, user);
+  }
+
+  @Patch(':id/companions')
+  @RequirePermissions(Permission.MISSIONARY_AGENDA_UPDATE)
+  updateCompanions(
+    @Param('id') id: string,
+    @Body() dto: UpdateMissionaryAgendaCompanionsDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.service.updateCompanions(id, dto, user);
   }
 
   @Post(':id/submit')

@@ -6,6 +6,7 @@ import {
   ForwardToInboxOutlined,
   LocationOnOutlined,
   PersonOutline,
+  PersonAddAltOutlined,
   SearchOutlined,
   SendOutlined,
   ThumbDownOutlined,
@@ -107,6 +108,8 @@ export function AgendaMissionariaPage() {
     [sendingRole, setSendingRole] = useState<'MINISTRY' | 'INTERCESSION'>('MINISTRY'),
     [selectedIds, setSelectedIds] = useState<string[]>([]),
     [authorizeRequestedMissionary, setAuthorizeRequestedMissionary] = useState(false);
+  const [companionsAgenda, setCompanionsAgenda] = useState<MissionaryAgenda | null>(null),
+    [companionIds, setCompanionIds] = useState<string[]>([]);
 
   const load = async () => {
     setLoading(true);
@@ -157,6 +160,23 @@ export function AgendaMissionariaPage() {
       await load();
     } catch (cause) {
       setFormError(apiErrorMessage(cause));
+    } finally {
+      setSaving(false);
+    }
+  };
+  const saveCompanions = async () => {
+    if (!companionsAgenda) return;
+    setSaving(true);
+    setError('');
+    try {
+      await api.patch(`/missionary-agenda/${companionsAgenda.id}/companions`, {
+        accompanyingIds: companionIds,
+      });
+      setCompanionsAgenda(null);
+      setCompanionIds([]);
+      await load();
+    } catch (cause) {
+      setError(apiErrorMessage(cause));
     } finally {
       setSaving(false);
     }
@@ -415,6 +435,17 @@ export function AgendaMissionariaPage() {
                     Enviar para aprovação
                   </Button>
                 )}
+                {item.canManageCompanions && (
+                  <Button
+                    startIcon={<PersonAddAltOutlined />}
+                    onClick={() => {
+                      setCompanionsAgenda(item);
+                      setCompanionIds(item.accompanyingIds);
+                    }}
+                  >
+                    Definir acompanhantes
+                  </Button>
+                )}
                 {item.canReview && (
                   <>
                     <Button
@@ -486,6 +517,51 @@ export function AgendaMissionariaPage() {
           onCancel={() => setFormOpen(false)}
           onSubmit={save}
         />
+      </Dialog>
+      <Dialog
+        open={Boolean(companionsAgenda)}
+        onClose={() => !saving && setCompanionsAgenda(null)}
+        fullWidth
+        maxWidth="sm"
+      >
+        <DialogTitle>Definir acompanhantes</DialogTitle>
+        <DialogContent>
+          <Alert severity="info" sx={{ mb: 2 }}>
+            Os acompanhantes são opcionais. Você pode salvar esta agenda sem selecionar ninguém e
+            voltar para defini-los posteriormente.
+          </Alert>
+          <Autocomplete
+            multiple
+            options={options.members.filter(
+              (member) =>
+                member.id !== companionsAgenda?.responsibleId &&
+                !companionsAgenda?.intercessorIds.includes(member.id),
+            )}
+            value={options.members.filter((member) => companionIds.includes(member.id))}
+            getOptionLabel={(member) => member.name}
+            isOptionEqualToValue={(option, selected) => option.id === selected.id}
+            onChange={(_, selected) => setCompanionIds(selected.map((member) => member.id))}
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                label="Acompanhantes da missão (opcional)"
+                placeholder="Nenhum acompanhante selecionado"
+              />
+            )}
+          />
+          {companionsAgenda?.takesStoreItems && (
+            <Alert severity="warning" sx={{ mt: 2 }}>
+              Esta agenda levará itens da Store. O acompanhante responsável pela Store não pode ser
+              removido aqui.
+            </Alert>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setCompanionsAgenda(null)} disabled={saving}>Cancelar</Button>
+          <Button variant="contained" onClick={() => void saveCompanions()} disabled={saving}>
+            {saving ? 'Salvando...' : 'Salvar acompanhantes'}
+          </Button>
+        </DialogActions>
       </Dialog>
       <Dialog open={Boolean(rejecting)} onClose={() => setRejecting(null)} fullWidth maxWidth="sm">
         <DialogTitle>

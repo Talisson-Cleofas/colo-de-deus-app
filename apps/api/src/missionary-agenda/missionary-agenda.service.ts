@@ -20,6 +20,7 @@ import type {
   RejectMissionaryAgendaDto,
   SendMissionaryAgendaDto,
   SendMissionaryAgendaIntercessorsDto,
+  UpdateMissionaryAgendaCompanionsDto,
   UpdateMissionaryAgendaDto,
 } from './missionary-agenda.dto';
 import type {
@@ -250,6 +251,8 @@ export class MissionaryAgendaService {
         (intercessionLeader || central) &&
         status === 'AGUARDANDO_INDICACOES' &&
         !intercessionSelectionCompleted,
+      canManageCompanions:
+        (agendaLeader || central) && !['CONCLUIDA', 'CANCELADA'].includes(status),
       active: this.repository.parseActive(row.ativo || '', true),
       createdBy: row.criado_por || '',
       createdAt: row.criado_em || '',
@@ -724,6 +727,45 @@ export class MissionaryAgendaService {
       existing.status,
       'EDITADA',
       `Dados da agenda atualizados. ${this.storeHistoryNote(updated)}`,
+      user,
+    );
+    return updated;
+  }
+
+  async updateCompanions(
+    id: string,
+    dto: UpdateMissionaryAgendaCompanionsDto,
+    user: AuthenticatedUser,
+  ) {
+    const existing = await this.findOne(id, user);
+    const agendaLeader = existing.createdBy === this.userId(user);
+    if ((!agendaLeader && !this.central(user)) || ['CONCLUIDA', 'CANCELADA'].includes(existing.status))
+      throw new ForbiddenException(
+        'Somente o líder da agenda pode definir acompanhantes antes da conclusão.',
+      );
+    const accompanyingIds = [...new Set((dto.accompanyingIds || []).filter(Boolean))];
+    const merged: CreateMissionaryAgendaDto = {
+      ...this.form(existing),
+      accompanyingIds,
+    };
+    await this.validateTeamSelection(accompanyingIds, existing.intercessorIds);
+    this.validateRequestedMissionaryIsNotCompanion(merged);
+    await this.validateStoreControl(merged);
+    await this.syncTeam(
+      id,
+      existing.ministryId,
+      accompanyingIds,
+      existing.intercessorIds,
+      user,
+    );
+    const updated = await this.findOne(id, user);
+    await this.log(
+      existing,
+      existing.status,
+      'ACOMPANHANTES_ATUALIZADOS',
+      accompanyingIds.length
+        ? `Acompanhantes atualizados: ${updated.accompanyingNames.join(', ')}.`
+        : 'Agenda mantida sem acompanhantes.',
       user,
     );
     return updated;

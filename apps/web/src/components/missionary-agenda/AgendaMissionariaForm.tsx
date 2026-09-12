@@ -477,7 +477,7 @@ export function AgendaMissionariaForm({
             </Box>
             <Box sx={{ mt: 2.5, p: 2, border: 1, borderColor: 'divider', borderRadius: 2 }}>
               <Typography fontWeight={800} mb={1.5}>
-                Acompanhantes solicitados
+                Acompanhantes solicitados (opcional)
               </Typography>
               <Autocomplete
                 multiple
@@ -497,10 +497,13 @@ export function AgendaMissionariaForm({
                   <TextField
                     {...params}
                     label="Acompanhantes da missão"
-                    placeholder="Selecione um ou mais"
+                    placeholder="Você pode definir os acompanhantes depois"
                   />
                 )}
               />
+              <FormHelperText sx={{ mt: 1 }}>
+                Não é obrigatório selecionar acompanhantes para criar ou enviar esta agenda.
+              </FormHelperText>
               <FormHelperText sx={{ mt: 1 }}>
                 Membros do Ano 1 e Ano 2 podem acompanhar a missão, mas não podem ser responsáveis
                 pelos itens ou pela maquininha da Store.

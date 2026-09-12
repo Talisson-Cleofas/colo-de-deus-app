@@ -4,6 +4,7 @@ import {
   Diversity3Outlined,
   FavoriteBorderOutlined,
   GroupsOutlined,
+  PublicOutlined,
 } from '@mui/icons-material';
 import { Box, Stack, Typography } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
@@ -20,7 +21,8 @@ const shortcuts = [
   { icon: <CalendarMonthOutlined />, title: 'Agenda', subtitle: 'Próximos eventos', path: '/agenda' },
   { icon: <FavoriteBorderOutlined />, title: 'Soma+', subtitle: 'Contribuições', path: '/soma' },
   { icon: <GroupsOutlined />, title: 'Células', subtitle: 'Comunidades', path: '/celulas' },
-  { icon: <Diversity3Outlined />, title: 'Missões e Cenáculos', subtitle: 'Encontros e missões', path: '/cenaculos' },
+  { icon: <Diversity3Outlined />, title: 'Cenáculos', subtitle: 'Encontros de oração', path: '/cenaculos' },
+  { icon: <PublicOutlined />, title: 'Missões', subtitle: 'Ações missionárias', path: '/cenaculos?tab=missoes' },
 ];
 
 export function DashboardPage() {
@@ -56,7 +58,7 @@ export function DashboardPage() {
           gridTemplateColumns: {
             xs: 'repeat(2, minmax(0, 1fr))',
             sm: 'repeat(3, minmax(0, 1fr))',
-            lg: 'repeat(5, minmax(0, 1fr))',
+            lg: 'repeat(6, minmax(0, 1fr))',
           },
           gap: { xs: 1.5, md: 2 },
           mb: 4,

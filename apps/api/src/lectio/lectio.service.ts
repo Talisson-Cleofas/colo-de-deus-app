@@ -19,6 +19,8 @@ const LECTIO_SETTING_KEYS = {
   retentionDays: 'LECTIO_RETENTION_DAYS',
   deleteOldRecords: 'LECTIO_DELETE_OLD_RECORDS',
 } as const;
+const LECTIO_PROVIDER_ORDER_VERSION_KEY = 'LECTIO_PROVIDER_ORDER_VERSION';
+const LECTIO_PROVIDER_ORDER_VERSION = 'CANCAO_NOVA_PRIMARY_V1';
 @Injectable()
 export class LectioService {
   private demoEntriesStore: LectioEntry[] = [this.makeDemoEntry()];
@@ -80,8 +82,8 @@ export class LectioService {
   }
   private defaultSettings(): LectioSettings {
     return {
-      primarySource: this.source(this.config.get<string>('LECTIO_PRIMARY_SOURCE'), 'CNBB'),
-      fallbackSource: this.source(this.config.get<string>('LECTIO_FALLBACK_SOURCE'), 'CANCAO_NOVA'),
+      primarySource: this.source(this.config.get<string>('LECTIO_PRIMARY_SOURCE'), 'CANCAO_NOVA'),
+      fallbackSource: this.source(this.config.get<string>('LECTIO_FALLBACK_SOURCE'), 'CNBB'),
       cnbbEnabled: this.parseBool(this.config.get<string>('LECTIO_CNBB_ENABLED'), true),
       cancaoNovaEnabled: this.parseBool(this.config.get<string>('LECTIO_CANCAO_NOVA_ENABLED'), true),
       retentionDays: Math.min(30, Math.max(1, Number(this.config.get<string>('LECTIO_RETENTION_DAYS', '7')) || 7)),
@@ -334,6 +336,22 @@ export class LectioService {
     const defaults = this.defaultSettings();
     const rows = await this.integrations.list('Lectio');
     const map = new Map(rows.map((row) => [row.key, row.value]));
+    // Migração única da ordem antiga (CNBB -> Canção Nova). Depois de marcada,
+    // alterações feitas pelo desenvolvedor no painel continuam sendo respeitadas.
+    if (map.get(LECTIO_PROVIDER_ORDER_VERSION_KEY) !== LECTIO_PROVIDER_ORDER_VERSION) {
+      await this.integrations.upsert('Lectio', LECTIO_SETTING_KEYS.primarySource, 'CANCAO_NOVA', {
+        type: 'STRING', description: 'Fonte principal da Lectio', active: true,
+      });
+      await this.integrations.upsert('Lectio', LECTIO_SETTING_KEYS.fallbackSource, 'CNBB', {
+        type: 'STRING', description: 'Fonte alternativa da Lectio', active: true,
+      });
+      await this.integrations.upsert('Lectio', LECTIO_PROVIDER_ORDER_VERSION_KEY, LECTIO_PROVIDER_ORDER_VERSION, {
+        type: 'STRING', description: 'Versão da ordem de provedores da Lectio', active: true,
+      });
+      map.set(LECTIO_SETTING_KEYS.primarySource, 'CANCAO_NOVA');
+      map.set(LECTIO_SETTING_KEYS.fallbackSource, 'CNBB');
+      map.set(LECTIO_PROVIDER_ORDER_VERSION_KEY, LECTIO_PROVIDER_ORDER_VERSION);
+    }
     return {
       primarySource: this.source(map.get(LECTIO_SETTING_KEYS.primarySource), defaults.primarySource),
       fallbackSource: this.source(map.get(LECTIO_SETTING_KEYS.fallbackSource), defaults.fallbackSource),
@@ -358,6 +376,9 @@ export class LectioService {
           active: true,
         });
       }
+      await this.integrations.upsert('Lectio', LECTIO_PROVIDER_ORDER_VERSION_KEY, LECTIO_PROVIDER_ORDER_VERSION, {
+        type: 'STRING', description: 'Versão da ordem de provedores da Lectio', active: true,
+      });
     }
     await this.applyRetention('ALTERACAO_CONFIGURACAO');
     return settings;

@@ -100,14 +100,8 @@ const items: MenuItem[] = [
     permission: Permission.CELLS_READ,
   },
   {
-    icon: <AccountTreeOutlined />,
-    label: 'Missões',
-    path: '/missoes',
-    permission: Permission.MINISTRIES_READ,
-  },
-  {
     icon: <GroupsOutlined />,
-    label: 'Cenáculos',
+    label: 'Missões e Cenáculos',
     path: '/cenaculos',
     permission: Permission.CENACLES_READ,
   },

@@ -54,9 +54,6 @@ const MembersPage = lazy(() =>
 const MinistriesPage = lazy(() =>
   import('./pages/MinistriesPage').then((m) => ({ default: m.MinistriesPage })),
 );
-const MissionsPage = lazy(() =>
-  import('./pages/MissionsPage').then((m) => ({ default: m.MissionsPage })),
-);
 const NotificationsPage = lazy(() =>
   import('./pages/NotificationsPage').then((m) => ({ default: m.NotificationsPage })),
 );
@@ -156,7 +153,10 @@ function AuthenticatedRoutes() {
             />
             <Route
               path="/missoes"
-              element={protect(<MissionsPage />, Permission.MINISTRIES_READ)}
+              element={protect(
+                <Navigate to="/cenaculos?tab=missoes" replace />,
+                Permission.CENACLES_READ,
+              )}
             />
             <Route
               path="/ministerios"

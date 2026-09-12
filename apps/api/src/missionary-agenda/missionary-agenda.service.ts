@@ -134,6 +134,24 @@ export class MissionaryAgendaService {
       .replace(/[\u0300-\u036f]/g, '')
       .toLocaleLowerCase('pt-BR');
   }
+  private agendaMinistryLeader(
+    user: AuthenticatedUser,
+    ctx: Awaited<ReturnType<MissionaryAgendaService['context']>>,
+  ) {
+    if (user.profile !== 'MINISTRY_LEADER') return false;
+    const uid = this.userId(user);
+    return ctx.ministries.some((item) => {
+      const identity = this.normalize(
+        [item.codigo, item.code, item.tipo, item.nome].filter(Boolean).join(' '),
+      );
+      return (
+        this.repository.parseActive(item.ativo || '', true) &&
+        identity.includes('agenda') &&
+        identity.includes('mission') &&
+        (item.lider_id === uid || this.normalize(user.ministry) === this.normalize(item.nome || ''))
+      );
+    });
+  }
   private intercessionMinistry(ctx: Awaited<ReturnType<MissionaryAgendaService['context']>>) {
     return ctx.ministries.find(
       (item) =>
@@ -253,6 +271,10 @@ export class MissionaryAgendaService {
         !intercessionSelectionCompleted,
       canManageCompanions:
         (agendaLeader || central) && !['CONCLUIDA', 'CANCELADA'].includes(status),
+      canDelete:
+        user.profile === 'DEVELOPER' ||
+        user.profile === 'MISSION_LEADER' ||
+        this.agendaMinistryLeader(user, ctx),
       active: this.repository.parseActive(row.ativo || '', true),
       createdBy: row.criado_por || '',
       createdAt: row.criado_em || '',
@@ -267,6 +289,7 @@ export class MissionaryAgendaService {
   ) {
     if (
       this.central(user) ||
+      this.agendaMinistryLeader(user, ctx) ||
       item.createdBy === this.userId(user) ||
       item.responsibleId === this.userId(user)
     )
@@ -769,6 +792,49 @@ export class MissionaryAgendaService {
       user,
     );
     return updated;
+  }
+
+  async remove(id: string, user: AuthenticatedUser) {
+    const existing = await this.findOne(id, user);
+    if (!existing.canDelete)
+      throw new ForbiddenException(
+        'Somente líderes de missão, o líder do Ministério de Agenda Missionária ou o desenvolvedor podem excluir agendas.',
+      );
+
+    const ctx = await this.context();
+    const row = ctx.rows.find((item) => item.id === id);
+    if (!row || !this.repository.parseActive(row.ativo || '', true))
+      throw new NotFoundException('Agenda missionária não encontrada.');
+
+    const now = new Date().toISOString();
+    await this.repository.updateRecord('AgendaMissionaria', 'id', id, {
+      ...row,
+      ativo: 'FALSE',
+      atualizado_por: this.userId(user),
+      atualizado_em: now,
+    });
+    for (const participant of ctx.participants.filter(
+      (item) =>
+        item.agenda_id === id && this.repository.parseActive(item.ativo || '', true),
+    ))
+      await this.repository.updateRecord(
+        'AgendaMissionariaParticipantes',
+        'id',
+        participant.id,
+        {
+          ...participant,
+          ativo: 'FALSE',
+          atualizado_em: now,
+        },
+      );
+    await this.log(
+      existing,
+      existing.status,
+      'EXCLUIDA',
+      'Agenda missionária excluída e removida das listagens.',
+      user,
+    );
+    return { success: true, message: 'Agenda missionária excluída com sucesso.' };
   }
   async submit(id: string, user: AuthenticatedUser) {
     const item = await this.findOne(id, user);

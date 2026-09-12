@@ -2,6 +2,7 @@ import {
   AddOutlined,
   ApprovalOutlined,
   CalendarMonthOutlined,
+  DeleteOutline,
   EditOutlined,
   ForwardToInboxOutlined,
   LocationOnOutlined,
@@ -110,6 +111,7 @@ export function AgendaMissionariaPage() {
     [authorizeRequestedMissionary, setAuthorizeRequestedMissionary] = useState(false);
   const [companionsAgenda, setCompanionsAgenda] = useState<MissionaryAgenda | null>(null),
     [companionIds, setCompanionIds] = useState<string[]>([]);
+  const [deleting, setDeleting] = useState<MissionaryAgenda | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -174,6 +176,20 @@ export function AgendaMissionariaPage() {
       });
       setCompanionsAgenda(null);
       setCompanionIds([]);
+      await load();
+    } catch (cause) {
+      setError(apiErrorMessage(cause));
+    } finally {
+      setSaving(false);
+    }
+  };
+  const removeAgenda = async () => {
+    if (!deleting) return;
+    setSaving(true);
+    setError('');
+    try {
+      await api.delete(`/missionary-agenda/${deleting.id}`);
+      setDeleting(null);
       await load();
     } catch (cause) {
       setError(apiErrorMessage(cause));
@@ -446,6 +462,16 @@ export function AgendaMissionariaPage() {
                     Definir acompanhantes
                   </Button>
                 )}
+                {item.canDelete && (
+                  <Button
+                    color="error"
+                    startIcon={<DeleteOutline />}
+                    disabled={saving}
+                    onClick={() => setDeleting(item)}
+                  >
+                    Excluir
+                  </Button>
+                )}
                 {item.canReview && (
                   <>
                     <Button
@@ -560,6 +586,21 @@ export function AgendaMissionariaPage() {
           <Button onClick={() => setCompanionsAgenda(null)} disabled={saving}>Cancelar</Button>
           <Button variant="contained" onClick={() => void saveCompanions()} disabled={saving}>
             {saving ? 'Salvando...' : 'Salvar acompanhantes'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+      <Dialog open={Boolean(deleting)} onClose={() => !saving && setDeleting(null)} fullWidth maxWidth="sm">
+        <DialogTitle>Excluir agenda missionária</DialogTitle>
+        <DialogContent>
+          <Alert severity="warning">
+            Deseja excluir a agenda <strong>{deleting?.title}</strong>? Ela será removida das
+            listagens junto com as participações vinculadas.
+          </Alert>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleting(null)} disabled={saving}>Cancelar</Button>
+          <Button color="error" variant="contained" onClick={() => void removeAgenda()} disabled={saving}>
+            {saving ? 'Excluindo...' : 'Confirmar exclusão'}
           </Button>
         </DialogActions>
       </Dialog>

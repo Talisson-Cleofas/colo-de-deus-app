@@ -21,6 +21,24 @@ const users = {
     profile: 'MISSION_LEADER',
     ministry: '',
   },
+  developer: {
+    id: 'developer',
+    memberId: 'developer',
+    uid: 'developer',
+    name: 'Desenvolvedor',
+    email: 'developer@test.dev',
+    profile: 'DEVELOPER',
+    ministry: '',
+  },
+  agendaMinistry: {
+    id: 'agenda-ministry-leader',
+    memberId: 'agenda-ministry-leader',
+    uid: 'agenda-ministry-leader',
+    name: 'Líder da Agenda Missionária',
+    email: 'agenda.ministry@test.dev',
+    profile: 'MINISTRY_LEADER',
+    ministry: 'Agenda Missionária',
+  },
   ministry: {
     id: 'ministry-leader',
     memberId: 'ministry-leader',
@@ -109,6 +127,14 @@ function fixture() {
       vice_lider_id: '',
       ativo: 'TRUE',
     },
+    {
+      id: 'ministry-agenda',
+      nome: 'Agenda Missionária',
+      codigo: 'AGENDA_MISSIONARIA',
+      lider_id: users.agendaMinistry.id,
+      vice_lider_id: '',
+      ativo: 'TRUE',
+    },
   ];
   const notifications = [];
   const repository = {
@@ -179,6 +205,44 @@ test('permite várias missões na mesma data quando não há evento', async () =
   assert.notEqual(first.id, second.id);
   assert.equal(first.startDate, second.startDate);
   assert.equal(tabs.AgendaMissionaria.length, 2);
+});
+
+test('restringe exclusão às lideranças autorizadas e desativa agenda e participantes', async () => {
+  const unauthorized = fixture();
+  const protectedAgenda = await unauthorized.service.create(input('Agenda protegida'), users.agenda);
+  await assert.rejects(
+    () => unauthorized.service.remove(protectedAgenda.id, users.agenda),
+    /Somente líderes de missão/i,
+  );
+  assert.equal(
+    (await unauthorized.service.findOne(protectedAgenda.id, users.agenda)).canDelete,
+    false,
+  );
+
+  for (const allowedUser of [users.mission, users.agendaMinistry, users.developer]) {
+    const { service, tabs } = fixture();
+    const created = await service.create(
+      { ...input(`Agenda excluída por ${allowedUser.profile}`), accompanyingIds: [users.yearOne.id] },
+      users.agenda,
+    );
+    assert.equal((await service.findOne(created.id, allowedUser)).canDelete, true);
+    const result = await service.remove(created.id, allowedUser);
+    assert.equal(result.success, true);
+    assert.equal(tabs.AgendaMissionaria.find((row) => row.id === created.id).ativo, 'FALSE');
+    assert.equal(
+      tabs.AgendaMissionariaParticipantes
+        .filter((row) => row.agenda_id === created.id)
+        .every((row) => row.ativo === 'FALSE'),
+      true,
+    );
+    assert.equal(
+      tabs.AgendaMissionariaHistorico.some(
+        (row) => row.agenda_id === created.id && row.acao === 'EXCLUIDA',
+      ),
+      true,
+    );
+    await assert.rejects(() => service.findOne(created.id, allowedUser), /não encontrada/i);
+  }
 });
 
 test('bloqueia cadastro na data de um evento, informa o título e não grava nem notifica', async () => {

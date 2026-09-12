@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { AuthenticatedUser } from '../auth/types/auth-user.type';
@@ -68,6 +68,12 @@ export class MissionaryAgendaController {
     @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.service.updateCompanions(id, dto, user);
+  }
+
+  @Delete(':id')
+  @RequirePermissions(Permission.MISSIONARY_AGENDA_UPDATE)
+  remove(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
+    return this.service.remove(id, user);
   }
 
   @Post(':id/submit')

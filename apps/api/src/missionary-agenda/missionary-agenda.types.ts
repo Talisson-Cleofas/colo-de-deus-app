@@ -79,6 +79,7 @@ export type MissionaryAgenda = {
   canSelectMembers: boolean;
   canSelectIntercessors: boolean;
   canManageCompanions: boolean;
+  canDelete: boolean;
   active: boolean;
   createdBy: string;
   createdAt: string;

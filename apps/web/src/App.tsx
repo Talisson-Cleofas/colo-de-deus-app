@@ -156,11 +156,7 @@ function AuthenticatedRoutes() {
             />
             <Route
               path="/missoes"
-              element={protect(<MissionsPage />, Permission.MINISTRIES_READ, [
-                'MINISTRY_LEADER',
-                'CELL_LEADER',
-                'MEMBER',
-              ])}
+              element={protect(<MissionsPage />, Permission.MINISTRIES_READ)}
             />
             <Route
               path="/ministerios"

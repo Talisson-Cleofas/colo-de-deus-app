@@ -100,8 +100,14 @@ const items: MenuItem[] = [
     permission: Permission.CELLS_READ,
   },
   {
+    icon: <AccountTreeOutlined />,
+    label: 'Missões',
+    path: '/missoes',
+    permission: Permission.MINISTRIES_READ,
+  },
+  {
     icon: <GroupsOutlined />,
-    label: 'Missões e Cenáculos',
+    label: 'Cenáculos',
     path: '/cenaculos',
     permission: Permission.CENACLES_READ,
   },
@@ -156,13 +162,6 @@ const organizationItems: MenuItem[] = [
     label: 'Dashboard',
     path: '/organizacao',
     permission: Permission.SETTINGS_READ,
-    hiddenFor: ['MINISTRY_LEADER', 'CELL_LEADER', 'MEMBER'],
-  },
-  {
-    icon: <AccountTreeOutlined />,
-    label: 'Missões',
-    path: '/missoes',
-    permission: Permission.MINISTRIES_READ,
     hiddenFor: ['MINISTRY_LEADER', 'CELL_LEADER', 'MEMBER'],
   },
   {

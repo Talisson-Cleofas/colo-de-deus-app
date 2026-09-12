@@ -159,13 +159,6 @@ const organizationItems: MenuItem[] = [
     hiddenFor: ['MINISTRY_LEADER', 'CELL_LEADER', 'MEMBER'],
   },
   {
-    icon: <AccountTreeOutlined />,
-    label: 'Missões',
-    path: '/missoes',
-    permission: Permission.MINISTRIES_READ,
-    hiddenFor: ['MINISTRY_LEADER', 'CELL_LEADER', 'MEMBER'],
-  },
-  {
     icon: <VolunteerActivismOutlined />,
     label: 'Ministérios',
     path: '/ministerios',

@@ -131,6 +131,10 @@ export class SendMissionaryAgendaIntercessorsDto {
   @IsArray() @IsString({ each: true }) memberIds!: string[];
 }
 
+export class UpdateMissionaryAgendaCompanionsDto {
+  @IsArray() @IsString({ each: true }) accompanyingIds!: string[];
+}
+
 export class AuthorizeMissionaryAgendaYearTwoDto {
   @IsString() @MinLength(1) memberId!: string;
 }

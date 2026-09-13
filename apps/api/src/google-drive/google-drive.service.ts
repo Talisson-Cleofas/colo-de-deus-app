@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createHash, randomUUID } from 'node:crypto';
 import { google } from 'googleapis';
@@ -8,6 +8,7 @@ import type { FileCategory, FileMetadataDto } from '../files/files.types';
 import { UploadDriveFileDto } from './dto/upload-drive-file.dto';
 import { DriveUploadService } from './drive-upload.service';
 import { DriveFolderService } from './drive-folder.service';
+import type { AuthenticatedUser } from '../auth/types/auth-user.type';
 
 @Injectable()
 export class GoogleDriveService {
@@ -47,4 +48,50 @@ export class GoogleDriveService {
    return saved;
  }
  async delete(id:string){const item=await this.files.softDelete(id);if(!item)throw new NotFoundException('Arquivo não encontrado.');return item;}
+
+ private normalize(value:string){
+  return String(value||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase();
+ }
+ private async ensureFinancialReportsAccess(user:AuthenticatedUser){
+  if(['DEVELOPER','MISSION_LEADER'].includes(user.profile))return;
+  if(user.profile!=='MINISTRY_LEADER')throw new ForbiddenException('Acesso restrito aos responsáveis pelos relatórios financeiros.');
+  const uid=user.memberId||user.id||user.uid;
+  const ministries=await this.sheets.read('Ministérios');
+  const allowed=ministries.some(item=>{
+   const identity=this.normalize([item.codigo,item.code,item.tipo,item.nome].filter(Boolean).join(' '));
+   const financial=identity.includes('FINANC')||identity.includes('SOMA');
+   const ownMinistry=this.normalize(user.ministry).split(',').some(value=>value.trim()===this.normalize(item.nome||''));
+   return this.sheets.parseActive(item.ativo||'',true)&&financial&&(item.lider_id===uid||ownMinistry);
+  });
+  if(!allowed)throw new ForbiddenException('Acesso restrito ao líder do Ministério Financeiro.');
+ }
+ async listFinancialReports(user:AuthenticatedUser){
+  await this.ensureFinancialReportsAccess(user);
+  return (await this.files.list('REPORT'))
+   .filter(item=>item.referenceId==='financeiro')
+   .sort((a,b)=>String(b.createdAt).localeCompare(String(a.createdAt)));
+ }
+ async uploadFinancialReport(dto:UploadDriveFileDto,user:AuthenticatedUser){
+  await this.ensureFinancialReportsAccess(user);
+  const allowedExtensions=/\.(xlsx|xls|csv|ods)$/i;
+  const allowedMimeTypes=new Set([
+   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+   'application/vnd.ms-excel',
+   'text/csv',
+   'application/csv',
+   'application/vnd.oasis.opendocument.spreadsheet',
+  ]);
+  if(!allowedExtensions.test(dto.fileName)||!allowedMimeTypes.has(dto.mimeType))
+   throw new BadRequestException('Envie somente planilhas XLSX, XLS, CSV ou ODS.');
+  return this.upload({...dto,category:'REPORT',referenceId:'financeiro'},user.memberId||user.id||user.uid);
+ }
+ async downloadFinancialReport(id:string,user:AuthenticatedUser){
+  await this.ensureFinancialReportsAccess(user);
+  const item=await this.files.find(id);
+  if(!item||item.deleted||item.category!=='REPORT'||item.referenceId!=='financeiro')throw new NotFoundException('Planilha financeira não encontrada.');
+  const {drive}=this.ensure();
+  const response=await drive.files.get({fileId:item.driveFileId,alt:'media'}, {responseType:'stream'});
+  await this.files.log(id,'BAIXAR',user.memberId||user.id||user.uid,{category:'REPORT'});
+  return {item,stream:response.data};
+ }
 }

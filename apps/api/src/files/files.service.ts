@@ -58,9 +58,11 @@ export class FilesService {
     return record;
   }
 
-  async list() {
+  async list(category?: FileMetadataDto['category']) {
     const rows = await this.sheets.read('Arquivos');
-    return rows.map((row) => this.fromRecord(row)).filter((row) => !row.deleted);
+    return rows
+      .map((row) => this.fromRecord(row))
+      .filter((row) => !row.deleted && (!category || row.category === category));
   }
 
   async find(id: string) {

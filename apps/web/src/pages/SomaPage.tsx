@@ -771,7 +771,7 @@ export function SomaPage() {
   const isCommonMember =
     hasRole('MEMBER') &&
     !hasRole('ADMIN', 'DEVELOPER', 'MISSION_LEADER', 'MINISTRY_LEADER', 'CELL_LEADER');
-  const canViewReports = hasRole('ADMIN', 'DEVELOPER', 'MINISTRY_LEADER');
+  const canViewReports = hasRole('ADMIN', 'DEVELOPER', 'MISSION_LEADER', 'MINISTRY_LEADER');
   const canAdmin = hasRole('ADMIN', 'DEVELOPER', 'MISSION_LEADER');
   const [params, setParams] = useSearchParams();
   const values = ['contribuicoes', 'financeiro'];

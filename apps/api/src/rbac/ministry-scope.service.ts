@@ -6,6 +6,13 @@ import { GoogleSheetsService } from '../google/google-sheets.service';
 export class MinistryScopeService {
   constructor(private readonly sheets: GoogleSheetsService) {}
 
+  private normalize(value: string): string {
+    return String(value || '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toUpperCase();
+  }
+
   isRestricted(user?: AuthenticatedUser): boolean {
     return user?.profile === 'MINISTRY_LEADER';
   }
@@ -19,6 +26,26 @@ export class MinistryScopeService {
       .map((row) => row.id)
       .filter(Boolean);
     return new Set(ids);
+  }
+
+  async isMissionaryAgendaMinistryLeader(user: AuthenticatedUser): Promise<boolean> {
+    if (user.profile !== 'MINISTRY_LEADER') return false;
+    const uid = user.memberId || user.id;
+    const ministries = await this.sheets.read('Ministérios');
+    return ministries.some((row) => {
+      const identity = this.normalize(
+        [row.codigo, row.code, row.tipo, row.nome].filter(Boolean).join(' '),
+      );
+      const ownsMinistry =
+        row.lider_id === uid ||
+        (!!user.ministry && this.normalize(row.nome || '') === this.normalize(user.ministry));
+      return (
+        this.sheets.parseActive(row.ativo || '', true) &&
+        ownsMinistry &&
+        identity.includes('AGENDA') &&
+        identity.includes('MISSION')
+      );
+    });
   }
 
   async acceptsMinistry(user: AuthenticatedUser, ministryId?: string): Promise<boolean> {

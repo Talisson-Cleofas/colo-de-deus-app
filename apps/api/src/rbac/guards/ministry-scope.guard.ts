@@ -13,6 +13,11 @@ export class MinistryScopeGuard implements CanActivate {
     if (!user || !this.scope.isRestricted(user)) return true;
     const path = `${req.baseUrl || ''}${req.route?.path || ''}`;
     if (path.includes('/communities') && await this.cells.isCellsMinistryLeader(user)) return true;
+    if (
+      path.includes('/missionary-agenda') &&
+      await this.scope.isMissionaryAgendaMinistryLeader(user)
+    )
+      return true;
     const owned = await this.scope.ministryIds(user);
     (req as any).ministryScopeIds = [...owned];
 

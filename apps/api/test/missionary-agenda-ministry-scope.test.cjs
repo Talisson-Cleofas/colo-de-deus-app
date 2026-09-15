@@ -33,15 +33,16 @@ const sheets = {
     value === '' ? fallback : String(value).toUpperCase() === 'TRUE',
 };
 
-function context(user, ministryId = 'requested-ministry') {
+function context(user, ministryId = 'requested-ministry', options = {}) {
   return {
+    getClass: () => ({ name: options.controller || 'MissionaryAgendaController' }),
     switchToHttp: () => ({
       getRequest: () => ({
         user,
         params: {},
         query: {},
         body: { ministryId },
-        originalUrl: '/api/missionary-agenda',
+        originalUrl: options.originalUrl || '/api/missionary-agenda',
         baseUrl: '',
         route: { path: '/' },
       }),
@@ -49,7 +50,7 @@ function context(user, ministryId = 'requested-ministry') {
   };
 }
 
-test('líder da Agenda Missionária pode solicitar qualquer ministério', async () => {
+test('agenda missionária não trata o ministério solicitado como escopo do criador', async () => {
   const scope = new MinistryScopeService(sheets);
   const guard = new MinistryScopeGuard(scope, { isCellsMinistryLeader: async () => false });
   const agendaLeader = {
@@ -62,7 +63,7 @@ test('líder da Agenda Missionária pode solicitar qualquer ministério', async 
   assert.equal(await guard.canActivate(context(agendaLeader)), true);
 });
 
-test('outros líderes continuam restritos ao próprio ministério', async () => {
+test('outros módulos continuam restritos ao próprio ministério', async () => {
   const scope = new MinistryScopeService(sheets);
   const guard = new MinistryScopeGuard(scope, { isCellsMinistryLeader: async () => false });
   const eventsLeader = {
@@ -73,8 +74,14 @@ test('outros líderes continuam restritos ao próprio ministério', async () => 
   };
 
   await assert.rejects(
-    () => guard.canActivate(context(eventsLeader)),
+    () => guard.canActivate(context(eventsLeader, 'requested-ministry', {
+      controller: 'EventsController',
+      originalUrl: '/api/events',
+    })),
     /Acesso restrito ao seu ministério/i,
   );
-  assert.equal(await guard.canActivate(context(eventsLeader, 'events-ministry')), true);
+  assert.equal(await guard.canActivate(context(eventsLeader, 'events-ministry', {
+    controller: 'EventsController',
+    originalUrl: '/api/events',
+  })), true);
 });

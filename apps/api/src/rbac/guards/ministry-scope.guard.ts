@@ -11,13 +11,18 @@ export class MinistryScopeGuard implements CanActivate {
     const req = context.switchToHttp().getRequest<{ user?:AuthenticatedUser; params?:Record<string,string>; query?:Record<string,string>; body?:Record<string,unknown>; route?:{path?:string}; baseUrl?:string; originalUrl?:string; url?:string }>();
     const user = req.user;
     if (!user || !this.scope.isRestricted(user)) return true;
-    const path = req.originalUrl || req.url || `${req.baseUrl || ''}${req.route?.path || ''}`;
-    if (path.includes('/communities') && await this.cells.isCellsMinistryLeader(user)) return true;
+    const path = [req.originalUrl, req.url, req.baseUrl, req.route?.path]
+      .filter(Boolean)
+      .join(' ');
+    // In the missionary agenda, ministryId is the requested ministry, not the
+    // ministry owned by the agenda creator. PermissionsGuard and the workflow
+    // service enforce the route-specific authorization and state transitions.
     if (
-      path.includes('/missionary-agenda') &&
-      await this.scope.isMissionaryAgendaMinistryLeader(user)
+      context.getClass?.()?.name === 'MissionaryAgendaController' ||
+      path.includes('/missionary-agenda')
     )
       return true;
+    if (path.includes('/communities') && await this.cells.isCellsMinistryLeader(user)) return true;
     const owned = await this.scope.ministryIds(user);
     (req as any).ministryScopeIds = [...owned];
 

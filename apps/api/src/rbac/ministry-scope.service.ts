@@ -8,6 +8,7 @@ export class MinistryScopeService {
 
   private normalize(value: string): string {
     return String(value || '')
+      .trim()
       .normalize('NFD')
       .replace(/[\u0300-\u036f]/g, '')
       .toUpperCase();
@@ -38,6 +39,7 @@ export class MinistryScopeService {
       );
       const ownsMinistry =
         row.lider_id === uid ||
+        row.vice_lider_id === uid ||
         (!!user.ministry && this.normalize(row.nome || '') === this.normalize(user.ministry));
       return (
         this.sheets.parseActive(row.ativo || '', true) &&

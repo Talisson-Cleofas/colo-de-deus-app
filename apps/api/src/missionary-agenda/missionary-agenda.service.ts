@@ -130,6 +130,7 @@ export class MissionaryAgendaService {
   }
   private normalize(value: string) {
     return String(value || '')
+      .trim()
       .normalize('NFD')
       .replace(/[\u0300-\u036f]/g, '')
       .toLocaleLowerCase('pt-BR');
@@ -148,7 +149,9 @@ export class MissionaryAgendaService {
         this.repository.parseActive(item.ativo || '', true) &&
         identity.includes('agenda') &&
         identity.includes('mission') &&
-        (item.lider_id === uid || this.normalize(user.ministry) === this.normalize(item.nome || ''))
+        (item.lider_id === uid ||
+          item.vice_lider_id === uid ||
+          this.normalize(user.ministry) === this.normalize(item.nome || ''))
       );
     });
   }

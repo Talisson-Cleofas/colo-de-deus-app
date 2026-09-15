@@ -8,10 +8,10 @@ export class MinistryScopeGuard implements CanActivate {
   constructor(private readonly scope: MinistryScopeService, private readonly cells: CellScopeService) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    const req = context.switchToHttp().getRequest<{ user?:AuthenticatedUser; params?:Record<string,string>; query?:Record<string,string>; body?:Record<string,unknown>; route?:{path?:string}; baseUrl?:string }>();
+    const req = context.switchToHttp().getRequest<{ user?:AuthenticatedUser; params?:Record<string,string>; query?:Record<string,string>; body?:Record<string,unknown>; route?:{path?:string}; baseUrl?:string; originalUrl?:string; url?:string }>();
     const user = req.user;
     if (!user || !this.scope.isRestricted(user)) return true;
-    const path = `${req.baseUrl || ''}${req.route?.path || ''}`;
+    const path = req.originalUrl || req.url || `${req.baseUrl || ''}${req.route?.path || ''}`;
     if (path.includes('/communities') && await this.cells.isCellsMinistryLeader(user)) return true;
     if (
       path.includes('/missionary-agenda') &&
